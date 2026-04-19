@@ -176,7 +176,24 @@ export default class AppStore {
         if (!this.dbot_store) return;
 
         blockly_store.setLoading(true);
-        await DBot.initWorkspace('/', this.dbot_store, this.api_helpers_store, ui.is_mobile, false);
+
+        // Add a timeout so the loading overlay doesn't hang indefinitely
+        const initWithTimeout = new Promise<void>(resolve => {
+            const timer = setTimeout(() => {
+                blockly_store.setLoading(false);
+                resolve();
+            }, 6000);
+
+            DBot.initWorkspace('/', this.dbot_store, this.api_helpers_store, ui.is_mobile, false).then(() => {
+                clearTimeout(timer);
+                resolve();
+            }).catch(() => {
+                clearTimeout(timer);
+                resolve();
+            });
+        });
+
+        await initWithTimeout;
 
         blockly_store.setContainerSize();
         blockly_store.setLoading(false);

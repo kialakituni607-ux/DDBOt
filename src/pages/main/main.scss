@@ -66,54 +66,8 @@
 
         .dc-tabs {
             &__active-line {
-                background-color: #ffffff;
+                background-color: #ff9800;
                 transition: none;
-            }
-
-            &__active {
-                background: rgba(255, 255, 255, 0.18);
-
-                span,
-                p,
-                .dc-text {
-                    color: #ffffff !important;
-                    font-weight: bold !important;
-                }
-
-                svg path,
-                svg g path {
-                    fill: #ff9800 !important;
-                }
-            }
-
-            &__item {
-                span,
-                p,
-                .dc-text {
-                    color: #ffffff !important;
-                    font-weight: bold !important;
-                }
-
-                svg path,
-                svg g path {
-                    fill: #ff9800 !important;
-                }
-
-                &:hover {
-                    background: rgba(255, 255, 255, 0.12);
-
-                    span,
-                    p,
-                    .dc-text {
-                        color: #ffffff !important;
-                        font-weight: bold !important;
-                    }
-
-                    svg path,
-                    svg g path {
-                        fill: #ff9800 !important;
-                    }
-                }
             }
 
             &__list {
@@ -807,4 +761,34 @@
 
 .main .dc-tabs__list {
     justify-content: flex-start !important;
+}
+
+/* Main tab bar styling: bright indigo background, bold white text, orange icons */
+.dc-tabs__item--main__tabs {
+    color: #ffffff !important;
+    font-weight: bold !important;
+
+    svg,
+    svg path,
+    svg g path {
+        fill: #ff9800 !important;
+    }
+
+    &:hover {
+        background: rgba(255, 255, 255, 0.12);
+    }
+}
+
+.dc-tabs__active--main__tabs {
+    background: rgba(255, 255, 255, 0.18);
+}
+
+.dc-tabs__list--main__tabs {
+    background: #5c6bc0 !important;
+}
+
+.dc-tabs__active-line--top {
+    .dc-tabs--main__tabs & {
+        background-color: #ff9800 !important;
+    }
 }

@@ -254,6 +254,17 @@ const AppContent = observer(() => {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [is_api_initialized]);
 
+    // Global fallback: if API never connects within 8 seconds, show the dashboard anyway
+    React.useEffect(() => {
+        const fallback = setTimeout(() => {
+            if (is_loading) {
+                setIsLoading(false);
+            }
+        }, 8000);
+        return () => clearTimeout(fallback);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
     // use is_landing_company_loaded to know got details of accounts to identify should show an error or not
     React.useEffect(() => {
         if (client.is_logged_in && client.is_landing_company_loaded && is_api_initialized) {
