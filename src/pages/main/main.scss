@@ -66,16 +66,55 @@
 
         .dc-tabs {
             &__active-line {
-                background-color: var(--general-main-1);
+                background-color: #ffffff;
                 transition: none;
             }
 
             &__active {
-                background: var(--general-main-1);
+                background: rgba(255, 255, 255, 0.18);
+
+                span,
+                p,
+                .dc-text {
+                    color: #ffffff !important;
+                }
+
+                svg path,
+                svg g path {
+                    fill: #ffffff !important;
+                }
+            }
+
+            &__item {
+                span,
+                p,
+                .dc-text {
+                    color: rgba(255, 255, 255, 0.8) !important;
+                }
+
+                svg path,
+                svg g path {
+                    fill: rgba(255, 255, 255, 0.8) !important;
+                }
+
+                &:hover {
+                    background: rgba(255, 255, 255, 0.12);
+
+                    span,
+                    p,
+                    .dc-text {
+                        color: #ffffff !important;
+                    }
+
+                    svg path,
+                    svg g path {
+                        fill: #ffffff !important;
+                    }
+                }
             }
 
             &__list {
-                background: var(--general-section-1);
+                background: #3f51b5;
                 justify-content: start;
 
                 @include mobile-or-tablet-screen {
