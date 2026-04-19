@@ -14,7 +14,7 @@ import { clearAuthData, handleOidcAuthFailure } from '@/utils/auth-utils';
 import { StandaloneCircleUserRegularIcon } from '@deriv/quill-icons/Standalone';
 import { requestOidcAuthentication } from '@deriv-com/auth-client';
 import { Localize, useTranslations } from '@deriv-com/translations';
-import { Header, useDevice, Wrapper } from '@deriv-com/ui';
+import { Header, useDevice } from '@deriv-com/ui';
 import { Tooltip } from '@deriv-com/ui';
 import { AppLogo } from '../app-logo';
 import AccountsInfoLoader from './account-info-loader';
@@ -45,17 +45,13 @@ const AppHeader = observer(({ isAuthenticating }: TAppHeaderProps) => {
     const { hubEnabledCountryList } = useFirebaseCountriesConfig();
     const { onRenderTMBCheck, isTmbEnabled } = useTMB();
     const is_tmb_enabled = isTmbEnabled() || window.is_tmb_enabled === true;
-    // No need for additional state management here since we're handling it in the layout component
 
     const renderAccountSection = useCallback(() => {
-        // Show loader during authentication processes
         if (isAuthenticating || isAuthorizing || (isSingleLoggingIn && !is_tmb_enabled)) {
             return <AccountsInfoLoader isLoggedIn isMobile={!isDesktop} speed={3} />;
         } else if (activeLoginid) {
             return (
                 <>
-                    {/* <CustomNotifications /> */}
-
                     {isDesktop &&
                         (has_wallet ? (
                             <Button
@@ -105,17 +101,13 @@ const AppHeader = observer(({ isAuthenticating }: TAppHeaderProps) => {
                             if (has_wallet && is_hub_enabled_country) {
                                 redirect_url = new URL(standalone_routes.account_settings);
                             }
-                            // Check if the account is a demo account
-                            // Use the URL parameter to determine if it's a demo account, as this will update when the account changes
                             const urlParams = new URLSearchParams(window.location.search);
                             const account_param = urlParams.get('account');
                             const is_virtual = client?.is_virtual || account_param === 'demo';
 
                             if (is_virtual) {
-                                // For demo accounts, set the account parameter to 'demo'
                                 redirect_url.searchParams.set('account', 'demo');
                             } else if (currency) {
-                                // For real accounts, set the account parameter to the currency
                                 redirect_url.searchParams.set('account', currency);
                             }
                             return (
@@ -136,7 +128,7 @@ const AppHeader = observer(({ isAuthenticating }: TAppHeaderProps) => {
             return (
                 <div className='auth-actions'>
                     <Button
-                        tertiary
+                        className='auth-actions__login'
                         onClick={async () => {
                             clearAuthData(false);
                             const getQueryParams = new URLSearchParams(window.location.search);
@@ -145,13 +137,10 @@ const AppHeader = observer(({ isAuthenticating }: TAppHeaderProps) => {
                                 currency || sessionStorage.getItem('query_param_currency') || 'USD';
 
                             try {
-                                // First, explicitly wait for TMB status to be determined
                                 const tmbEnabled = await isTmbEnabled();
-                                // Now use the result of the explicit check
                                 if (tmbEnabled) {
-                                    await onRenderTMBCheck(true); // Pass true to indicate it's from login button
+                                    await onRenderTMBCheck(true);
                                 } else {
-                                    // Always use OIDC if TMB is not enabled
                                     try {
                                         await requestOidcAuthentication({
                                             redirectCallbackUri: `${window.location.origin}/callback`,
@@ -169,7 +158,6 @@ const AppHeader = observer(({ isAuthenticating }: TAppHeaderProps) => {
                                     }
                                 }
                             } catch (error) {
-                                // eslint-disable-next-line no-console
                                 console.error(error);
                             }
                         }}
@@ -177,7 +165,15 @@ const AppHeader = observer(({ isAuthenticating }: TAppHeaderProps) => {
                         <Localize i18n_default_text='Log in' />
                     </Button>
                     <Button
-                        primary
+                        className='auth-actions__api-token'
+                        onClick={() => {
+                            window.open(`${standalone_routes.deriv_app}/account/api-token`, '_blank');
+                        }}
+                    >
+                        <Localize i18n_default_text='API Token' />
+                    </Button>
+                    <Button
+                        className='auth-actions__signup'
                         onClick={() => {
                             window.open(standalone_routes.signup);
                         }}
@@ -205,6 +201,7 @@ const AppHeader = observer(({ isAuthenticating }: TAppHeaderProps) => {
     ]);
 
     if (client?.should_hide_header) return null;
+
     return (
         <Header
             className={clsx('app-header', {
@@ -212,18 +209,26 @@ const AppHeader = observer(({ isAuthenticating }: TAppHeaderProps) => {
                 'app-header--mobile': !isDesktop,
             })}
         >
-            <Wrapper variant='left'>
-                <AppLogo />
-                <MobileMenu />
-                {isDesktop && <MenuItems.TradershubLink />}
-                {isDesktop && <MenuItems />}
-                {isDesktop && <PlatformSwitcher />}
-            </Wrapper>
-            <Wrapper variant='right'>
-                {!isDesktop && <PWAInstallButton variant='primary' size='medium' />}
-                {renderAccountSection()}
-            </Wrapper>
-            {/* <PWAInstallModalTest /> */}
+            {/* Top row: Logo + Auth buttons */}
+            <div className='app-header__top-row'>
+                <div className='app-header__top-left'>
+                    <AppLogo />
+                    <MobileMenu />
+                </div>
+                <div className='app-header__top-right'>
+                    {!isDesktop && <PWAInstallButton variant='primary' size='medium' />}
+                    {renderAccountSection()}
+                </div>
+            </div>
+
+            {/* Bottom nav row */}
+            {isDesktop && (
+                <div className='app-header__nav-row'>
+                    <MenuItems.TradershubLink />
+                    <MenuItems />
+                    <PlatformSwitcher />
+                </div>
+            )}
         </Header>
     );
 });
