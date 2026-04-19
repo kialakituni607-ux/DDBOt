@@ -77,11 +77,12 @@
                 p,
                 .dc-text {
                     color: #ffffff !important;
+                    font-weight: bold !important;
                 }
 
                 svg path,
                 svg g path {
-                    fill: #ffffff !important;
+                    fill: #ff9800 !important;
                 }
             }
 
@@ -89,12 +90,13 @@
                 span,
                 p,
                 .dc-text {
-                    color: rgba(255, 255, 255, 0.8) !important;
+                    color: #ffffff !important;
+                    font-weight: bold !important;
                 }
 
                 svg path,
                 svg g path {
-                    fill: rgba(255, 255, 255, 0.8) !important;
+                    fill: #ff9800 !important;
                 }
 
                 &:hover {
@@ -104,17 +106,18 @@
                     p,
                     .dc-text {
                         color: #ffffff !important;
+                        font-weight: bold !important;
                     }
 
                     svg path,
                     svg g path {
-                        fill: #ffffff !important;
+                        fill: #ff9800 !important;
                     }
                 }
             }
 
             &__list {
-                background: #3f51b5;
+                background: #5c6bc0;
                 justify-content: start;
 
                 @include mobile-or-tablet-screen {
