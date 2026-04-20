@@ -212,7 +212,14 @@ const AppHeader = observer(({ isAuthenticating }: TAppHeaderProps) => {
             {/* Top row: Logo + Auth buttons */}
             <div className='app-header__top-row'>
                 <div className='app-header__top-left'>
-                    <AppLogo />
+                    <div className='app-header__brand'>
+                        <img
+                            src='/trademasters-logo.png'
+                            alt='TradeMasters'
+                            className='app-header__brand-logo'
+                        />
+                        <span className='app-header__brand-name'>TRADEMASTERS</span>
+                    </div>
                 </div>
                 <div className='app-header__top-right'>
                     {!isDesktop && <PWAInstallButton variant='primary' size='medium' />}

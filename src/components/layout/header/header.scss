@@ -23,6 +23,27 @@
         gap: 0.8rem;
     }
 
+    &__brand {
+        display: flex;
+        align-items: center;
+        gap: 0.8rem;
+        text-decoration: none;
+    }
+
+    &__brand-logo {
+        height: 4rem;
+        width: 4rem;
+        object-fit: contain;
+    }
+
+    &__brand-name {
+        font-size: 1.8rem;
+        font-weight: 800;
+        letter-spacing: 0.06em;
+        color: #2A2E9B;
+        font-style: italic;
+    }
+
     &__top-right {
         display: flex;
         align-items: center;
