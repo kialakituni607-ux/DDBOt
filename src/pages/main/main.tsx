@@ -428,7 +428,7 @@ const AppWrapper = observer(() => {
             </div>
             <div
                 className='main__run-strategy-float'
-                style={{ position: 'fixed', top: '10.4rem', right: '16px', zIndex: 9999 }}
+                style={{ position: 'fixed', top: '9rem', right: '0', zIndex: 9999 }}
             >
                 <RunStrategy />
             </div>
