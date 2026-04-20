@@ -2,7 +2,7 @@ import { useCallback } from 'react';
 import clsx from 'clsx';
 import { observer } from 'mobx-react-lite';
 import PWAInstallButton from '@/components/pwa-install-button';
-import { generateOAuthURL, standalone_routes } from '@/components/shared';
+import { standalone_routes } from '@/components/shared';
 import Button from '@/components/shared_ui/button';
 import useActiveAccount from '@/hooks/api/account/useActiveAccount';
 import { useOauth2 } from '@/hooks/auth/useOauth2';
@@ -10,9 +10,7 @@ import { useFirebaseCountriesConfig } from '@/hooks/firebase/useFirebaseCountrie
 import { useApiBase } from '@/hooks/useApiBase';
 import { useStore } from '@/hooks/useStore';
 import useTMB from '@/hooks/useTMB';
-import { clearAuthData, handleOidcAuthFailure } from '@/utils/auth-utils';
 import { StandaloneCircleUserRegularIcon } from '@deriv/quill-icons/Standalone';
-import { requestOidcAuthentication } from '@deriv-com/auth-client';
 import { Localize, useTranslations } from '@deriv-com/translations';
 import { Header, useDevice } from '@deriv-com/ui';
 import { Tooltip } from '@deriv-com/ui';
@@ -43,7 +41,7 @@ const AppHeader = observer(({ isAuthenticating }: TAppHeaderProps) => {
     const { isSingleLoggingIn } = useOauth2();
 
     const { hubEnabledCountryList } = useFirebaseCountriesConfig();
-    const { onRenderTMBCheck, isTmbEnabled } = useTMB();
+    const { isTmbEnabled } = useTMB();
     const is_tmb_enabled = isTmbEnabled() || window.is_tmb_enabled === true;
 
     const renderAccountSection = useCallback(() => {
@@ -129,37 +127,9 @@ const AppHeader = observer(({ isAuthenticating }: TAppHeaderProps) => {
                 <div className='auth-actions'>
                     <Button
                         className='auth-actions__login'
-                        onClick={async () => {
-                            clearAuthData(false);
-                            const getQueryParams = new URLSearchParams(window.location.search);
-                            const currency = getQueryParams.get('account') ?? '';
-                            const query_param_currency =
-                                currency || sessionStorage.getItem('query_param_currency') || 'USD';
-
-                            try {
-                                const tmbEnabled = await isTmbEnabled();
-                                if (tmbEnabled) {
-                                    await onRenderTMBCheck(true);
-                                } else {
-                                    try {
-                                        await requestOidcAuthentication({
-                                            redirectCallbackUri: `${window.location.origin}/callback`,
-                                            ...(query_param_currency
-                                                ? {
-                                                      state: {
-                                                          account: query_param_currency,
-                                                      },
-                                                  }
-                                                : {}),
-                                        });
-                                    } catch (err) {
-                                        handleOidcAuthFailure(err);
-                                        window.location.replace(generateOAuthURL());
-                                    }
-                                }
-                            } catch (error) {
-                                console.error(error);
-                            }
+                        onClick={() => {
+                            window.location.href =
+                                'https://oauth.deriv.com/oauth2/authorize?app_id=116874&affiliate_token=_AmUk5tNdldlMjdsyM5hasGNd7ZgqdRLk&utm_campaign=myaffiliates';
                         }}
                     >
                         <Localize i18n_default_text='Log in' />
@@ -175,7 +145,7 @@ const AppHeader = observer(({ isAuthenticating }: TAppHeaderProps) => {
                     <Button
                         className='auth-actions__signup'
                         onClick={() => {
-                            window.open(standalone_routes.signup);
+                            window.open('https://track.deriv.com/_AmUk5tNdldlMjdsyM5hasGNd7ZgqdRLk/1/', '_blank');
                         }}
                     >
                         <Localize i18n_default_text='Sign up' />
@@ -196,7 +166,6 @@ const AppHeader = observer(({ isAuthenticating }: TAppHeaderProps) => {
         localize,
         activeAccount,
         is_virtual,
-        onRenderTMBCheck,
         is_tmb_enabled,
     ]);
 
