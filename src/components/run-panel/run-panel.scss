@@ -26,6 +26,13 @@
             padding-inline-start: 0 !important;
         }
 
+        /* Desktop: make DrawerHeader flush — Run button fills it, no extra borders */
+        .dc-drawer__header {
+            padding: 0 !important;
+            border-bottom: none !important;
+            min-height: 0 !important;
+        }
+
         &--mobile {
             position: absolute;
             top: 0;

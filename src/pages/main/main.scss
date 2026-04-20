@@ -208,20 +208,24 @@
     }
 }
 
-/* Floating Run / Bot status bar — top-right on laptop, bottom bar on phone */
+/* Floating Run / Bot status bar.
+   Desktop (≥1280px): hidden — Run button lives inside the RunPanel DrawerHeader.
+   Tablet (601-1279px): fixed top-right, same position as RunPanel.
+   Phone (≤600px): pinned full-width to bottom. */
 .main__run-strategy-float {
-    position: fixed;
-    top: 9rem;
-    right: 0;
-    z-index: 200;
+    /* Default — desktop: hidden */
+    display: none;
 
-    /* Tablet: header shrinks to 6rem */
+    /* Tablet (≤1279px, but >600px): show at top-right */
     @include mobile-or-tablet-screen {
+        display: block;
+        position: fixed;
         top: 6rem;
         right: 0;
+        z-index: 200;
     }
 
-    /* Phone: pin to bottom as a full-width bar */
+    /* Phone (≤600px): override to bottom full-width bar */
     @include mobile-screen {
         top: auto;
         bottom: 0;
@@ -242,11 +246,6 @@
         }
     }
 
-    .toolbar__section {
-        display: flex;
-        align-items: center;
-    }
-
     .animation__wrapper {
         display: flex;
         flex-direction: row;
@@ -262,11 +261,6 @@
             height: 4rem !important;
             min-height: 4rem !important;
         }
-    }
-
-    .run__button_wrapper {
-        display: flex;
-        align-items: center;
     }
 
     .animation__container {
@@ -287,19 +281,6 @@
 
         .animation__progress {
             display: none;
-        }
-    }
-
-    .animation--running .animation__container {
-        background: rgba(42, 46, 155, 0.05);
-
-        .animation__text {
-            color: #2a2e9b;
-        }
-
-        .animation__progress {
-            display: flex;
-            margin-left: 0.8rem;
         }
     }
 
