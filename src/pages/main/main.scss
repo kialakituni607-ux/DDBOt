@@ -212,13 +212,13 @@
 .main__run-strategy-float {
     position: fixed;
     top: 9rem;
-    right: 36.6rem; /* sit flush left of the 366px RunPanel */
+    right: 0;
     z-index: 200;
 
-    /* Tablet: header shrinks to 6rem, RunPanel still 36.6rem wide */
+    /* Tablet: header shrinks to 6rem */
     @include mobile-or-tablet-screen {
         top: 6rem;
-        right: 36.6rem;
+        right: 0;
     }
 
     /* Phone: pin to bottom as a full-width bar */
