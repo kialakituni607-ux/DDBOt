@@ -11,10 +11,10 @@
         display: flex;
         align-items: center;
         justify-content: space-between;
-        background: #ffffff;
+        background: #2A2E9B;
         padding: 0 1.6rem;
         height: 5.6rem;
-        border-bottom: 1px solid #e8e8e8;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.15);
     }
 
     &__top-left {
@@ -340,9 +340,9 @@
 
     &__login,
     &__api-token {
-        background-color: #1a1a6e !important;
+        background-color: transparent !important;
         color: #ffffff !important;
-        border: none !important;
+        border: 1.5px solid rgba(255, 255, 255, 0.7) !important;
         border-radius: 0.4rem !important;
         padding: 0.8rem 1.6rem !important;
         font-weight: 600 !important;
@@ -353,25 +353,25 @@
         }
 
         &:hover {
-            background-color: #2a2566 !important;
+            background-color: rgba(255, 255, 255, 0.15) !important;
         }
     }
 
     &__signup {
         background-color: #ffffff !important;
-        color: #1a1a6e !important;
-        border: 2px solid #1a1a6e !important;
+        color: #2A2E9B !important;
+        border: none !important;
         border-radius: 0.4rem !important;
         padding: 0.8rem 1.6rem !important;
         font-weight: 600 !important;
         cursor: pointer;
 
         span {
-            color: #1a1a6e !important;
+            color: #2A2E9B !important;
         }
 
         &:hover {
-            background-color: #f0f0ff !important;
+            background-color: #e8eaff !important;
         }
     }
 }
