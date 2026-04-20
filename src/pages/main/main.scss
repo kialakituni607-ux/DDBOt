@@ -173,12 +173,69 @@
     }
 
     &__run-strategy-wrapper {
-        inset-inline-end: 1.6rem;
-        top: 1.6rem;
-        z-index: 2;
+        inset-inline-end: 0;
+        top: 0;
+        z-index: 5;
 
         @include desktop-screen {
             position: absolute;
+        }
+
+        .toolbar__section {
+            display: flex;
+            align-items: center;
+        }
+
+        .animation__wrapper {
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            gap: 0;
+            background: var(--general-main-1);
+            border: 1px solid var(--general-section-2);
+            border-radius: 0.4rem;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+        }
+
+        .animation__run-button,
+        .animation__stop-button {
+            border-radius: 0.4rem 0 0 0.4rem !important;
+            height: 3.8rem !important;
+        }
+
+        .run__button_wrapper {
+            border-radius: 0.4rem 0 0 0.4rem;
+            overflow: hidden;
+        }
+
+        .animation__container {
+            display: flex;
+            align-items: center;
+            padding: 0 1.2rem;
+            height: 3.8rem;
+            min-width: 16rem;
+            background: var(--general-main-1);
+            border-left: 1px solid var(--general-section-2);
+
+            .animation__text {
+                font-size: 1.3rem;
+                font-weight: 500;
+                color: var(--text-general);
+                white-space: nowrap;
+            }
+
+            .animation__progress {
+                display: none;
+            }
+        }
+
+        .animation--running .animation__container {
+            background: rgba(42, 46, 155, 0.06);
+
+            .animation__progress {
+                display: flex;
+            }
         }
 
         .animation {
@@ -190,10 +247,6 @@
                 &__stop-button {
                     background-color: var(--button-primary-hover);
                 }
-            }
-
-            &__container {
-                background-color: var(--general-main-1);
             }
         }
     }
@@ -347,26 +400,6 @@
 
             &__content-wrapper.active {
                 height: 100%;
-            }
-        }
-    }
-
-    &__run-strategy-wrapper {
-        inset-inline-end: 1.6rem;
-        top: 1.6rem;
-        z-index: 2;
-
-        @include desktop-screen {
-            position: absolute;
-        }
-
-        .animation {
-            &__button {
-                background-color: var(--purchase-main-1);
-            }
-
-            &__container {
-                background-color: var(--general-main-1);
             }
         }
     }
