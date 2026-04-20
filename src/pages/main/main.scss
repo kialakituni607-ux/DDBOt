@@ -208,12 +208,17 @@
     }
 }
 
-/* Floating Run / Bot status bar — fixed at top-right of viewport, aligned with run panel */
+/* Floating Run / Bot status bar — fixed at top-right of viewport, aligned with tab bar */
 .main__run-strategy-float {
     position: fixed;
-    top: 10.4rem;
-    right: 16px;
+    top: 9rem;
+    right: 0;
     z-index: 200;
+
+    @include mobile-or-tablet-screen {
+        top: 6rem;
+        right: 0;
+    }
 
     .toolbar__section {
         display: flex;

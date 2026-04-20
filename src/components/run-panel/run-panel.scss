@@ -9,8 +9,12 @@
     &__container {
         height: var(--bot-content-height) !important;
         top: 9rem !important;
-        width: 36.6rem !important;
         right: 0;
+        width: 36.6rem !important;
+
+        @include mobile-or-tablet-screen {
+            top: 6rem !important;
+        }
 
         &--mobile {
             position: absolute;
