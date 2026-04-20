@@ -19,7 +19,6 @@ import AccountsInfoLoader from './account-info-loader';
 import AccountSwitcher from './account-switcher';
 import MenuItems from './menu-items';
 import MobileMenu from './mobile-menu';
-import PlatformSwitcher from './platform-switcher';
 import './header.scss';
 
 type TAppHeaderProps = {
@@ -199,9 +198,7 @@ const AppHeader = observer(({ isAuthenticating }: TAppHeaderProps) => {
             {/* Bottom nav row */}
             {isDesktop && (
                 <div className='app-header__nav-row'>
-                    <MenuItems.TradershubLink />
                     <MenuItems />
-                    <PlatformSwitcher />
                 </div>
             )}
         </Header>
