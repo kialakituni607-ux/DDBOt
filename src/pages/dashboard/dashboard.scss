@@ -400,6 +400,16 @@
                 border-radius: 0.8rem;
                 padding: 1.6rem;
 
+                &#quick-strategy {
+                    background-color: #2A2E9B;
+
+                    svg path,
+                    svg g,
+                    svg g path {
+                        fill: #ffffff !important;
+                    }
+                }
+
                 &--minimized {
                     @include mobile-or-tablet-screen {
                         width: 6.4rem;
