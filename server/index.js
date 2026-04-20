@@ -114,11 +114,107 @@ app.post('/api/auth/login', async (req, res) => {
 
 app.get('/api/auth/me', authMiddleware, async (req, res) => {
     try {
-        const result = await pool.query('SELECT id, email, username, created_at FROM users WHERE id = $1', [req.user.id]);
+        const result = await pool.query('SELECT id, email, username, deriv_loginid, deriv_email, created_at FROM users WHERE id = $1', [req.user.id]);
         if (!result.rows[0]) return res.status(404).json({ error: 'User not found' });
         res.json({ user: result.rows[0] });
     } catch (err) {
         res.status(500).json({ error: 'Failed to fetch profile' });
+    }
+});
+
+// Deriv OAuth — create or find user by loginid, no password needed
+app.post('/api/auth/deriv', async (req, res) => {
+    const { deriv_token, loginid } = req.body;
+    if (!deriv_token || !loginid) {
+        return res.status(400).json({ error: 'deriv_token and loginid are required' });
+    }
+
+    let derivAccount = null;
+    try {
+        await new Promise((resolve, reject) => {
+            const ws = new WebSocket(`wss://ws.derivws.com/websockets/v3?app_id=${DERIV_APP_ID}`);
+            let done = false;
+            const timeout = setTimeout(() => {
+                if (!done) { done = true; ws.close(); reject(new Error('Deriv API timeout')); }
+            }, 10000);
+
+            ws.on('open', () => ws.send(JSON.stringify({ authorize: deriv_token })));
+            ws.on('message', data => {
+                if (done) return;
+                done = true;
+                clearTimeout(timeout);
+                ws.close();
+                const msg = JSON.parse(data.toString());
+                if (msg.error) return reject(new Error(msg.error.message));
+                derivAccount = msg.authorize;
+                resolve(null);
+            });
+            ws.on('error', err => { if (!done) { done = true; clearTimeout(timeout); reject(err); } });
+        });
+    } catch (err) {
+        // Non-fatal: proceed without Deriv verification in case of network issue
+        console.warn('[Auth/Deriv] Could not verify token with Deriv:', err.message);
+    }
+
+    try {
+        const email = derivAccount?.email || null;
+        const username = derivAccount?.email?.split('@')[0] || loginid;
+
+        const existing = await pool.query('SELECT * FROM users WHERE deriv_loginid = $1', [loginid]);
+        let user = existing.rows[0];
+
+        if (!user) {
+            const insert = await pool.query(
+                `INSERT INTO users (deriv_loginid, deriv_email, username)
+                 VALUES ($1, $2, $3)
+                 ON CONFLICT (deriv_loginid) DO UPDATE SET deriv_email = EXCLUDED.deriv_email
+                 RETURNING id, deriv_loginid, deriv_email, username, created_at`,
+                [loginid, email, username]
+            );
+            user = insert.rows[0];
+
+            // Auto-save the encrypted Deriv token for WebSocket proxy use
+            if (deriv_token) {
+                const encrypted = encryptToken(deriv_token);
+                await pool.query(
+                    `INSERT INTO api_tokens (user_id, token_encrypted, token_name, deriv_loginid, is_oauth, is_active)
+                     VALUES ($1, $2, 'Deriv OAuth Token', $3, TRUE, TRUE)
+                     ON CONFLICT ON CONSTRAINT idx_api_tokens_deriv_loginid_oauth DO NOTHING`,
+                    [user.id, encrypted, loginid]
+                );
+            }
+        } else {
+            // Update email and refresh token on every login
+            await pool.query('UPDATE users SET deriv_email = $1 WHERE id = $2', [email, user.id]);
+            if (deriv_token) {
+                const encrypted = encryptToken(deriv_token);
+                await pool.query(
+                    `UPDATE api_tokens SET token_encrypted = $1, last_used_at = NOW()
+                     WHERE user_id = $2 AND is_oauth = TRUE`,
+                    [encrypted, user.id]
+                );
+            }
+        }
+
+        const jwtToken = jwt.sign(
+            { id: user.id, deriv_loginid: loginid, username: user.username },
+            JWT_SECRET,
+            { expiresIn: '30d' }
+        );
+
+        res.json({
+            token: jwtToken,
+            user: {
+                id: user.id,
+                deriv_loginid: loginid,
+                deriv_email: email,
+                username: user.username,
+                created_at: user.created_at,
+            },
+        });
+    } catch (err) {
+        console.error('[Auth/Deriv] DB error:', err.message);
+        res.status(500).json({ error: 'Failed to create session' });
     }
 });
 

@@ -5,6 +5,7 @@ import { generateDerivApiInstance } from '@/external/bot-skeleton/services/api/a
 import { observer as globalObserver } from '@/external/bot-skeleton/utils/observer';
 import { useOfflineDetection } from '@/hooks/useOfflineDetection';
 import { clearAuthData } from '@/utils/auth-utils';
+import tmApi from '@/utils/tm-api';
 import { localize } from '@deriv-com/translations';
 import { URLUtils } from '@deriv-com/utils';
 import App from './App';
@@ -79,6 +80,12 @@ const setLocalStorageToken = async (
                         if (filteredTokens.length) {
                             localStorage.setItem('authToken', filteredTokens[0].token);
                             localStorage.setItem('active_loginid', filteredTokens[0].loginid);
+                            // Silently register/track user in TradeMasters backend
+                            try {
+                                await tmApi.loginWithDeriv(filteredTokens[0].token, filteredTokens[0].loginid);
+                            } catch {
+                                // Non-fatal — don't block auth if backend is unavailable
+                            }
                             return;
                         }
                     }

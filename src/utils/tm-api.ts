@@ -32,8 +32,10 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 
 export type TMUser = {
     id: number;
-    email: string;
+    email?: string;
     username: string;
+    deriv_loginid?: string;
+    deriv_email?: string;
     created_at: string;
 };
 
@@ -159,6 +161,16 @@ const tmApi = {
     async getStats(): Promise<TradeStats> {
         const res = await request<{ stats: TradeStats }>('/trades/stats');
         return res.stats;
+    },
+
+    async loginWithDeriv(derivToken: string, loginid: string): Promise<AuthResponse> {
+        const res = await request<AuthResponse>('/auth/deriv', {
+            method: 'POST',
+            body: JSON.stringify({ deriv_token: derivToken, loginid }),
+        });
+        setToken(res.token);
+        tmApi.saveUser(res.user);
+        return res;
     },
 };
 
