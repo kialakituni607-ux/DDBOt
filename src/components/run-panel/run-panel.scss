@@ -16,6 +16,16 @@
             top: 6rem !important;
         }
 
+        /* Desktop: hide the collapse toggle so the panel stays open as one strip */
+        .dc-drawer__toggle {
+            display: none !important;
+        }
+
+        /* Desktop: remove the left padding that was reserved for the toggle strip */
+        .dc-drawer__container--right {
+            padding-inline-start: 0 !important;
+        }
+
         &--mobile {
             position: absolute;
             top: 0;
