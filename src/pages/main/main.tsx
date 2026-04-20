@@ -426,13 +426,13 @@ const AppWrapper = observer(() => {
                     </div>
                 </div>
             </div>
+            <div
+                className='main__run-strategy-float'
+                style={{ position: 'fixed', top: '10.4rem', right: '16px', zIndex: 9999 }}
+            >
+                <RunStrategy />
+            </div>
             <DesktopWrapper>
-                <div
-                    className='main__run-strategy-float'
-                    style={{ position: 'fixed', top: '10.4rem', right: '16px', zIndex: 9999 }}
-                >
-                    <RunStrategy />
-                </div>
                 <RunPanel />
                 <ChartModal />
                 <TradingViewModal />

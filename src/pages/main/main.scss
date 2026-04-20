@@ -289,6 +289,11 @@
     }
 }
 
+/* Hide the mobile bottom Run/Stop controls since the fixed float replaces them */
+.controls__section {
+    display: none !important;
+}
+
 .bot-stopped-dialog {
     @include mobile-or-tablet-screen {
         padding: 2rem;
