@@ -1,4 +1,4 @@
-modules = ["nodejs-20", "web", "bash"]
+modules = ["nodejs-20", "web", "bash", "postgresql-16"]
 [agent]
 expertMode = true
 
@@ -17,6 +17,10 @@ author = "agent"
 task = "workflow.run"
 args = "Dev Server"
 
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Backend Server"
+
 [[workflows.workflow]]
 name = "Dev Server"
 author = "agent"
@@ -28,6 +32,22 @@ outputType = "webview"
 task = "shell.exec"
 args = "npx rsbuild dev"
 waitForPort = 5000
+
+[[workflows.workflow]]
+name = "Backend Server"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "node server/index.js"
+waitForPort = 3001
+
+[workflows.workflow.metadata]
+outputType = "console"
+
+[[ports]]
+localPort = 3001
+externalPort = 3000
 
 [[ports]]
 localPort = 5000
@@ -41,3 +61,11 @@ externalPort = 3001
 deploymentTarget = "static"
 build = ["npm", "run", "build"]
 publicDir = "dist"
+
+[userenv]
+
+[userenv.shared]
+JWT_SECRET = "b2b3aa8805483db8279bba1993a903ff088e7e88855fc9fc085c43bd3d65853257d08fe4b9d9fd9191a0a15430b8f74e"
+ENCRYPTION_KEY = "ae5a3fd1d7be0d6a368c1d6079eaa141da67b768326ce7efbaf079087371b0fe"
+BACKEND_PORT = "3001"
+FRONTEND_PORT = "5000"

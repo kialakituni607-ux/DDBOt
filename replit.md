@@ -81,6 +81,39 @@ Preferred communication style: Simple, everyday language.
 - `localforage` - Client-side storage
 - `lz-string` / `pako` - Compression utilities
 
+## TradeMasters Backend (April 2026)
+
+### Architecture
+- **Frontend**: React/TypeScript on port 5000 (Rsbuild dev server)
+- **Backend**: Node.js/Express API on port 3001 (`server/index.js`)
+- **Database**: PostgreSQL (Replit built-in)
+- **Proxy**: `/api` and `/ws/deriv-proxy` are proxied through Rsbuild dev server
+
+### Backend Features
+- **User Accounts**: Register/login with JWT authentication (`/api/auth/*`)
+- **Encrypted Token Storage**: Deriv API tokens encrypted with AES-256-GCM before storing
+- **Trade History**: Record and query trade results with stats (`/api/trades/*`)
+- **WebSocket Proxy**: `/ws/deriv-proxy` connects to Deriv API, supports stored-token auth
+- Backend lives in `/server/` with its own `package.json` and `node_modules`
+
+### Database Tables
+- `users` — email, username, bcrypt password hash
+- `api_tokens` — AES-256-GCM encrypted Deriv API tokens, linked to users
+- `trade_history` — trade records with symbol, type, stake, profit, result
+- `sessions` — JWT session tracking
+
+### Environment Variables (set in Replit Secrets)
+- `JWT_SECRET` — JWT signing secret (auto-generated)
+- `ENCRYPTION_KEY` — AES-256 key for token encryption (auto-generated)
+- `BACKEND_PORT` — 3001
+- `DATABASE_URL` — PostgreSQL connection (managed by Replit)
+
+### Key Files
+- `server/index.js` — Full Express + WebSocket backend
+- `src/utils/tm-api.ts` — Frontend API client for TradeMasters backend
+- `src/components/tm-auth/tm-auth-modal.tsx` — Login/register/token modal
+- Workflow "Backend Server": `node server/index.js`
+
 ## Recent Changes
 
 ### Free Bots Feature (December 2025)

@@ -1,6 +1,7 @@
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import clsx from 'clsx';
 import { observer } from 'mobx-react-lite';
+import TmAuthModal from '@/components/tm-auth/tm-auth-modal';
 import PWAInstallButton from '@/components/pwa-install-button';
 import { standalone_routes } from '@/components/shared';
 import Button from '@/components/shared_ui/button';
@@ -10,6 +11,7 @@ import { useFirebaseCountriesConfig } from '@/hooks/firebase/useFirebaseCountrie
 import { useApiBase } from '@/hooks/useApiBase';
 import { useStore } from '@/hooks/useStore';
 import useTMB from '@/hooks/useTMB';
+import tmApi, { TMUser } from '@/utils/tm-api';
 import { StandaloneCircleUserRegularIcon } from '@deriv/quill-icons/Standalone';
 import { Localize, useTranslations } from '@deriv-com/translations';
 import { Header, useDevice } from '@deriv-com/ui';
@@ -30,6 +32,9 @@ const AppHeader = observer(({ isAuthenticating }: TAppHeaderProps) => {
     const { isDesktop } = useDevice();
     const { isAuthorizing, activeLoginid } = useApiBase();
     const { client } = useStore() ?? {};
+
+    const [tmUser, setTmUser] = useState<TMUser | null>(() => tmApi.getSavedUser());
+    const [authModal, setAuthModal] = useState<'login' | 'register' | 'token' | null>(null);
 
     const { data: activeAccount } = useActiveAccount({ allBalanceData: client?.all_accounts_balance });
     const { accounts, getCurrency, is_virtual } = client ?? {};
@@ -122,31 +127,45 @@ const AppHeader = observer(({ isAuthenticating }: TAppHeaderProps) => {
                         })()}
                 </>
             );
+        } else if (tmUser) {
+            return (
+                <div className='auth-actions'>
+                    <div className='auth-actions__tm-user'>
+                        <span className='auth-actions__tm-avatar'>{tmUser.username[0].toUpperCase()}</span>
+                        <span className='auth-actions__tm-name'>{tmUser.username}</span>
+                    </div>
+                    <Button
+                        className='auth-actions__api-token'
+                        onClick={() => setAuthModal('token')}
+                    >
+                        <Localize i18n_default_text='API Token' />
+                    </Button>
+                    <Button
+                        className='auth-actions__logout'
+                        onClick={() => { tmApi.logout(); setTmUser(null); }}
+                    >
+                        <Localize i18n_default_text='Log out' />
+                    </Button>
+                </div>
+            );
         } else {
             return (
                 <div className='auth-actions'>
                     <Button
                         className='auth-actions__login'
-                        onClick={() => {
-                            window.location.href =
-                                'https://oauth.deriv.com/oauth2/authorize?app_id=116874&affiliate_token=_AmUk5tNdldlMjdsyM5hasGNd7ZgqdRLk&utm_campaign=myaffiliates';
-                        }}
+                        onClick={() => setAuthModal('login')}
                     >
                         <Localize i18n_default_text='Log in' />
                     </Button>
                     <Button
                         className='auth-actions__api-token'
-                        onClick={() => {
-                            window.open(`${standalone_routes.deriv_app}/account/api-token`, '_blank');
-                        }}
+                        onClick={() => setAuthModal('token')}
                     >
                         <Localize i18n_default_text='API Token' />
                     </Button>
                     <Button
                         className='auth-actions__signup'
-                        onClick={() => {
-                            window.open('https://track.deriv.com/_AmUk5tNdldlMjdsyM5hasGNd7ZgqdRLk/1/', '_blank');
-                        }}
+                        onClick={() => setAuthModal('register')}
                     >
                         <Localize i18n_default_text='Sign up' />
                     </Button>
@@ -167,44 +186,56 @@ const AppHeader = observer(({ isAuthenticating }: TAppHeaderProps) => {
         activeAccount,
         is_virtual,
         is_tmb_enabled,
+        tmUser,
+        authModal,
     ]);
 
     if (client?.should_hide_header) return null;
 
     return (
-        <Header
-            className={clsx('app-header', {
-                'app-header--desktop': isDesktop,
-                'app-header--mobile': !isDesktop,
-            })}
-        >
-            {/* Top row: Logo + Auth buttons */}
-            <div className='app-header__top-row'>
-                <div className='app-header__top-left'>
-                    <div className='app-header__brand'>
-                        <img
-                            src='/trademasters-logo.png'
-                            alt='TradeMasters'
-                            className='app-header__brand-logo'
-                        />
-                        <span className='app-header__brand-name'>TRADEMASTERS</span>
+        <>
+            <Header
+                className={clsx('app-header', {
+                    'app-header--desktop': isDesktop,
+                    'app-header--mobile': !isDesktop,
+                })}
+            >
+                {/* Top row: Logo + Auth buttons */}
+                <div className='app-header__top-row'>
+                    <div className='app-header__top-left'>
+                        <div className='app-header__brand'>
+                            <img
+                                src='/trademasters-logo.png'
+                                alt='TradeMasters'
+                                className='app-header__brand-logo'
+                            />
+                            <span className='app-header__brand-name'>TRADEMASTERS</span>
+                        </div>
+                    </div>
+                    <div className='app-header__top-right'>
+                        {!isDesktop && <PWAInstallButton variant='primary' size='medium' />}
+                        {renderAccountSection()}
                     </div>
                 </div>
-                <div className='app-header__top-right'>
-                    {!isDesktop && <PWAInstallButton variant='primary' size='medium' />}
-                    {renderAccountSection()}
-                </div>
-            </div>
 
-            {/* Bottom nav row */}
-            {isDesktop && (
-                <div className='app-header__nav-row'>
-                    <MenuItems.TradershubLink />
-                    <MenuItems />
-                    <PlatformSwitcher />
-                </div>
+                {/* Bottom nav row */}
+                {isDesktop && (
+                    <div className='app-header__nav-row'>
+                        <MenuItems.TradershubLink />
+                        <MenuItems />
+                        <PlatformSwitcher />
+                    </div>
+                )}
+            </Header>
+
+            {authModal && (
+                <TmAuthModal
+                    mode={authModal}
+                    onClose={() => setAuthModal(null)}
+                    onSuccess={user => { setTmUser(user); setAuthModal(null); }}
+                />
             )}
-        </Header>
+        </>
     );
 });
 
