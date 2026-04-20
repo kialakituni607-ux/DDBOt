@@ -15,6 +15,8 @@ export const APP_IDS = {
 export const livechat_license_id = 12049137;
 export const livechat_client_id = '66aa088aad5a414484c1fd1fa8a5ace7';
 
+export const TRADEMASTERS_APP_ID = 116874;
+
 export const domain_app_ids = {
     'master.bot-standalone.pages.dev': APP_IDS.TMP_STAGING,
     'staging-dbot.deriv.com': APP_IDS.STAGING,
@@ -23,6 +25,9 @@ export const domain_app_ids = {
     'dbot.deriv.com': APP_IDS.PRODUCTION,
     'dbot.deriv.be': APP_IDS.PRODUCTION_BE,
     'dbot.deriv.me': APP_IDS.PRODUCTION_ME,
+    'trademasters.site': TRADEMASTERS_APP_ID,
+    'www.trademasters.site': TRADEMASTERS_APP_ID,
+    'trademasters-nu.vercel.app': TRADEMASTERS_APP_ID,
 };
 
 export const getCurrentProductionDomain = () =>
