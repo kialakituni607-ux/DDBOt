@@ -275,6 +275,18 @@
             margin-left: 0.8rem;
         }
     }
+
+    /* Force Run button green to match reference design */
+    .animation__run-button.dc-btn--primary,
+    #db-animation__run-button {
+        background-color: #4caf50 !important;
+        border-color: #4caf50 !important;
+
+        &:hover:not(:disabled) {
+            background-color: #43a047 !important;
+            border-color: #43a047 !important;
+        }
+    }
 }
 
 .bot-stopped-dialog {
