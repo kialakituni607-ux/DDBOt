@@ -42,6 +42,18 @@
         letter-spacing: 0.06em;
         color: #2A2E9B;
         font-style: italic;
+
+        @include mobile-screen {
+            font-size: 1.2rem;
+            letter-spacing: 0.03em;
+        }
+    }
+
+    &__brand-logo {
+        @include mobile-screen {
+            height: 3rem;
+            width: 3rem;
+        }
     }
 
     &__top-right {
@@ -359,6 +371,11 @@
     gap: 0.8rem;
     padding-block: 8px;
 
+    @include mobile-screen {
+        gap: 0.4rem;
+        padding-block: 4px;
+    }
+
     &__login,
     &__api-token {
         background-color: #2A2E9B !important;
@@ -369,8 +386,19 @@
         font-weight: 600 !important;
         cursor: pointer;
 
+        @include mobile-screen {
+            padding: 0.5rem 0.8rem !important;
+            font-size: 1.1rem !important;
+            min-height: 0 !important;
+            height: auto !important;
+        }
+
         span {
             color: #ffffff !important;
+
+            @include mobile-screen {
+                font-size: 1.1rem !important;
+            }
         }
 
         &:hover {
@@ -387,8 +415,19 @@
         font-weight: 600 !important;
         cursor: pointer;
 
+        @include mobile-screen {
+            padding: 0.5rem 0.8rem !important;
+            font-size: 1.1rem !important;
+            min-height: 0 !important;
+            height: auto !important;
+        }
+
         span {
             color: #2A2E9B !important;
+
+            @include mobile-screen {
+                font-size: 1.1rem !important;
+            }
         }
 
         &:hover {
