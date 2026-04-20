@@ -117,12 +117,9 @@ export const StatisticsSummary = ({
     </div>
 );
 
-const DrawerHeader = ({ is_clear_stat_disabled, is_mobile, is_drawer_open, onClearStatClick }: TDrawerHeader) => {
-    if (!is_mobile) {
-        /* Desktop: Run button sits as the panel header, flush with the tab bar */
-        return <TradeAnimation className='toolbar__animation run-panel__header-run-button' />;
-    }
-    return is_mobile && is_drawer_open ? (
+const DrawerHeader = ({ is_clear_stat_disabled, is_mobile, is_drawer_open, onClearStatClick }: TDrawerHeader) =>
+    is_mobile &&
+    is_drawer_open && (
         <Button
             id='db-run-panel__clear-button'
             className='run-panel__clear-button'
@@ -131,8 +128,7 @@ const DrawerHeader = ({ is_clear_stat_disabled, is_mobile, is_drawer_open, onCle
             onClick={onClearStatClick}
             secondary
         />
-    ) : null;
-};
+    );
 
 const DrawerContent = ({ active_index, is_drawer_open, active_tour, setActiveTabIndex, ...props }: TDrawerContent) => {
     const { isDesktop } = useDevice();
