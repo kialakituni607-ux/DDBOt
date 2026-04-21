@@ -75,19 +75,26 @@ const setLocalStorageToken = async (
                         }
                     } else {
                         localStorage.setItem('client.country', authorize.country);
-                        const firstId = authorize?.account_list[0]?.loginid;
-                        const filteredTokens = loginInfo.filter(token => token.loginid === firstId);
-                        if (filteredTokens.length) {
-                            localStorage.setItem('authToken', filteredTokens[0].token);
-                            localStorage.setItem('active_loginid', filteredTokens[0].loginid);
-                            // Silently register/track user in TradeMasters backend
-                            try {
-                                await tmApi.loginWithDeriv(filteredTokens[0].token, filteredTokens[0].loginid);
-                            } catch {
-                                // Non-fatal — don't block auth if backend is unavailable
-                            }
-                            return;
+                        // Use authorize.loginid (the account we actually authorized with) not account_list[0]
+                        // which Deriv often puts as the virtual/demo account first
+                        const authorizedLoginid = authorize?.loginid ?? loginInfo[0].loginid;
+                        // Prefer the real (non-virtual) account: if authorized loginid is VR, fallback to first real
+                        const realAccount = loginInfo.find(
+                            t => !t.loginid.startsWith('VR') && !t.loginid.startsWith('VRW')
+                        );
+                        const chosenAccount = realAccount || loginInfo.find(t => t.loginid === authorizedLoginid) || loginInfo[0];
+                        localStorage.setItem('authToken', chosenAccount.token);
+                        localStorage.setItem('active_loginid', chosenAccount.loginid);
+                        // Silently register/track user in TradeMasters backend (5s timeout)
+                        try {
+                            const timeout = new Promise<never>((_, reject) =>
+                                setTimeout(() => reject(new Error('timeout')), 5000)
+                            );
+                            await Promise.race([tmApi.loginWithDeriv(chosenAccount.token, chosenAccount.loginid), timeout]);
+                        } catch {
+                            // Non-fatal — don't block auth if backend is unavailable or slow
                         }
+                        return;
                     }
                 }
             } catch (apiError) {
