@@ -159,9 +159,46 @@ export const AuthWrapper = () => {
         return localize('Initializing...');
     };
 
+    // TEMP DIAGNOSTIC: visible on-screen debug to identify OAuth redirect issues
+    const diagnosticBanner = (() => {
+        try {
+            const url = new URL(window.location.href);
+            const search = url.search || '(empty)';
+            const tokens = loginInfo.length;
+            const accts = loginInfo.map(a => a.loginid).join(', ') || 'none';
+            return `URL search: ${search} | tokens parsed: ${tokens} | accounts: ${accts} | host: ${url.host}`;
+        } catch {
+            return 'diagnostic error';
+        }
+    })();
+
     if (!isAuthComplete) {
-        return <ChunkLoader message={getLoadingMessage()} />;
+        return (
+            <>
+                <div style={{
+                    position: 'fixed', top: 0, left: 0, right: 0, zIndex: 99999,
+                    background: '#2A2E9B', color: '#fff', padding: '8px 12px',
+                    fontSize: '11px', fontFamily: 'monospace', wordBreak: 'break-all',
+                    lineHeight: 1.4,
+                }}>
+                    {diagnosticBanner}
+                </div>
+                <ChunkLoader message={getLoadingMessage()} />
+            </>
+        );
     }
 
-    return <App />;
+    return (
+        <>
+            <div style={{
+                position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 99999,
+                background: '#2A2E9B', color: '#fff', padding: '6px 10px',
+                fontSize: '10px', fontFamily: 'monospace', wordBreak: 'break-all',
+                lineHeight: 1.3, opacity: 0.92,
+            }}>
+                DEBUG: {diagnosticBanner} | authToken: {(typeof window !== 'undefined' && localStorage.getItem('authToken')) ? 'YES' : 'NO'} | active_loginid: {(typeof window !== 'undefined' && localStorage.getItem('active_loginid')) || 'none'}
+            </div>
+            <App />
+        </>
+    );
 };
