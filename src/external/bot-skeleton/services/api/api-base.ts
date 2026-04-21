@@ -113,11 +113,46 @@ class APIBase {
         this.time_interval = null;
 
         if (V2GetActiveToken()) {
+            // Hydrate observables from localStorage IMMEDIATELY so the header can
+            // render real account info without waiting for the WS authorize round-trip.
+            this.hydrateFromLocalStorage();
             setIsAuthorizing(true);
-            await this.authorizeAndSubscribe();
+            // Don't await — authorize runs in the background with its own timeout fallback.
+            // This prevents the header from being stuck in skeleton mode if the WS is slow.
+            this.authorizeAndSubscribe();
         }
 
         chart_api.init(force_create_connection);
+    }
+
+    hydrateFromLocalStorage() {
+        try {
+            const cachedActiveLoginid = localStorage.getItem('active_loginid') || '';
+            const cachedClientAccountsRaw = localStorage.getItem('clientAccounts') || '{}';
+            const cachedClientAccounts = JSON.parse(cachedClientAccountsRaw) as Record<
+                string,
+                { loginid: string; token: string; currency: string }
+            >;
+            const entries = Object.values(cachedClientAccounts);
+            if (!cachedActiveLoginid || entries.length === 0) return;
+
+            const cached_account_list = entries.map(info => ({
+                loginid: info.loginid,
+                currency: info.currency,
+                is_virtual: /^VR/.test(info.loginid) ? 1 : 0,
+                is_disabled: 0,
+                landing_company_name: /^VR/.test(info.loginid) ? 'virtual' : 'svg',
+                trading: {},
+            })) as unknown as TAuthData['account_list'];
+
+            setAccountList(cached_account_list);
+            setAuthData({
+                loginid: cachedActiveLoginid,
+                account_list: cached_account_list,
+            } as unknown as TAuthData);
+        } catch (e) {
+            console.error('[api-base] hydrateFromLocalStorage failed:', e);
+        }
     }
 
     getConnectionStatus() {
