@@ -262,12 +262,13 @@ const AppContent = observer(() => {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [is_api_initialized]);
 
-    // Global fallback: if API never connects within 3 seconds, show the dashboard anyway
+    // Global fallback: show the dashboard quickly even if API is slow.
+    // Tokens are already persisted, the header will populate balance when WS responds.
     React.useEffect(() => {
         const fallback = setTimeout(() => {
             fallback_fired.current = true;
             setIsLoading(false);
-        }, 3000);
+        }, 1200);
         return () => clearTimeout(fallback);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
