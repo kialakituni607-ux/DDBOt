@@ -185,14 +185,42 @@ const CoreStoreProvider: React.FC<{ children: React.ReactNode }> = observer(({ c
     );
 
     useEffect(() => {
-        if (!isAuthorizing && client) {
-            const subscription = api_base?.api?.onMessage().subscribe(handleMessages);
-            msg_listener.current = { unsubscribe: subscription?.unsubscribe };
+        if (!client) return;
+
+        let attached = false;
+        let pollHandle: ReturnType<typeof setInterval> | null = null;
+
+        const tryAttach = () => {
+            if (attached) return true;
+            const stream = api_base?.api?.onMessage?.();
+            if (!stream) return false;
+            const subscription = stream.subscribe(handleMessages);
+            if (!subscription) return false;
+            msg_listener.current = {
+                unsubscribe: () => {
+                    try {
+                        subscription.unsubscribe();
+                    } catch (e) {}
+                },
+            };
+            attached = true;
+            return true;
+        };
+
+        if (!tryAttach()) {
+            pollHandle = setInterval(() => {
+                if (tryAttach() && pollHandle) {
+                    clearInterval(pollHandle);
+                    pollHandle = null;
+                }
+            }, 250);
         }
 
         return () => {
+            if (pollHandle) clearInterval(pollHandle);
             if (msg_listener.current) {
                 msg_listener.current.unsubscribe?.();
+                msg_listener.current = null;
             }
         };
     }, [connectionStatus, handleMessages, isAuthorizing, isAuthorized, client]);
