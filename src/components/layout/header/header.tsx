@@ -45,14 +45,16 @@ const AppHeader = observer(({ isAuthenticating }: TAppHeaderProps) => {
 
     // DIAGNOSTIC: persist header state to localStorage so we can see what's happening
     try {
+        const balAccts = client?.all_accounts_balance?.accounts;
+        const balKeys = balAccts ? Object.keys(balAccts) : [];
+        const myBal = activeLoginid && balAccts ? balAccts[activeLoginid]?.balance : undefined;
         const dbg = {
             t: new Date().toLocaleTimeString(),
-            isAuth: isAuthenticating,
             isAuthing: isAuthorizing,
-            isSingleLogin: isSingleLoggingIn,
-            tmb: is_tmb_enabled,
             activeLoginid: activeLoginid || '(empty)',
-            activeAccount: activeAccount ? `${activeAccount.loginid}/${activeAccount.currency}/${activeAccount.balance}` : '(undefined)',
+            activeAcct: activeAccount ? `${activeAccount.loginid}/${activeAccount.currency}/${activeAccount.balance}` : '(undef)',
+            balanceLoaded: balAccts ? `YES (${balKeys.length} accts)` : 'NO',
+            realBal: myBal !== undefined ? String(myBal) : '(none yet)',
             clientLoggedIn: client?.is_logged_in,
         };
         localStorage.setItem('__header_state', JSON.stringify(dbg));
