@@ -165,27 +165,18 @@ export const AuthWrapper = () => {
     }, []);
 
     React.useEffect(() => {
-        const initializeAuth = async () => {
-            try {
-                // Pass isOnline to setLocalStorageToken to handle offline mode properly
-                await setLocalStorageToken(loginInfo, paramsToDelete, setIsAuthComplete, isOnline);
-                URLUtils.filterSearchParams(['lang']);
-                setIsAuthComplete(true);
-            } catch (error) {
-                console.error('[Auth] Authentication initialization failed:', error);
-                // Don't block the app if auth fails, especially when offline
-                setIsAuthComplete(true);
-            }
-        };
+        // Tokens are already persisted synchronously at mount (see persistTokensSync above).
+        // We can complete auth IMMEDIATELY and let the API refinement run in the background.
+        // This prevents "Initializing..." from hanging forever when api.authorize websocket is slow.
+        URLUtils.filterSearchParams(['lang']);
+        setIsAuthComplete(true);
 
-        // If offline, set auth complete immediately but still run initializeAuth
-        // to save login info to localStorage for offline use
-        if (!isOnline) {
-            console.log('[Auth] Offline detected, proceeding with minimal auth');
-            setIsAuthComplete(true);
+        // Background refinement: don't await, don't block UI
+        if (isOnline && loginInfo.length) {
+            setLocalStorageToken(loginInfo, paramsToDelete, setIsAuthComplete, isOnline).catch(error => {
+                console.error('[Auth] Background auth refinement failed (non-blocking):', error);
+            });
         }
-
-        initializeAuth();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isOnline]); // loginInfo/paramsToDelete are stable refs, intentionally excluded to avoid re-fires
 
