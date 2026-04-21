@@ -27,7 +27,7 @@ type TAppHeaderProps = {
 
 const AppHeader = observer(({ isAuthenticating }: TAppHeaderProps) => {
     const { isDesktop } = useDevice();
-    const { isAuthorizing, activeLoginid, connectionStatus } = useApiBase();
+    const { isAuthorizing, activeLoginid } = useApiBase();
     const { client } = useStore() ?? {};
 
     const { data: activeAccount } = useActiveAccount({ allBalanceData: client?.all_accounts_balance });
@@ -44,21 +44,6 @@ const AppHeader = observer(({ isAuthenticating }: TAppHeaderProps) => {
     const is_tmb_enabled = isTmbEnabled() || window.is_tmb_enabled === true;
 
     // DIAGNOSTIC: persist header state to localStorage so we can see what's happening
-    try {
-        const balAccts = client?.all_accounts_balance?.accounts;
-        const balKeys = balAccts ? Object.keys(balAccts) : [];
-        const myBal = activeLoginid && balAccts ? balAccts[activeLoginid]?.balance : undefined;
-        const dbg = {
-            t: new Date().toLocaleTimeString(),
-            ws: connectionStatus,
-            isAuthing: isAuthorizing,
-            activeLoginid: activeLoginid || '(empty)',
-            balanceLoaded: balAccts ? `YES (${balKeys.length})` : 'NO',
-            realBal: myBal !== undefined ? String(myBal) : '(none)',
-        };
-        localStorage.setItem('__header_state', JSON.stringify(dbg));
-    } catch (e) {}
-
     const renderAccountSection = useCallback(() => {
         if (isAuthenticating || isAuthorizing || (isSingleLoggingIn && !is_tmb_enabled)) {
             return <AccountsInfoLoader isLoggedIn isMobile={!isDesktop} speed={3} />;

@@ -143,27 +143,6 @@ export const AuthWrapper = () => {
     const paramsToDelete = parsedRef.current.paramsToDelete;
     const { isOnline } = useOfflineDetection();
 
-    // Persistent OAuth landing log
-    React.useEffect(() => {
-        try {
-            const log = {
-                timestamp: new Date().toISOString(),
-                landedUrl: initialUrlRef.current.href,
-                landedSearch: initialUrlRef.current.search,
-                landedHash: initialUrlRef.current.hash,
-                tokensParsedAtMount: loginInfo.length,
-                accountsAtMount: loginInfo.map(a => a.loginid),
-                host: typeof window !== 'undefined' ? window.location.host : '',
-            };
-            const history = JSON.parse(localStorage.getItem('__oauth_debug_log') || '[]');
-            history.push(log);
-            // Keep only last 5 entries
-            localStorage.setItem('__oauth_debug_log', JSON.stringify(history.slice(-5)));
-        } catch {
-            // ignore
-        }
-    }, []);
-
     React.useEffect(() => {
         // Tokens are already persisted synchronously at mount (see persistTokensSync above).
         // We can complete auth IMMEDIATELY and let the API refinement run in the background.
@@ -198,68 +177,9 @@ export const AuthWrapper = () => {
         return localize('Initializing...');
     };
 
-    // TEMP DIAGNOSTIC: visible on-screen debug to identify OAuth redirect issues
-    const diagnosticBanner = (() => {
-        try {
-            const initialSearch = initialUrlRef.current.search || '(empty)';
-            const tokens = loginInfo.length;
-            const accts = loginInfo.map(a => a.loginid).join(', ') || 'none';
-            return `LANDED search: ${initialSearch} | tokens: ${tokens} | accts: ${accts} | host: ${window.location.host}`;
-        } catch {
-            return 'diagnostic error';
-        }
-    })();
-
-    const persistentLog = (() => {
-        try {
-            const history = JSON.parse(localStorage.getItem('__oauth_debug_log') || '[]');
-            if (!history.length) return 'no history';
-            return history
-                .map((h: any, i: number) =>
-                    `#${i + 1} [${h.timestamp?.slice(11, 19)}] host=${h.host} search=${h.landedSearch || '(empty)'} tokens=${h.tokensParsedAtMount} accts=${h.accountsAtMount?.join(',') || 'none'}`
-                )
-                .join('  |||  ');
-        } catch {
-            return 'log error';
-        }
-    })();
-
     if (!isAuthComplete) {
-        return (
-            <>
-                <div style={{
-                    position: 'fixed', top: 0, left: 0, right: 0, zIndex: 99999,
-                    background: '#2A2E9B', color: '#fff', padding: '8px 12px',
-                    fontSize: '11px', fontFamily: 'monospace', wordBreak: 'break-all',
-                    lineHeight: 1.4,
-                }}>
-                    {diagnosticBanner}
-                </div>
-                <ChunkLoader message={getLoadingMessage()} />
-            </>
-        );
+        return <ChunkLoader message={getLoadingMessage()} />;
     }
 
-    return (
-        <>
-            <div style={{
-                position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 99999,
-                background: '#2A2E9B', color: '#fff', padding: '6px 10px',
-                fontSize: '10px', fontFamily: 'monospace', wordBreak: 'break-all',
-                lineHeight: 1.3, opacity: 0.95, maxHeight: '40vh', overflow: 'auto',
-            }}>
-                <div><strong>NOW:</strong> {diagnosticBanner} | authToken: {(typeof window !== 'undefined' && localStorage.getItem('authToken')) ? 'YES' : 'NO'} | active_loginid: {(typeof window !== 'undefined' && localStorage.getItem('active_loginid')) || 'none'}</div>
-                <div style={{ marginTop: 4, borderTop: '1px solid rgba(255,255,255,0.3)', paddingTop: 4 }}>
-                    <strong>HEADER:</strong> {(typeof window !== 'undefined' && localStorage.getItem('__header_state')) || '(not yet rendered)'}
-                </div>
-                <div style={{ marginTop: 4, borderTop: '1px solid rgba(255,255,255,0.3)', paddingTop: 4 }}>
-                    <strong>WS MSGS:</strong> {(typeof window !== 'undefined' && localStorage.getItem('__ws_msgs')) || '(none received)'}
-                </div>
-                <div style={{ marginTop: 4, borderTop: '1px solid rgba(255,255,255,0.3)', paddingTop: 4 }}>
-                    <strong>HISTORY:</strong> {persistentLog}
-                </div>
-            </div>
-            <App />
-        </>
-    );
+    return <App />;
 };
