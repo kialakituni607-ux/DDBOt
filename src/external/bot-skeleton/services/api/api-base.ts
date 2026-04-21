@@ -201,8 +201,12 @@ class APIBase {
         if (!token || !this.api) return;
         this.token = token;
         this.account_id = V2GetActiveClientId() ?? '';
-        setIsAuthorizing(true);
         setIsAuthorized(false);
+        // Hard fallback: even if the WebSocket never responds, flip isAuthorizing
+        // to false after 4 seconds so the header doesn't stay stuck on the skeleton.
+        const authorizingTimeout = setTimeout(() => {
+            setIsAuthorizing(false);
+        }, 4000);
 
         try {
             const { authorize, error } = await this.api.authorize(this.token);
@@ -243,6 +247,7 @@ class APIBase {
             setIsAuthorized(false);
             globalObserver.emit('Error', e);
         } finally {
+            clearTimeout(authorizingTimeout);
             setIsAuthorizing(false);
         }
     }
