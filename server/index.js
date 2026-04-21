@@ -10,7 +10,7 @@ const http = require('http');
 const app = express();
 const server = http.createServer(app);
 
-const PORT = process.env.BACKEND_PORT || 3001;
+const PORT = process.env.PORT || process.env.BACKEND_PORT || 3001;
 const JWT_SECRET = process.env.JWT_SECRET || 'fallback-dev-secret-change-in-prod';
 const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || crypto.randomBytes(32).toString('hex');
 const DERIV_APP_ID = '116874';
