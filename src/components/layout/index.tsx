@@ -137,7 +137,8 @@ const Layout = observer(() => {
             sessionStorage.setItem('query_param_currency', currency);
         }
 
-        const checkOIDCEnabledWithMissingAccount = !isEndpointPage && !isCallbackPage && !clientHasCurrency;
+        const checkOIDCEnabledWithMissingAccount =
+            isLoggedInCookie && !isEndpointPage && !isCallbackPage && !clientHasCurrency;
         const shouldAuthenticate =
             (isLoggedInCookie && !isClientAccountsPopulated && !isEndpointPage && !isCallbackPage) ||
             checkOIDCEnabledWithMissingAccount;

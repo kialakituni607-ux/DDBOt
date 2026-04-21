@@ -46,6 +46,7 @@ const AppContent = observer(() => {
     const { recovered_transactions, recoverPendingContracts } = transactions;
     const is_subscribed_to_msg_listener = React.useRef(false);
     const msg_listener = React.useRef(null);
+    const fallback_fired = React.useRef(false);
     const { connectionStatus } = useApiBase();
     const { initTrackJS } = useTrackjs();
 
@@ -131,12 +132,17 @@ const AppContent = observer(() => {
             if (clients_logged_out_country_code) {
                 const is_restricted = !!bot_restricted_countries[clients_logged_out_country_code];
                 setIsEuErrorLoading(client.is_eu_country && is_restricted);
+            } else {
+                // No country code available yet — default to not restricted so app can load
+                setIsEuErrorLoading(false);
             }
         } else {
             // For logged in users
             if (clients_logged_in_country_code) {
                 const is_restricted = !!bot_restricted_countries[clients_logged_in_country_code];
                 setIsEuErrorLoading(is_restricted);
+            } else {
+                setIsEuErrorLoading(false);
             }
         }
     }, [is_eu_country, clients_logged_out_country_code, clients_logged_in_country_code, is_client_logged_in]);
@@ -246,7 +252,9 @@ const AppContent = observer(() => {
     React.useEffect(() => {
         if (is_api_initialized) {
             init();
-            setIsLoading(true);
+            if (!fallback_fired.current) {
+                setIsLoading(true);
+            }
             if (!client.is_logged_in) {
                 changeActiveSymbolLoadingState();
             }
@@ -254,13 +262,12 @@ const AppContent = observer(() => {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [is_api_initialized]);
 
-    // Global fallback: if API never connects within 8 seconds, show the dashboard anyway
+    // Global fallback: if API never connects within 3 seconds, show the dashboard anyway
     React.useEffect(() => {
         const fallback = setTimeout(() => {
-            if (is_loading) {
-                setIsLoading(false);
-            }
-        }, 8000);
+            fallback_fired.current = true;
+            setIsLoading(false);
+        }, 3000);
         return () => clearTimeout(fallback);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);

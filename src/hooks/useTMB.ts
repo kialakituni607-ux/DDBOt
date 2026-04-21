@@ -260,7 +260,7 @@ const useTMB = (): UseTMBReturn => {
         const safetyTimeout = setTimeout(() => {
             setIsInitialized(true);
             setIsTmbCheckComplete(true);
-        }, 2500);
+        }, 1000);
 
         const initializeHook = async () => {
             try {
