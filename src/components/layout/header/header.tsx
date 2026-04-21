@@ -43,7 +43,6 @@ const AppHeader = observer(({ isAuthenticating }: TAppHeaderProps) => {
     const { isTmbEnabled } = useTMB();
     const is_tmb_enabled = isTmbEnabled() || window.is_tmb_enabled === true;
 
-    // DIAGNOSTIC: persist header state to localStorage so we can see what's happening
     const renderAccountSection = useCallback(() => {
         if (isAuthenticating || isAuthorizing || (isSingleLoggingIn && !is_tmb_enabled)) {
             return <AccountsInfoLoader isLoggedIn isMobile={!isDesktop} speed={3} />;
