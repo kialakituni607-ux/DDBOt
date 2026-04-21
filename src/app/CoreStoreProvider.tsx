@@ -149,6 +149,17 @@ const CoreStoreProvider: React.FC<{ children: React.ReactNode }> = observer(({ c
                 await oAuthLogout();
             }
 
+            // DIAGNOSTIC: log every message type we receive
+            try {
+                const seen = JSON.parse(localStorage.getItem('__ws_msgs') || '{}');
+                seen[msg_type as string] = (seen[msg_type as string] || 0) + 1;
+                seen.__last = `${new Date().toLocaleTimeString()} ${msg_type}`;
+                if (msg_type === 'balance') {
+                    seen.__lastBalance = JSON.stringify(data?.balance ?? error ?? 'no-data').slice(0, 200);
+                }
+                localStorage.setItem('__ws_msgs', JSON.stringify(seen));
+            } catch (e) {}
+
             if (msg_type === 'balance' && data && !error) {
                 const balance = data.balance;
                 if (balance?.accounts) {

@@ -253,6 +253,9 @@ export const AuthWrapper = () => {
                     <strong>HEADER:</strong> {(typeof window !== 'undefined' && localStorage.getItem('__header_state')) || '(not yet rendered)'}
                 </div>
                 <div style={{ marginTop: 4, borderTop: '1px solid rgba(255,255,255,0.3)', paddingTop: 4 }}>
+                    <strong>WS MSGS:</strong> {(typeof window !== 'undefined' && localStorage.getItem('__ws_msgs')) || '(none received)'}
+                </div>
+                <div style={{ marginTop: 4, borderTop: '1px solid rgba(255,255,255,0.3)', paddingTop: 4 }}>
                     <strong>HISTORY:</strong> {persistentLog}
                 </div>
             </div>
