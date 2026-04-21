@@ -127,8 +127,9 @@ const AppHeader = observer(({ isAuthenticating }: TAppHeaderProps) => {
                     <Button
                         className='auth-actions__login'
                         onClick={() => {
+                            const redirectUri = encodeURIComponent(`${window.location.origin}/`);
                             window.location.href =
-                                'https://oauth.deriv.com/oauth2/authorize?app_id=116874&affiliate_token=_AmUk5tNdldlMjdsyM5hasGNd7ZgqdRLk&utm_campaign=myaffiliates';
+                                `https://oauth.deriv.com/oauth2/authorize?app_id=116874&l=EN&brand=deriv&redirect_uri=${redirectUri}&affiliate_token=_AmUk5tNdldlMjdsyM5hasGNd7ZgqdRLk&utm_campaign=myaffiliates`;
                         }}
                     >
                         <Localize i18n_default_text='Log in' />
