@@ -101,6 +101,21 @@ class APIBase {
             this.api = generateDerivApiInstance();
             this.api?.connection.addEventListener('open', this.onsocketopen.bind(this));
             this.api?.connection.addEventListener('close', this.onsocketclose.bind(this));
+
+            // Pipe every WS message through globalObserver so the UI can listen
+            // independently of React effect timing. This guarantees balance/transaction
+            // updates reach the client store regardless of subscription ordering.
+            try {
+                this.api?.onMessage().subscribe((res: { data?: { msg_type?: string; balance?: unknown; error?: unknown } }) => {
+                    const data = res?.data;
+                    if (!data) return;
+                    if (data.msg_type === 'balance' && !data.error) {
+                        globalObserver.emit('balance.update', data.balance);
+                    }
+                });
+            } catch (e) {
+                console.error('[api-base] failed to attach global onMessage pipe:', e);
+            }
         }
 
         if (!this.has_active_symbols && !V2GetActiveToken()) {

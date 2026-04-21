@@ -5,6 +5,7 @@ import { getDecimalPlaces, toMoment } from '@/components/shared';
 import { FORM_ERROR_MESSAGES } from '@/components/shared/constants/form-error-messages';
 import { initFormErrorMessages } from '@/components/shared/utils/validation/declarative-validation-rules';
 import { api_base } from '@/external/bot-skeleton';
+import { observer as globalObserver } from '@/external/bot-skeleton/utils/observer';
 import { CONNECTION_STATUS } from '@/external/bot-skeleton/services/api/observables/connection-status-stream';
 import { useOauth2 } from '@/hooks/auth/useOauth2';
 import { useApiBase } from '@/hooks/useApiBase';
@@ -183,6 +184,27 @@ const CoreStoreProvider: React.FC<{ children: React.ReactNode }> = observer(({ c
         },
         [client, oAuthLogout]
     );
+
+    useEffect(() => {
+        if (!client) return;
+        const handler = (balance: unknown) => {
+            const b = balance as { accounts?: Record<string, unknown>; loginid?: string; balance?: number };
+            if (!b) return;
+            if (b.accounts) {
+                client.setAllAccountsBalance(b as never);
+            } else if (b.loginid && client.all_accounts_balance?.accounts) {
+                const accounts = { ...client.all_accounts_balance.accounts };
+                const current = { ...(accounts[b.loginid] || {}) } as { balance?: number };
+                current.balance = b.balance;
+                accounts[b.loginid] = current as never;
+                client.setAllAccountsBalance({ ...client.all_accounts_balance, accounts } as never);
+            }
+        };
+        globalObserver.register('balance.update', handler);
+        return () => {
+            globalObserver.unregister('balance.update', handler);
+        };
+    }, [client]);
 
     useEffect(() => {
         if (!client) return;
