@@ -196,12 +196,6 @@ const AppHeader = observer(({ isAuthenticating }: TAppHeaderProps) => {
                 </div>
             </div>
 
-            {/* Bottom nav row */}
-            {isDesktop && (
-                <div className='app-header__nav-row'>
-                    <MenuItems />
-                </div>
-            )}
         </Header>
     );
 });
