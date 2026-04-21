@@ -17,6 +17,26 @@ declare global {
     }
 }
 
+// Synchronously persist tokens + pick the real (non-virtual) account.
+// Must run at mount BEFORE any async work so api_base.init() finds authToken in localStorage.
+const persistTokensSync = (loginInfo: URLUtils.LoginInfo[]) => {
+    if (!loginInfo.length) return null;
+    const accountsList: Record<string, string> = {};
+    const clientAccounts: Record<string, { loginid: string; token: string; currency: string }> = {};
+    loginInfo.forEach(acc => {
+        accountsList[acc.loginid] = acc.token;
+        clientAccounts[acc.loginid] = acc;
+    });
+    localStorage.setItem('accountsList', JSON.stringify(accountsList));
+    localStorage.setItem('clientAccounts', JSON.stringify(clientAccounts));
+    // Prefer first real account (non-VR/VRTC/VRW), else first entry
+    const realAccount = loginInfo.find(a => !/^VR/.test(a.loginid));
+    const chosen = realAccount || loginInfo[0];
+    localStorage.setItem('authToken', chosen.token);
+    localStorage.setItem('active_loginid', chosen.loginid);
+    return chosen;
+};
+
 const setLocalStorageToken = async (
     loginInfo: URLUtils.LoginInfo[],
     paramsToDelete: string[],
@@ -25,27 +45,11 @@ const setLocalStorageToken = async (
 ) => {
     if (loginInfo.length) {
         try {
-            const defaultActiveAccount = URLUtils.getDefaultActiveAccount(loginInfo);
-            if (!defaultActiveAccount) return;
-
-            const accountsList: Record<string, string> = {};
-            const clientAccounts: Record<string, { loginid: string; token: string; currency: string }> = {};
-
-            loginInfo.forEach((account: { loginid: string; token: string; currency: string }) => {
-                accountsList[account.loginid] = account.token;
-                clientAccounts[account.loginid] = account;
-            });
-
-            localStorage.setItem('accountsList', JSON.stringify(accountsList));
-            localStorage.setItem('clientAccounts', JSON.stringify(clientAccounts));
-
             URLUtils.filterSearchParams(paramsToDelete);
 
-            // Skip API connection when offline
+            // Skip API refinement when offline (tokens already stored synchronously)
             if (!isOnline) {
                 console.log('[Auth] Offline mode - skipping API connection');
-                localStorage.setItem('authToken', loginInfo[0].token);
-                localStorage.setItem('active_loginid', loginInfo[0].loginid);
                 return;
             }
 
@@ -120,7 +124,23 @@ export const AuthWrapper = () => {
         search: typeof window !== 'undefined' ? window.location.search : '',
         hash: typeof window !== 'undefined' ? window.location.hash : '',
     });
-    const { loginInfo, paramsToDelete } = URLUtils.getLoginInfoFromURL();
+    // Parse login info ONCE at mount and persist tokens synchronously BEFORE any async work.
+    // This guarantees api_base.init() (which reads localStorage on mount) sees the auth token.
+    const parsedRef = React.useRef<{ loginInfo: URLUtils.LoginInfo[]; paramsToDelete: string[] }>(
+        (() => {
+            const parsed = URLUtils.getLoginInfoFromURL();
+            if (parsed.loginInfo.length && typeof window !== 'undefined') {
+                try {
+                    persistTokensSync(parsed.loginInfo);
+                } catch (e) {
+                    console.error('[Auth] Sync token persist failed:', e);
+                }
+            }
+            return parsed;
+        })()
+    );
+    const loginInfo = parsedRef.current.loginInfo;
+    const paramsToDelete = parsedRef.current.paramsToDelete;
     const { isOnline } = useOfflineDetection();
 
     // Persistent OAuth landing log
@@ -166,7 +186,8 @@ export const AuthWrapper = () => {
         }
 
         initializeAuth();
-    }, [loginInfo, paramsToDelete, isOnline]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isOnline]); // loginInfo/paramsToDelete are stable refs, intentionally excluded to avoid re-fires
 
     // Add timeout for offline scenarios to prevent infinite loading
     React.useEffect(() => {
