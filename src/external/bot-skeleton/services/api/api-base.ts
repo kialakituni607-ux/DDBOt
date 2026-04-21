@@ -115,17 +115,20 @@ class APIBase {
         if (V2GetActiveToken()) {
             // Hydrate observables from localStorage IMMEDIATELY so the header can
             // render real account info without waiting for the WS authorize round-trip.
-            this.hydrateFromLocalStorage();
-            setIsAuthorizing(true);
-            // Don't await — authorize runs in the background with its own timeout fallback.
-            // This prevents the header from being stuck in skeleton mode if the WS is slow.
+            const hydrated = this.hydrateFromLocalStorage();
+            // Only show "authorizing" skeleton if we have NO cached data to render.
+            // When we have cached data, let the WS auth happen silently in the background.
+            if (!hydrated) {
+                setIsAuthorizing(true);
+            }
+            // Don't await — authorize runs in the background.
             this.authorizeAndSubscribe();
         }
 
         chart_api.init(force_create_connection);
     }
 
-    hydrateFromLocalStorage() {
+    hydrateFromLocalStorage(): boolean {
         try {
             const cachedActiveLoginid = localStorage.getItem('active_loginid') || '';
             const cachedClientAccountsRaw = localStorage.getItem('clientAccounts') || '{}';
@@ -134,7 +137,7 @@ class APIBase {
                 { loginid: string; token: string; currency: string }
             >;
             const entries = Object.values(cachedClientAccounts);
-            if (!cachedActiveLoginid || entries.length === 0) return;
+            if (!cachedActiveLoginid || entries.length === 0) return false;
 
             const cached_account_list = entries.map(info => ({
                 loginid: info.loginid,
@@ -150,8 +153,10 @@ class APIBase {
                 loginid: cachedActiveLoginid,
                 account_list: cached_account_list,
             } as unknown as TAuthData);
+            return true;
         } catch (e) {
             console.error('[api-base] hydrateFromLocalStorage failed:', e);
+            return false;
         }
     }
 
