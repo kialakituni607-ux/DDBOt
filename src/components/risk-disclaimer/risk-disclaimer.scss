@@ -4,6 +4,10 @@
         bottom: 3.6rem;
         left: 1.6rem;
         z-index: 1000;
+
+        @media (max-width: 768px) {
+            bottom: 7.5rem;
+        }
         background: #f0c000;
         color: #1a1a1a;
         border: none;
