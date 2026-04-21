@@ -114,8 +114,35 @@ const setLocalStorageToken = async (
 
 export const AuthWrapper = () => {
     const [isAuthComplete, setIsAuthComplete] = React.useState(false);
+    // Capture URL state ONCE at mount before anything modifies it
+    const initialUrlRef = React.useRef<{ href: string; search: string; hash: string }>({
+        href: typeof window !== 'undefined' ? window.location.href : '',
+        search: typeof window !== 'undefined' ? window.location.search : '',
+        hash: typeof window !== 'undefined' ? window.location.hash : '',
+    });
     const { loginInfo, paramsToDelete } = URLUtils.getLoginInfoFromURL();
     const { isOnline } = useOfflineDetection();
+
+    // Persistent OAuth landing log
+    React.useEffect(() => {
+        try {
+            const log = {
+                timestamp: new Date().toISOString(),
+                landedUrl: initialUrlRef.current.href,
+                landedSearch: initialUrlRef.current.search,
+                landedHash: initialUrlRef.current.hash,
+                tokensParsedAtMount: loginInfo.length,
+                accountsAtMount: loginInfo.map(a => a.loginid),
+                host: typeof window !== 'undefined' ? window.location.host : '',
+            };
+            const history = JSON.parse(localStorage.getItem('__oauth_debug_log') || '[]');
+            history.push(log);
+            // Keep only last 5 entries
+            localStorage.setItem('__oauth_debug_log', JSON.stringify(history.slice(-5)));
+        } catch {
+            // ignore
+        }
+    }, []);
 
     React.useEffect(() => {
         const initializeAuth = async () => {
@@ -162,13 +189,26 @@ export const AuthWrapper = () => {
     // TEMP DIAGNOSTIC: visible on-screen debug to identify OAuth redirect issues
     const diagnosticBanner = (() => {
         try {
-            const url = new URL(window.location.href);
-            const search = url.search || '(empty)';
+            const initialSearch = initialUrlRef.current.search || '(empty)';
             const tokens = loginInfo.length;
             const accts = loginInfo.map(a => a.loginid).join(', ') || 'none';
-            return `URL search: ${search} | tokens parsed: ${tokens} | accounts: ${accts} | host: ${url.host}`;
+            return `LANDED search: ${initialSearch} | tokens: ${tokens} | accts: ${accts} | host: ${window.location.host}`;
         } catch {
             return 'diagnostic error';
+        }
+    })();
+
+    const persistentLog = (() => {
+        try {
+            const history = JSON.parse(localStorage.getItem('__oauth_debug_log') || '[]');
+            if (!history.length) return 'no history';
+            return history
+                .map((h: any, i: number) =>
+                    `#${i + 1} [${h.timestamp?.slice(11, 19)}] host=${h.host} search=${h.landedSearch || '(empty)'} tokens=${h.tokensParsedAtMount} accts=${h.accountsAtMount?.join(',') || 'none'}`
+                )
+                .join('  |||  ');
+        } catch {
+            return 'log error';
         }
     })();
 
@@ -194,9 +234,12 @@ export const AuthWrapper = () => {
                 position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 99999,
                 background: '#2A2E9B', color: '#fff', padding: '6px 10px',
                 fontSize: '10px', fontFamily: 'monospace', wordBreak: 'break-all',
-                lineHeight: 1.3, opacity: 0.92,
+                lineHeight: 1.3, opacity: 0.95, maxHeight: '40vh', overflow: 'auto',
             }}>
-                DEBUG: {diagnosticBanner} | authToken: {(typeof window !== 'undefined' && localStorage.getItem('authToken')) ? 'YES' : 'NO'} | active_loginid: {(typeof window !== 'undefined' && localStorage.getItem('active_loginid')) || 'none'}
+                <div><strong>NOW:</strong> {diagnosticBanner} | authToken: {(typeof window !== 'undefined' && localStorage.getItem('authToken')) ? 'YES' : 'NO'} | active_loginid: {(typeof window !== 'undefined' && localStorage.getItem('active_loginid')) || 'none'}</div>
+                <div style={{ marginTop: 4, borderTop: '1px solid rgba(255,255,255,0.3)', paddingTop: 4 }}>
+                    <strong>HISTORY:</strong> {persistentLog}
+                </div>
             </div>
             <App />
         </>
