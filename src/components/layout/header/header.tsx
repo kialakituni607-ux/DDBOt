@@ -10,8 +10,6 @@ import { useFirebaseCountriesConfig } from '@/hooks/firebase/useFirebaseCountrie
 import { useApiBase } from '@/hooks/useApiBase';
 import { useStore } from '@/hooks/useStore';
 import useTMB from '@/hooks/useTMB';
-import { handleOidcAuthFailure } from '@/utils/auth-utils';
-import { requestOidcAuthentication } from '@deriv-com/auth-client';
 import { StandaloneCircleUserRegularIcon } from '@deriv/quill-icons/Standalone';
 import { Localize, useTranslations } from '@deriv-com/translations';
 import { Header, useDevice } from '@deriv-com/ui';
@@ -128,15 +126,9 @@ const AppHeader = observer(({ isAuthenticating }: TAppHeaderProps) => {
                 <div className='auth-actions'>
                     <Button
                         className='auth-actions__login'
-                        onClick={async () => {
-                            try {
-                                await requestOidcAuthentication({
-                                    redirectCallbackUri: `${window.location.origin}/callback`,
-                                    postLogoutRedirectUri: window.location.origin,
-                                });
-                            } catch (err) {
-                                handleOidcAuthFailure(err);
-                            }
+                        onClick={() => {
+                            window.location.href =
+                                'https://oauth.deriv.com/oauth2/authorize?app_id=116874&affiliate_token=_AmUk5tNdldlMjdsyM5hasGNd7ZgqdRLk&utm_campaign=myaffiliates';
                         }}
                     >
                         <Localize i18n_default_text='Log in' />
