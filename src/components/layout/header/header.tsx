@@ -43,6 +43,21 @@ const AppHeader = observer(({ isAuthenticating }: TAppHeaderProps) => {
     const { isTmbEnabled } = useTMB();
     const is_tmb_enabled = isTmbEnabled() || window.is_tmb_enabled === true;
 
+    // DIAGNOSTIC: persist header state to localStorage so we can see what's happening
+    try {
+        const dbg = {
+            t: new Date().toLocaleTimeString(),
+            isAuth: isAuthenticating,
+            isAuthing: isAuthorizing,
+            isSingleLogin: isSingleLoggingIn,
+            tmb: is_tmb_enabled,
+            activeLoginid: activeLoginid || '(empty)',
+            activeAccount: activeAccount ? `${activeAccount.loginid}/${activeAccount.currency}/${activeAccount.balance}` : '(undefined)',
+            clientLoggedIn: client?.is_logged_in,
+        };
+        localStorage.setItem('__header_state', JSON.stringify(dbg));
+    } catch (e) {}
+
     const renderAccountSection = useCallback(() => {
         if (isAuthenticating || isAuthorizing || (isSingleLoggingIn && !is_tmb_enabled)) {
             return <AccountsInfoLoader isLoggedIn isMobile={!isDesktop} speed={3} />;

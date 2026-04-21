@@ -250,6 +250,9 @@ export const AuthWrapper = () => {
             }}>
                 <div><strong>NOW:</strong> {diagnosticBanner} | authToken: {(typeof window !== 'undefined' && localStorage.getItem('authToken')) ? 'YES' : 'NO'} | active_loginid: {(typeof window !== 'undefined' && localStorage.getItem('active_loginid')) || 'none'}</div>
                 <div style={{ marginTop: 4, borderTop: '1px solid rgba(255,255,255,0.3)', paddingTop: 4 }}>
+                    <strong>HEADER:</strong> {(typeof window !== 'undefined' && localStorage.getItem('__header_state')) || '(not yet rendered)'}
+                </div>
+                <div style={{ marginTop: 4, borderTop: '1px solid rgba(255,255,255,0.3)', paddingTop: 4 }}>
                     <strong>HISTORY:</strong> {persistentLog}
                 </div>
             </div>
