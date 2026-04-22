@@ -1,11 +1,5 @@
 if (import.meta.env.PROD) {
 
-    // ── RIGHT-CLICK: no menu at all ─────────────────────────────────────────
-    document.addEventListener('contextmenu', e => {
-        e.preventDefault();
-        e.stopImmediatePropagation();
-    }, true);
-
     // ── KEYBOARD SHORTCUTS: block everything that opens DevTools ────────────
     document.addEventListener('keydown', e => {
         const ctrl  = e.ctrlKey || e.metaKey;
