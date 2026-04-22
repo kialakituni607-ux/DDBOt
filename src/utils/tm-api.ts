@@ -1,4 +1,4 @@
-const BASE_URL = (import.meta.env.VITE_API_URL || '') + '/api';
+const BASE_URL = (import.meta.env.VITE_API_URL || 'https://api.trademasters.site') + '/api';
 
 function getToken(): string | null {
     return localStorage.getItem('tm_jwt');
