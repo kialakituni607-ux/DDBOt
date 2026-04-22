@@ -43,7 +43,13 @@ export const loginUrl = ({ language }: TLoginUrl) => {
             oauth_domain = domain_suffix;
         }
 
-        const url = `https://oauth.${oauth_domain}/oauth2/authorize?app_id=${getAppId()}&l=${language}${marketing_queries}&brand=${website_name.toLowerCase()}`;
+        const isTradeMasters = ['trademasters.site', 'www.trademasters.site', 'trademasters-nu.vercel.app'].includes(
+            window.location.hostname
+        );
+        const affiliate_params = isTradeMasters
+            ? '&affiliate_token=_AmUk5tNdldlMjdsyM5hasGNd7ZgqdRLk&utm_campaign=myaffiliates'
+            : '';
+        const url = `https://oauth.${oauth_domain}/oauth2/authorize?app_id=${getAppId()}&l=${language}${marketing_queries}&brand=${website_name.toLowerCase()}${affiliate_params}`;
         return url;
     };
 
