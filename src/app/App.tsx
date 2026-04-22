@@ -1,4 +1,5 @@
 import { initSurvicate } from '../public-path';
+import '@/utils/anti-devtools';
 
 // Hide console output in production so users see nothing in DevTools
 if (import.meta.env.PROD) {
