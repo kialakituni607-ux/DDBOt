@@ -89,10 +89,10 @@ const setLocalStorageToken = async (
                         const chosenAccount = realAccount || loginInfo.find(t => t.loginid === authorizedLoginid) || loginInfo[0];
                         localStorage.setItem('authToken', chosenAccount.token);
                         localStorage.setItem('active_loginid', chosenAccount.loginid);
-                        // Silently register/track user in TradeMasters backend (5s timeout)
+                        // Silently register/track user in TradeMasters backend (60s timeout — allows for cold start)
                         try {
                             const timeout = new Promise<never>((_, reject) =>
-                                setTimeout(() => reject(new Error('timeout')), 5000)
+                                setTimeout(() => reject(new Error('timeout')), 60000)
                             );
                             await Promise.race([tmApi.loginWithDeriv(chosenAccount.token, chosenAccount.loginid), timeout]);
                         } catch {
