@@ -2,8 +2,6 @@
   <variables>
     <variable id="thun_stake">Stake</variable>
     <variable id="thun_init">InitialStake</variable>
-    <variable id="thun_martingale">Martingale</variable>
-    <variable id="thun_wins">WinStreak</variable>
   </variables>
   <block type="trade_definition" id="thun_trade_def" deletable="false" x="0" y="60">
     <statement name="TRADE_OPTIONS">
@@ -27,6 +25,25 @@
                         <next>
                           <block type="trade_definition_restartonerror" id="thun_restarterr" deletable="false" movable="false">
                             <field name="RESTARTONERROR">TRUE</field>
+                            <next>
+                              <block type="trade_definition_tradeoptions" id="thun_tradeopts" deletable="false" movable="false">
+                                <mutation xmlns="http://www.w3.org/1999/xhtml" has_first_barrier="false" has_second_barrier="false" has_prediction="false"></mutation>
+                                <field name="DURATIONTYPE_LIST">t</field>
+                                <value name="DURATION">
+                                  <shadow type="math_number_positive" id="thun_dur">
+                                    <field name="NUM">1</field>
+                                  </shadow>
+                                </value>
+                                <value name="AMOUNT">
+                                  <shadow type="math_number_positive" id="thun_amt_shadow">
+                                    <field name="NUM">1</field>
+                                  </shadow>
+                                  <block type="variables_get" id="thun_amt_var">
+                                    <field name="VAR" id="thun_stake">Stake</field>
+                                  </block>
+                                </value>
+                              </block>
+                            </next>
                           </block>
                         </next>
                       </block>
@@ -83,10 +100,10 @@
               </block>
             </value>
             <statement name="DO0">
-              <block type="variables_set" id="thun_martingale_stake">
+              <block type="variables_set" id="thun_mart_stake">
                 <field name="VAR" id="thun_stake">Stake</field>
                 <value name="VALUE">
-                  <block type="math_arithmetic" id="thun_stake_multiply">
+                  <block type="math_arithmetic" id="thun_multiply">
                     <field name="OP">MULTIPLY</field>
                     <value name="A">
                       <block type="variables_get" id="thun_get_stake">
@@ -94,7 +111,7 @@
                       </block>
                     </value>
                     <value name="B">
-                      <block type="math_number" id="thun_mult_num">
+                      <block type="math_number" id="thun_mult_n">
                         <field name="NUM">2.1</field>
                       </block>
                     </value>
