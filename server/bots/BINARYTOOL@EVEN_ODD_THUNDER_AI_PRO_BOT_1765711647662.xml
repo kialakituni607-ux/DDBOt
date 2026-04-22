@@ -1,0 +1,137 @@
+<xml xmlns="https://developers.google.com/blockly/xml" is_dbot="true" collection="false">
+  <variables>
+    <variable id="thun_stake">Stake</variable>
+    <variable id="thun_init">InitialStake</variable>
+  </variables>
+  <block type="trade_definition" id="thun_trade_def" deletable="false" x="0" y="60">
+    <statement name="TRADE_OPTIONS">
+      <block type="trade_definition_market" id="thun_market" deletable="false" movable="false">
+        <field name="MARKET_LIST">synthetic_index</field>
+        <field name="SUBMARKET_LIST">random_index</field>
+        <field name="SYMBOL_LIST">R_100</field>
+        <next>
+          <block type="trade_definition_tradetype" id="thun_tradetype" deletable="false" movable="false">
+            <field name="TRADETYPECAT_LIST">digits</field>
+            <field name="TRADETYPE_LIST">evenodd</field>
+            <next>
+              <block type="trade_definition_contracttype" id="thun_contracttype" deletable="false" movable="false">
+                <field name="TYPE_LIST">both</field>
+                <next>
+                  <block type="trade_definition_candleinterval" id="thun_candle" deletable="false" movable="false">
+                    <field name="CANDLEINTERVAL_LIST">60</field>
+                    <next>
+                      <block type="trade_definition_restartbuysell" id="thun_restart" deletable="false" movable="false">
+                        <field name="TIME_MACHINE_ENABLED">FALSE</field>
+                        <next>
+                          <block type="trade_definition_restartonerror" id="thun_restarterr" deletable="false" movable="false">
+                            <field name="RESTARTONERROR">TRUE</field>
+                            <next>
+                              <block type="trade_definition_tradeoptions" id="thun_tradeopts" deletable="false" movable="false">
+                                <mutation xmlns="http://www.w3.org/1999/xhtml" has_first_barrier="false" has_second_barrier="false" has_prediction="false"></mutation>
+                                <field name="DURATIONTYPE_LIST">t</field>
+                                <value name="DURATION">
+                                  <shadow type="math_number_positive" id="thun_dur">
+                                    <field name="NUM">1</field>
+                                  </shadow>
+                                </value>
+                                <value name="AMOUNT">
+                                  <shadow type="math_number_positive" id="thun_amt_shadow">
+                                    <field name="NUM">1</field>
+                                  </shadow>
+                                  <block type="variables_get" id="thun_amt_var">
+                                    <field name="VAR" id="thun_stake">Stake</field>
+                                  </block>
+                                </value>
+                              </block>
+                            </next>
+                          </block>
+                        </next>
+                      </block>
+                    </next>
+                  </block>
+                </next>
+              </block>
+            </next>
+          </block>
+        </next>
+      </block>
+    </statement>
+  </block>
+  <block type="before_purchase" id="thun_before" x="0" y="460">
+    <statement name="BEFOREPURCHASE_STACK">
+      <block type="purchase" id="thun_purchase">
+        <field name="PURCHASE_LIST">odd</field>
+      </block>
+    </statement>
+  </block>
+  <block type="after_purchase" id="thun_after" x="0" y="600">
+    <statement name="AFTERPURCHASE_STACK">
+      <block type="controls_if" id="thun_if_win">
+        <value name="IF0">
+          <block type="contract_check_result" id="thun_check_win">
+            <field name="RESULT">win</field>
+          </block>
+        </value>
+        <statement name="DO0">
+          <block type="variables_set" id="thun_reset_stake">
+            <field name="VAR" id="thun_stake">Stake</field>
+            <value name="VALUE">
+              <block type="variables_get" id="thun_get_init">
+                <field name="VAR" id="thun_init">InitialStake</field>
+              </block>
+            </value>
+            <next>
+              <block type="notify" id="thun_win_notify">
+                <field name="NOTIFICATION_TYPE">success</field>
+                <value name="MESSAGE">
+                  <block type="text" id="thun_win_msg">
+                    <field name="TEXT">Thunder AI Pro: Win! Stake reset.</field>
+                  </block>
+                </value>
+              </block>
+            </next>
+          </block>
+        </statement>
+        <next>
+          <block type="controls_if" id="thun_if_loss">
+            <value name="IF0">
+              <block type="contract_check_result" id="thun_check_loss">
+                <field name="RESULT">loss</field>
+              </block>
+            </value>
+            <statement name="DO0">
+              <block type="variables_set" id="thun_mart_stake">
+                <field name="VAR" id="thun_stake">Stake</field>
+                <value name="VALUE">
+                  <block type="math_arithmetic" id="thun_multiply">
+                    <field name="OP">MULTIPLY</field>
+                    <value name="A">
+                      <block type="variables_get" id="thun_get_stake">
+                        <field name="VAR" id="thun_stake">Stake</field>
+                      </block>
+                    </value>
+                    <value name="B">
+                      <block type="math_number" id="thun_mult_n">
+                        <field name="NUM">2.1</field>
+                      </block>
+                    </value>
+                  </block>
+                </value>
+                <next>
+                  <block type="notify" id="thun_loss_notify">
+                    <field name="NOTIFICATION_TYPE">error</field>
+                    <value name="MESSAGE">
+                      <block type="text" id="thun_loss_msg">
+                        <field name="TEXT">Thunder AI Pro: Loss. Martingale applied.</field>
+                      </block>
+                    </value>
+                  </block>
+                </next>
+              </block>
+            </statement>
+          </block>
+        </next>
+      </block>
+    </statement>
+  </block>
+</xml>

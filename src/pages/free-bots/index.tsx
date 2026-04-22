@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { observer } from 'mobx-react-lite';
 import { useStore } from '@/hooks/useStore';
 import { load, save_types } from '@/external/bot-skeleton';
+import tmApi from '@/utils/tm-api';
 import './free-bots.scss';
 
 interface Bot {
@@ -134,13 +135,7 @@ const FreeBots = observer(() => {
     const loadBot = async (bot: Bot) => {
         try {
             setLoadingBotId(bot.id);
-            
-            const response = await fetch(`/bots/${bot.fileName}`);
-            if (!response.ok) {
-                throw new Error('Failed to fetch bot file');
-            }
-            
-            const xmlContent = await response.text();
+            const xmlContent = await tmApi.getBotXml(bot.fileName);
             
             await load({
                 block_string: xmlContent,

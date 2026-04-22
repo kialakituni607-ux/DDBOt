@@ -172,6 +172,14 @@ const tmApi = {
         tmApi.saveUser(res.user);
         return res;
     },
+
+    async getBotXml(fileName: string): Promise<string> {
+        const { token } = await request<{ token: string }>('/bots/token');
+        const url = `${BASE_URL}/bots/${encodeURIComponent(fileName)}?token=${encodeURIComponent(token)}`;
+        const res = await fetch(url);
+        if (!res.ok) throw new Error('Failed to fetch bot file');
+        return res.text();
+    },
 };
 
 export default tmApi;

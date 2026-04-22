@@ -1,9 +1,16 @@
 {
-  "buildCommand": "npm run build",
-  "outputDirectory": "dist",
-  "installCommand": "npm install --legacy-peer-deps",
-  "framework": null,
+  "headers": [
+    {
+      "source": "/bots/(.*)",
+      "headers": [
+        { "key": "X-Robots-Tag", "value": "noindex" }
+      ]
+    }
+  ],
   "rewrites": [
-    { "source": "/(.*)", "destination": "/index.html" }
+    {
+      "source": "/bots/(.*)",
+      "destination": "/api/blocked"
+    }
   ]
 }

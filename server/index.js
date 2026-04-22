@@ -6,6 +6,8 @@ const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const WebSocket = require('ws');
 const http = require('http');
+const path = require('path');
+const fs = require('fs');
 
 const app = express();
 const server = http.createServer(app);
@@ -22,10 +24,56 @@ const pool = new Pool({
         : false,
 });
 
+// ── 1. RATE LIMITER ──────────────────────────────────────────────────────────
+const rateLimitStore = new Map();
+setInterval(() => {
+    const now = Date.now();
+    for (const [key, data] of rateLimitStore.entries()) {
+        if (now - data.windowStart > 60_000) rateLimitStore.delete(key);
+    }
+}, 60_000);
+
+function rateLimit({ max, windowMs }) {
+    return (req, res, next) => {
+        const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket.remoteAddress;
+        const now = Date.now();
+        const entry = rateLimitStore.get(ip);
+        if (!entry || now - entry.windowStart > windowMs) {
+            rateLimitStore.set(ip, { count: 1, windowStart: now });
+            return next();
+        }
+        if (entry.count >= max) {
+            res.setHeader('Retry-After', Math.ceil((windowMs - (now - entry.windowStart)) / 1000));
+            return res.status(429).json({ error: 'Too many requests — please slow down.' });
+        }
+        entry.count++;
+        next();
+    };
+}
+
+const generalLimiter = rateLimit({ max: 60, windowMs: 60_000 });
+const authLimiter    = rateLimit({ max: 10, windowMs: 60_000 });
+const botLimiter     = rateLimit({ max: 30, windowMs: 60_000 });
+
+// ── 2. CORS — only allow trademasters.site ───────────────────────────────────
+const ALLOWED_ORIGINS = [
+    'https://trademasters.site',
+    'https://www.trademasters.site',
+    'https://trademasters-nu.vercel.app',
+];
+
 app.use(cors({
-    origin: true,
+    origin: (origin, callback) => {
+        if (!origin || ALLOWED_ORIGINS.includes(origin) || /^http:\/\/localhost(:\d+)?$/.test(origin)) {
+            callback(null, true);
+        } else {
+            callback(new Error(`CORS: origin ${origin} not allowed`));
+        }
+    },
     credentials: true,
 }));
+
+app.use(generalLimiter);
 app.use(express.json());
 
 app.get('/health', (req, res) => res.json({ status: 'ok' }));
@@ -69,7 +117,43 @@ app.get('/api/health', (req, res) => {
     res.json({ status: 'ok', time: new Date().toISOString() });
 });
 
-app.post('/api/auth/register', async (req, res) => {
+// ── 3. PROTECTED BOT FILE SERVING ────────────────────────────────────────────
+const BOTS_DIR = path.join(__dirname, 'bots');
+
+// Issue a short-lived access token for bot downloads (no login required)
+app.get('/api/bots/token', botLimiter, (req, res) => {
+    const token = jwt.sign({ type: 'bot_access' }, JWT_SECRET, { expiresIn: '10m' });
+    res.json({ token });
+});
+
+// Serve bot XML — requires a valid bot_access token
+app.get('/api/bots/:filename', botLimiter, (req, res) => {
+    const { filename } = req.params;
+    const { token } = req.query;
+
+    if (!token) return res.status(401).json({ error: 'Access token required' });
+
+    try {
+        const decoded = jwt.verify(token, JWT_SECRET);
+        if (decoded.type !== 'bot_access') throw new Error('Invalid token type');
+    } catch {
+        return res.status(401).json({ error: 'Invalid or expired access token' });
+    }
+
+    // Prevent path traversal attacks
+    const safeName = path.basename(filename);
+    if (!safeName.endsWith('.xml')) return res.status(400).json({ error: 'Invalid file type' });
+
+    const filePath = path.join(BOTS_DIR, safeName);
+    if (!fs.existsSync(filePath)) return res.status(404).json({ error: 'Bot not found' });
+
+    res.setHeader('Content-Type', 'application/xml');
+    res.setHeader('Content-Disposition', 'inline');
+    res.setHeader('Cache-Control', 'no-store');
+    res.sendFile(filePath);
+});
+
+app.post('/api/auth/register', authLimiter, async (req, res) => {
     const { email, username, password } = req.body;
     if (!email || !username || !password) {
         return res.status(400).json({ error: 'email, username and password are required' });
@@ -95,7 +179,7 @@ app.post('/api/auth/register', async (req, res) => {
     }
 });
 
-app.post('/api/auth/login', async (req, res) => {
+app.post('/api/auth/login', authLimiter, async (req, res) => {
     const { email, password } = req.body;
     if (!email || !password) {
         return res.status(400).json({ error: 'email and password are required' });
@@ -125,7 +209,7 @@ app.get('/api/auth/me', authMiddleware, async (req, res) => {
 });
 
 // Deriv OAuth — create or find user by loginid, no password needed
-app.post('/api/auth/deriv', async (req, res) => {
+app.post('/api/auth/deriv', authLimiter, async (req, res) => {
     const { deriv_token, loginid } = req.body;
     if (!deriv_token || !loginid) {
         return res.status(400).json({ error: 'deriv_token and loginid are required' });
