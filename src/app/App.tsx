@@ -1,4 +1,24 @@
 import { initSurvicate } from '../public-path';
+
+// Hide console output in production so users see nothing in DevTools
+if (import.meta.env.PROD) {
+    const noop = () => {};
+    (window.console as any) = {
+        ...window.console,
+        log: noop,
+        info: noop,
+        warn: noop,
+        error: noop,
+        debug: noop,
+        table: noop,
+        group: noop,
+        groupEnd: noop,
+        groupCollapsed: noop,
+        trace: noop,
+        dir: noop,
+    };
+}
+
 import { lazy, Suspense } from 'react';
 import React from 'react';
 import { createBrowserRouter, createRoutesFromElements, Route, RouterProvider } from 'react-router-dom';
