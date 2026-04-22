@@ -15,6 +15,14 @@ interface Bot {
 
 const BOTS: Bot[] = [
     {
+        id: '0',
+        name: 'TRADEMASTERS AI VERSION (3.0)',
+        description: 'Our flagship AI bot using Digit Over strategy on Volatility 100 (1s) Index with martingale recovery, take profit and stop loss controls.',
+        fileName: 'TRADEMASTERS_AI_VERSION_3.0.xml',
+        category: 'AI Trading',
+        icon: '👑',
+    },
+    {
         id: '1',
         name: 'Expert Speed Bot',
         description: 'Advanced speed trading bot with optimized entry and exit points for quick trades.',
