@@ -211,6 +211,11 @@
     transition: all 0.2s;
     border: 2px solid transparent;
 
+    @media (max-width: 600px) {
+        padding: 0.8rem 0.4rem;
+        border-radius: 0.8rem;
+    }
+
     &--active {
         border-color: #ff9800;
         box-shadow: 0 4px 16px rgba(255, 152, 0, 0.3);
@@ -225,6 +230,25 @@
 
 .sa-digit-ring {
     line-height: 0;
+
+    svg {
+        width: 92px;
+        height: 92px;
+    }
+
+    @media (max-width: 600px) {
+        svg {
+            width: 58px;
+            height: 58px;
+        }
+    }
+
+    @media (max-width: 400px) {
+        svg {
+            width: 50px;
+            height: 50px;
+        }
+    }
 }
 
 .sa-digit-number {
@@ -232,6 +256,10 @@
     font-weight: 900;
     fill: #2A2E9B;
     font-family: inherit;
+
+    @media (max-width: 600px) {
+        font-size: 1.4rem;
+    }
 }
 
 .sa-digit-pct {
@@ -239,6 +267,10 @@
     font-weight: 700;
     fill: #555;
     font-family: inherit;
+
+    @media (max-width: 600px) {
+        font-size: 0.75rem;
+    }
 }
 
 .sa-digit-badge {
