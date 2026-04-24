@@ -252,7 +252,7 @@ const EntryScanner: React.FC = () => {
 
         // Sort per-market best by quality score descending → top results (one per market)
         perMarketBest.sort((a, b) => b.qualityScore - a.qualityScore);
-        setTopResults(perMarketBest.slice(0, 8));
+        setTopResults(perMarketBest.slice(0, 1));
         setBestResult(overallBest);
 
         if (overallBest) {
