@@ -76,10 +76,13 @@ const EntryScanner: React.FC = () => {
         setStatusMsg('Scanning all volatility markets...');
         setMarketProgress(MARKETS.map(m => ({ label: m.label, status: 'pending' })));
 
+        // Scale delay with tick count: 100 ticks ≈ 150ms/market, 5000 ticks ≈ 450ms/market
+        const perMarketDelay = Math.round(150 + (tickCount / 5000) * 300);
+
         for (let mi = 0; mi < MARKETS.length; mi++) {
             if (abortRef.current) break;
             setMarketProgress(prev => prev.map((p, i) => i === mi ? { ...p, status: 'scanning' } : p));
-            await DELAY(220);
+            await DELAY(perMarketDelay);
             if (abortRef.current) break;
             setMarketProgress(prev => prev.map((p, i) => i === mi ? { ...p, status: 'done' } : p));
             setProgress(Math.round(((mi + 1) / MARKETS.length) * 100));
