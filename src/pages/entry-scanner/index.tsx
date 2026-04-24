@@ -2,7 +2,6 @@ import React, { useState, useRef } from 'react';
 import { observer } from 'mobx-react-lite';
 import { useStore } from '@/hooks/useStore';
 import { load, save_types } from '@/external/bot-skeleton';
-import tmApi from '@/utils/tm-api';
 import './entry-scanner.scss';
 
 const MARKETS = [
@@ -166,7 +165,10 @@ const EntryScanner: React.FC = observer(() => {
         if (launching) return;
         setLaunching(true);
         try {
-            let xmlContent = await tmApi.getBotXml('Antipoverty_AI.xml');
+            // Fetch directly from the static public path — no JWT round-trip needed
+            const xmlRes = await fetch('/bots/Antipoverty_AI.xml');
+            if (!xmlRes.ok) throw new Error(`Failed to fetch bot XML: ${xmlRes.status}`);
+            let xmlContent = await xmlRes.text();
             console.log('[ES] XML fetched. Length:', xmlContent.length,
                 '| Starts with:', xmlContent.slice(0, 80));
 
