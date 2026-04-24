@@ -59,45 +59,39 @@ function parseStrategy(strategy: string): { predBefore: number; predAfter: numbe
     return { predBefore: 8, predAfter: 5 };
 }
 
-// Replace the value between <field name="NUM"> and </field> for a specific block id.
-// Works entirely on the original string — never uses XMLSerializer — so Blockly's
-// parser receives the exact same XML structure it already accepts.
-function patchNumField(xml: string, blockId: string, value: number): string {
-    const marker = `id="${blockId}"`;
-    const idx = xml.indexOf(marker);
-    if (idx === -1) return xml;
-    const numTag = '<field name="NUM">';
-    const tagIdx = xml.indexOf(numTag, idx);
-    if (tagIdx === -1) return xml;
-    const valStart = tagIdx + numTag.length;
-    const valEnd = xml.indexOf('</field>', valStart);
-    if (valEnd === -1) return xml;
-    return xml.slice(0, valStart) + String(value) + xml.slice(valEnd);
-}
+// After the bot loads, walk the workspace and set values using Blockly's own API.
+// This avoids all XML patching — the raw XML is loaded untouched, then workspace
+// blocks are updated in-place by variable name, which is far more reliable.
+function applyParamsToWorkspace(params: {
+    predBefore: number;
+    predAfter: number;
+    entryDigit: number;
+    stake: number;
+    stopLoss: number;
+    martingale: number;
+}) {
+    const workspace = (window as any).Blockly?.derivWorkspace;
+    if (!workspace) return;
 
-function patchXml(
-    xml: string,
-    entryDigit: number,
-    predBefore: number,
-    predAfter: number,
-    stake: number,
-    stopLoss: number,
-    martingale: number
-): string {
-    // SYMBOL_LIST is a dynamic Blockly dropdown populated from the Deriv API at runtime.
-    // Setting it in the raw XML causes clearWorkspaceAndLoadFromXml to throw because the
-    // options list is empty until the API resolves. We leave it as-is (defaults to R_10)
-    // and show the recommended market to the user in the modal instead.
+    const numMap: Record<string, number> = {
+        'Prediction before loss': params.predBefore,
+        'Prediction after loss':  params.predAfter,
+        'Entrypoint-Digit':       params.entryDigit,
+        'Stake':                  params.stake,
+        'Stop Loss':              params.stopLoss,
+        'Martingale Split':       params.martingale,
+    };
 
-    // All numeric patches operate on the raw string — no serializer involved
-    xml = patchNumField(xml, 'Ai5]{:#d~w;]%q`:p[h,',  predBefore);   // Prediction before loss
-    xml = patchNumField(xml, 'gT6?xbULKjs8^Sw?0iH%',  predAfter);    // Prediction after loss
-    xml = patchNumField(xml, 'KR2=c$XO!b_Bgl_ASR4(',  entryDigit);   // Entrypoint-Digit
-    xml = patchNumField(xml, '!TI[pk;TXnU%n?K/nH:^',  stake);        // Stake
-    xml = patchNumField(xml, 'tACLVvalL.#)Xxz`ZoBC',  stopLoss);     // Stop Loss
-    xml = patchNumField(xml, 'LqV%S=;Xlb|o9}weJjz1',  martingale);   // Martingale Split
-
-    return xml;
+    workspace.getAllBlocks(false)
+        .filter((b: any) => b.type === 'variables_set')
+        .forEach((block: any) => {
+            const varName = block.getField('VAR')?.getText?.();
+            if (!varName || !(varName in numMap)) return;
+            const valueBlock = block.getInput('VALUE')?.connection?.targetBlock?.();
+            if (valueBlock?.type === 'math_number') {
+                valueBlock.setFieldValue(String(numMap[varName]), 'NUM');
+            }
+        });
 }
 
 type ScanResult   = { marketLabel: string; marketSymbol: string; strategy: string; entryDigit: number };
@@ -166,42 +160,14 @@ const EntryScanner: React.FC = observer(() => {
         if (launching) return;
         setLaunching(true);
         try {
-            // Same fetch as Antipoverty AI page — proven to work on production
-            let xmlContent = await tmApi.getBotXml('Antipoverty_AI.xml');
-            console.log('[ES] XML fetched. Length:', xmlContent.length,
-                '| Starts with:', xmlContent.slice(0, 80));
+            // Fetch raw XML exactly as Antipoverty AI page does — no patching
+            const xmlContent = await tmApi.getBotXml('Antipoverty_AI.xml');
+            console.log('[ES] XML fetched. Length:', xmlContent.length);
 
-            // Parse prediction digits from strategy string e.g. "Under 8 Recovery Under 6"
+            // Parse prediction digits from strategy e.g. "Under 8 Recovery Under 6"
             const { predBefore, predAfter } = parseStrategy(bestResult?.strategy || '');
 
-            const rawXml = xmlContent;
-
-            // Inject scan results + modal parameters into the XML
-            // (SYMBOL_LIST is left unchanged — dynamic Blockly dropdown)
-            xmlContent = patchXml(
-                xmlContent,
-                bestResult?.entryDigit ?? 3,
-                predBefore,
-                predAfter,
-                stake,
-                stopLoss,
-                useMartingale ? martingale : 1
-            );
-
-            // Pre-validate with DOMParser before handing to DBot
-            const preCheck = new DOMParser().parseFromString(xmlContent, 'application/xml');
-            const parseErrors = preCheck.getElementsByTagName('parsererror');
-            if (parseErrors.length > 0) {
-                console.error('[ES] Patched XML has parseerror — falling back to raw XML');
-                console.error('[ES] parseerror text:', parseErrors[0].textContent);
-                console.error('[ES] Patched XML (first 800 chars):', xmlContent.slice(0, 800));
-                // Fall back to the unpatched XML so the bot still loads
-                xmlContent = rawXml;
-            } else {
-                console.log('[ES] Patched XML is valid. Blocks found:',
-                    preCheck.querySelectorAll('block').length);
-            }
-
+            // Load unmodified XML into the workspace (same call as Antipoverty AI page)
             await load({
                 block_string: xmlContent,
                 file_name: 'Antipoverty AI',
@@ -210,6 +176,17 @@ const EntryScanner: React.FC = observer(() => {
                 drop_event: null,
                 strategy_id: null,
                 showIncompatibleStrategyDialog: null,
+            });
+
+            // Now apply scan parameters directly via Blockly's own block API —
+            // no XML manipulation, no risk of corrupting the bot structure.
+            applyParamsToWorkspace({
+                predBefore,
+                predAfter,
+                entryDigit: bestResult?.entryDigit ?? 3,
+                stake,
+                stopLoss,
+                martingale: useMartingale ? martingale : 1,
             });
 
             setModalOpen(false);
