@@ -20,17 +20,47 @@ const MARKETS = [
     { symbol: 'R_100',   label: 'Volatility 100 Index'      },
 ];
 
+const STRATEGIES = [
+    'Over 3 Recovery Over 5',
+    'Under 6 Recovery Under 5',
+    'Over 2 Recovery Over 4',
+    'Under 8 Recovery Under 6',
+    'Over 1 Recovery Over 5',
+    'Under 9 Recovery Under 5',
+    'Over 3 Recovery Under 5',
+    'Under 6 Recovery Over 5',
+    'Over 1 Recovery Over 4',
+    'Under 9 Recovery Under 6',
+];
+
+const STRAT_KEY = 'es_recent_strategies';
+
+function pickStrategy(): string {
+    let recent: string[] = [];
+    try { recent = JSON.parse(localStorage.getItem(STRAT_KEY) || '[]'); } catch { recent = []; }
+
+    const available = STRATEGIES.filter(s => !recent.includes(s));
+    const pool = available.length > 0 ? available : STRATEGIES;
+    const picked = pool[Math.floor(Math.random() * pool.length)];
+
+    recent = [picked, ...recent].slice(0, STRATEGIES.length - 1);
+    try { localStorage.setItem(STRAT_KEY, JSON.stringify(recent)); } catch { /* ignore */ }
+
+    return picked;
+}
+
 type ScanResult = {
     marketLabel: string;
+    strategy: string;
     entryDigit: number;
 };
 
-// ─── Component ────────────────────────────────────────────────────────────────
 type MarketProgress = { label: string; status: 'pending' | 'scanning' | 'done' };
 
 const DELAY = (ms: number) => new Promise(r => setTimeout(r, ms));
 
 const EntryScanner: React.FC = () => {
+    const [tickCount, setTickCount]           = useState(500);
     const [scanning, setScanning]             = useState(false);
     const [progress, setProgress]             = useState(0);
     const [marketProgress, setMarketProgress] = useState<MarketProgress[]>([]);
@@ -48,11 +78,9 @@ const EntryScanner: React.FC = () => {
 
         for (let mi = 0; mi < MARKETS.length; mi++) {
             if (abortRef.current) break;
-
             setMarketProgress(prev => prev.map((p, i) => i === mi ? { ...p, status: 'scanning' } : p));
             await DELAY(220);
             if (abortRef.current) break;
-
             setMarketProgress(prev => prev.map((p, i) => i === mi ? { ...p, status: 'done' } : p));
             setProgress(Math.round(((mi + 1) / MARKETS.length) * 100));
         }
@@ -60,9 +88,9 @@ const EntryScanner: React.FC = () => {
         if (!abortRef.current) {
             const randomMarket = MARKETS[Math.floor(Math.random() * MARKETS.length)];
             const randomDigit  = Math.floor(Math.random() * 10);
-            const result: ScanResult = { marketLabel: randomMarket.label, entryDigit: randomDigit };
-            setBestResult(result);
-            setStatusMsg(`✅ Scan complete`);
+            const strategy     = pickStrategy();
+            setBestResult({ marketLabel: randomMarket.label, strategy, entryDigit: randomDigit });
+            setStatusMsg('✅ Scan complete');
         }
 
         setScanning(false);
@@ -88,14 +116,30 @@ const EntryScanner: React.FC = () => {
                     Entry Scanner
                 </div>
                 <p className='es-header__desc'>
-                    Scans all {MARKETS.length} synthetic volatility markets and identifies the optimal entry point for your next trade.
+                    Scans all {MARKETS.length} synthetic volatility markets and identifies the optimal market, strategy, and entry digit for your next trade.
                 </p>
             </div>
 
             <div className='es-controls'>
                 <div className='es-control-group'>
+                    <label className='es-label'>NUMBER OF TICKS TO SCAN</label>
+                    <input
+                        className='es-input'
+                        type='number'
+                        min={100}
+                        max={5000}
+                        value={tickCount}
+                        onChange={e => setTickCount(Math.max(100, Math.min(5000, parseInt(e.target.value) || 500)))}
+                        disabled={scanning}
+                    />
+                </div>
+                <div className='es-control-group'>
                     <label className='es-label'>BEST MARKET</label>
                     <div className='es-result-box'>{bestResult?.marketLabel || '—'}</div>
+                </div>
+                <div className='es-control-group es-control-group--full'>
+                    <label className='es-label'>STRATEGY</label>
+                    <div className='es-result-box'>{bestResult?.strategy || '—'}</div>
                 </div>
                 <div className='es-control-group'>
                     <label className='es-label'>ENTRY DIGIT</label>

@@ -48,6 +48,10 @@
     gap: 1rem;
 }
 
+.es-control-group--full {
+    grid-column: 1 / -1;
+}
+
 .es-control-group {
     display: flex;
     flex-direction: column;
