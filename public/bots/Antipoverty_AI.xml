@@ -645,7 +645,7 @@
               </block>
             </value>
             <statement name="DO0">
-              <block type="ceo_purchase" id=":Nx^]Pu__xj[_w$h8*VZ" collapsed="true">
+              <block type="purchase" id=":Nx^]Pu__xj[_w$h8*VZ" collapsed="true">
                 <field name="PURCHASE_LIST">DIGITUNDER</field>
               </block>
             </statement>
@@ -667,7 +667,7 @@
           </block>
         </value>
         <statement name="DO1">
-          <block type="ceo_purchase" id="zOCam5W}Z-j~)}t9XOPF" collapsed="true">
+          <block type="purchase" id="zOCam5W}Z-j~)}t9XOPF" collapsed="true">
             <field name="PURCHASE_LIST">DIGITUNDER</field>
           </block>
         </statement>
@@ -691,7 +691,7 @@
             <statement name="DO0">
               <block type="timeout" id="6;XYzu@SIXmr7.^#Y)xR">
                 <statement name="TIMEOUTSTACK">
-                  <block type="ceo_purchase" id="BvzdHe]!O+GD=E;c7NS6">
+                  <block type="purchase" id="BvzdHe]!O+GD=E;c7NS6">
                     <field name="PURCHASE_LIST">DIGITUNDER</field>
                   </block>
                 </statement>
