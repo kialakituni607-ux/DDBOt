@@ -117,7 +117,7 @@ type MarketProgress = { label: string; status: 'pending' | 'scanning' | 'done' }
 const DELAY = (ms: number) => new Promise(r => setTimeout(r, ms));
 
 const EntryScanner: React.FC = observer(() => {
-    const { dashboard } = useStore();
+    const { dashboard, run_panel } = useStore();
 
     const [tickCount, setTickCount]           = useState(500);
     const [scanning, setScanning]             = useState(false);
@@ -136,6 +136,7 @@ const EntryScanner: React.FC = observer(() => {
     const [digitsToCheck, setDigitsToCheck]   = useState(1);
     const [stopLoss, setStopLoss]             = useState(50);
     const [useMartingale, setUseMartingale]   = useState(true);
+    const [autoStart, setAutoStart]           = useState(true);
 
     const startScan = async () => {
         abortRef.current = false;
@@ -305,9 +306,15 @@ const EntryScanner: React.FC = observer(() => {
                         ?.find((b: any) => b.type === 'trade_definition_market');
                     if (!mBlock) break;
                     const currentVal = mBlock.getFieldValue('SYMBOL_LIST');
-                    if (currentVal === symbol) break; // already set — done
+                    if (currentVal === symbol) break;
                     try { mBlock.setFieldValue(symbol, 'SYMBOL_LIST'); } catch { /* not ready yet */ }
                 }
+            }
+
+            // Auto-start: trigger the Run button programmatically so the bot
+            // starts trading immediately without the user having to click Run.
+            if (autoStart) {
+                await run_panel.onRunButtonClick();
             }
         } catch (err) {
             console.error('Failed to launch bot:', err);
@@ -467,6 +474,19 @@ const EntryScanner: React.FC = observer(() => {
                             <button
                                 className={`es-modal__toggle ${useMartingale ? 'es-modal__toggle--on' : ''}`}
                                 onClick={() => setUseMartingale(v => !v)}
+                            >
+                                <span className='es-modal__toggle-knob' />
+                            </button>
+                        </div>
+
+                        <div className='es-modal__toggle-row'>
+                            <div>
+                                <span className='es-modal__toggle-label'>Auto-Start Trading</span>
+                                <div className='es-modal__toggle-desc'>Bot runs immediately without opening Bot Builder</div>
+                            </div>
+                            <button
+                                className={`es-modal__toggle ${autoStart ? 'es-modal__toggle--on' : ''}`}
+                                onClick={() => setAutoStart(v => !v)}
                             >
                                 <span className='es-modal__toggle-knob' />
                             </button>
