@@ -1,4 +1,8 @@
 import React, { useState, useRef } from 'react';
+import { observer } from 'mobx-react-lite';
+import { useStore } from '@/hooks/useStore';
+import { load, save_types } from '@/external/bot-skeleton';
+import tmApi from '@/utils/tm-api';
 import './entry-scanner.scss';
 
 const MARKETS = [
@@ -46,12 +50,47 @@ function pickStrategy(): string {
     return picked;
 }
 
-type ScanResult   = { marketLabel: string; strategy: string; entryDigit: number };
+// Patch a specific numeric field in the XML using the block id as anchor
+function patchField(xml: string, blockId: string, newValue: string | number): string {
+    const marker = `id="${blockId}"`;
+    const idx = xml.indexOf(marker);
+    if (idx === -1) return xml;
+    const tag = '<field name="NUM">';
+    const numStart = xml.indexOf(tag, idx) + tag.length;
+    const numEnd = xml.indexOf('</field>', numStart);
+    if (numStart < tag.length || numEnd === -1) return xml;
+    return xml.slice(0, numStart) + String(newValue) + xml.slice(numEnd);
+}
+
+function patchXml(
+    xml: string,
+    symbol: string,
+    entryDigit: number,
+    stake: number,
+    stopLoss: number,
+    martingale: number
+): string {
+    // Market symbol
+    xml = xml.replace(/<field name="SYMBOL_LIST">[^<]*<\/field>/, `<field name="SYMBOL_LIST">${symbol}</field>`);
+    // Entrypoint-Digit block
+    xml = patchField(xml, 'KR2=c$XO!b_Bgl_ASR4(', entryDigit);
+    // Stake block
+    xml = patchField(xml, '!TI[pk;TXnU%n?K/nH:^', stake);
+    // Stop Loss block
+    xml = patchField(xml, 'tACLVvalL.#)Xxz`ZoBC', stopLoss);
+    // Martingale Split block
+    xml = patchField(xml, 'LqV%S=;Xlb|o9}weJjz1', martingale);
+    return xml;
+}
+
+type ScanResult   = { marketLabel: string; marketSymbol: string; strategy: string; entryDigit: number };
 type MarketProgress = { label: string; status: 'pending' | 'scanning' | 'done' };
 
 const DELAY = (ms: number) => new Promise(r => setTimeout(r, ms));
 
-const EntryScanner: React.FC = () => {
+const EntryScanner: React.FC = observer(() => {
+    const { dashboard } = useStore();
+
     const [tickCount, setTickCount]           = useState(500);
     const [scanning, setScanning]             = useState(false);
     const [progress, setProgress]             = useState(0);
@@ -62,6 +101,7 @@ const EntryScanner: React.FC = () => {
 
     // Modal state
     const [modalOpen, setModalOpen]           = useState(false);
+    const [launching, setLaunching]           = useState(false);
     const [stake, setStake]                   = useState(0.5);
     const [martingale, setMartingale]         = useState(2);
     const [numWins, setNumWins]               = useState(5);
@@ -92,7 +132,7 @@ const EntryScanner: React.FC = () => {
             const randomMarket = MARKETS[Math.floor(Math.random() * MARKETS.length)];
             const randomDigit  = Math.floor(Math.random() * 10);
             const strategy     = pickStrategy();
-            setBestResult({ marketLabel: randomMarket.label, strategy, entryDigit: randomDigit });
+            setBestResult({ marketLabel: randomMarket.label, marketSymbol: randomMarket.symbol, strategy, entryDigit: randomDigit });
             setStatusMsg('✅ Scan complete');
         }
 
@@ -103,6 +143,45 @@ const EntryScanner: React.FC = () => {
         abortRef.current = true;
         setScanning(false);
         setStatusMsg('Scan stopped.');
+    };
+
+    const handleLaunchBot = async () => {
+        if (launching) return;
+        setLaunching(true);
+        try {
+            let xmlContent = await tmApi.getBotXml('Antipoverty_AI.xml');
+
+            // Inject scan results + modal parameters into the XML
+            xmlContent = patchXml(
+                xmlContent,
+                bestResult?.marketSymbol || 'R_10',
+                bestResult?.entryDigit ?? 3,
+                stake,
+                stopLoss,
+                useMartingale ? martingale : 1
+            );
+
+            await load({
+                block_string: xmlContent,
+                file_name: 'Antipoverty AI',
+                workspace: (window as any).Blockly?.derivWorkspace,
+                from: save_types.LOCAL,
+                drop_event: null,
+                strategy_id: null,
+                showIncompatibleStrategyDialog: null,
+            });
+
+            setModalOpen(false);
+            setTimeout(() => {
+                dashboard.setActiveTab(1);
+                window.location.hash = 'bot_builder';
+            }, 400);
+        } catch (err) {
+            console.error('Failed to launch bot:', err);
+            setStatusMsg('⚠️ Failed to load bot. Please try again.');
+        } finally {
+            setLaunching(false);
+        }
     };
 
     const statusIcon = (s: MarketProgress['status']) => {
@@ -259,8 +338,12 @@ const EntryScanner: React.FC = () => {
                             <button className='es-modal__btn es-modal__btn--cancel' onClick={() => setModalOpen(false)}>
                                 Cancel
                             </button>
-                            <button className='es-modal__btn es-modal__btn--launch' onClick={() => setModalOpen(false)}>
-                                ▶ Launch Bot
+                            <button
+                                className='es-modal__btn es-modal__btn--launch'
+                                onClick={handleLaunchBot}
+                                disabled={launching}
+                            >
+                                {launching ? <><span className='es-modal__spinner' /> Loading...</> : '▶ Launch Bot'}
                             </button>
                         </div>
                     </div>
@@ -268,6 +351,6 @@ const EntryScanner: React.FC = () => {
             )}
         </div>
     );
-};
+});
 
 export default EntryScanner;

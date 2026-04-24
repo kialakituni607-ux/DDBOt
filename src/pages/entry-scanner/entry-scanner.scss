@@ -578,7 +578,22 @@
             background: linear-gradient(90deg, #2A2E9B, #6c63ff);
             color: #fff;
             box-shadow: 0 4px 14px rgba(42, 46, 155, 0.35);
-            &:hover { box-shadow: 0 6px 20px rgba(42, 46, 155, 0.5); transform: translateY(-1px); }
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.6rem;
+            &:hover:not(:disabled) { box-shadow: 0 6px 20px rgba(42, 46, 155, 0.5); transform: translateY(-1px); }
+            &:disabled { opacity: 0.7; cursor: not-allowed; }
         }
+    }
+
+    &__spinner {
+        width: 1.4rem;
+        height: 1.4rem;
+        border: 2px solid rgba(255,255,255,0.4);
+        border-top-color: #fff;
+        border-radius: 50%;
+        animation: es-spin 0.7s linear infinite;
+        display: inline-block;
     }
 }
