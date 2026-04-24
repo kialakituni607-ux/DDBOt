@@ -59,15 +59,20 @@ function parseStrategy(strategy: string): { predBefore: number; predAfter: numbe
     return { predBefore: 8, predAfter: 5 };
 }
 
-// Set the NUM field of a block identified by its exact id attribute
-function setBlockNum(blocks: Element[], blockId: string, value: number) {
-    for (const block of blocks) {
-        if (block.getAttribute('id') === blockId) {
-            const field = block.querySelector('field[name="NUM"]');
-            if (field) field.textContent = String(value);
-            break;
-        }
-    }
+// Replace the value between <field name="NUM"> and </field> for a specific block id.
+// Works entirely on the original string — never uses XMLSerializer — so Blockly's
+// parser receives the exact same XML structure it already accepts.
+function patchNumField(xml: string, blockId: string, value: number): string {
+    const marker = `id="${blockId}"`;
+    const idx = xml.indexOf(marker);
+    if (idx === -1) return xml;
+    const numTag = '<field name="NUM">';
+    const tagIdx = xml.indexOf(numTag, idx);
+    if (tagIdx === -1) return xml;
+    const valStart = tagIdx + numTag.length;
+    const valEnd = xml.indexOf('</field>', valStart);
+    if (valEnd === -1) return xml;
+    return xml.slice(0, valStart) + String(value) + xml.slice(valEnd);
 }
 
 function patchXml(
@@ -80,24 +85,19 @@ function patchXml(
     stopLoss: number,
     martingale: number
 ): string {
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(xml, 'text/xml');
+    // Market symbol — only field[name="SYMBOL_LIST"] matches this pattern
+    xml = xml.replace(/<field name="SYMBOL_LIST">[^<]*<\/field>/,
+        `<field name="SYMBOL_LIST">${symbol}</field>`);
 
-    // Market symbol
-    const symbolField = doc.querySelector('field[name="SYMBOL_LIST"]');
-    if (symbolField) symbolField.textContent = symbol;
+    // All numeric patches operate on the raw string — no serializer involved
+    xml = patchNumField(xml, 'Ai5]{:#d~w;]%q`:p[h,',  predBefore);   // Prediction before loss
+    xml = patchNumField(xml, 'gT6?xbULKjs8^Sw?0iH%',  predAfter);    // Prediction after loss
+    xml = patchNumField(xml, 'KR2=c$XO!b_Bgl_ASR4(',  entryDigit);   // Entrypoint-Digit
+    xml = patchNumField(xml, '!TI[pk;TXnU%n?K/nH:^',  stake);        // Stake
+    xml = patchNumField(xml, 'tACLVvalL.#)Xxz`ZoBC',  stopLoss);     // Stop Loss
+    xml = patchNumField(xml, 'LqV%S=;Xlb|o9}weJjz1',  martingale);   // Martingale Split
 
-    // Collect all blocks once for efficient lookup
-    const blocks = Array.from(doc.querySelectorAll('block'));
-
-    setBlockNum(blocks, 'Ai5]{:#d~w;]%q`:p[h,',  predBefore);   // Prediction before loss
-    setBlockNum(blocks, 'gT6?xbULKjs8^Sw?0iH%',  predAfter);    // Prediction after loss
-    setBlockNum(blocks, 'KR2=c$XO!b_Bgl_ASR4(',  entryDigit);   // Entrypoint-Digit
-    setBlockNum(blocks, '!TI[pk;TXnU%n?K/nH:^',  stake);        // Stake
-    setBlockNum(blocks, 'tACLVvalL.#)Xxz`ZoBC',  stopLoss);     // Stop Loss
-    setBlockNum(blocks, 'LqV%S=;Xlb|o9}weJjz1',  martingale);   // Martingale Split
-
-    return new XMLSerializer().serializeToString(doc);
+    return xml;
 }
 
 type ScanResult   = { marketLabel: string; marketSymbol: string; strategy: string; entryDigit: number };
