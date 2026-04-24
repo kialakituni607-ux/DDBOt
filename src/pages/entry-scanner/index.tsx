@@ -167,19 +167,46 @@ const EntryScanner: React.FC = observer(() => {
             // Parse prediction digits from strategy e.g. "Under 8 Recovery Under 6"
             const { predBefore, predAfter } = parseStrategy(bestResult?.strategy || '');
 
-            // Load unmodified XML into the workspace (same call as Antipoverty AI page)
+            // CRITICAL: Navigate to bot builder BEFORE loading.
+            // The Blockly workspace only initialises when the bot builder tab is rendered.
+            // Calling load() from the Entry Scanner tab (workspace not yet ready) triggers
+            // the "unsupported elements" error even with a perfectly valid XML file.
+            setModalOpen(false);
+            dashboard.setActiveTab(1);
+            window.location.hash = 'bot_builder';
+
+            // Poll until the workspace AND all custom DBot block types are ready (up to 8 s).
+            // Custom blocks (trade_definition, after_purchase, etc.) are registered when the
+            // bot-builder module loads. If those haven't loaded yet, load() will throw
+            // "unsupported elements" even with a perfectly valid XML file.
+            let workspace: any = null;
+            for (let i = 0; i < 80; i++) {
+                const B = (window as any).Blockly;
+                if (
+                    B?.derivWorkspace &&
+                    B?.Blocks?.['trade_definition'] &&
+                    B?.Blocks?.['after_purchase'] &&
+                    B?.Blocks?.['trade_definition_market']
+                ) {
+                    workspace = B.derivWorkspace;
+                    break;
+                }
+                await new Promise(r => setTimeout(r, 100));
+            }
+            if (!workspace) throw new Error('Blockly workspace/blocks did not initialise in time.');
+
+            // Load unmodified XML — same call as Antipoverty AI page
             await load({
                 block_string: xmlContent,
                 file_name: 'Antipoverty AI',
-                workspace: (window as any).Blockly?.derivWorkspace,
+                workspace,
                 from: save_types.LOCAL,
                 drop_event: null,
                 strategy_id: null,
                 showIncompatibleStrategyDialog: null,
             });
 
-            // Now apply scan parameters directly via Blockly's own block API —
-            // no XML manipulation, no risk of corrupting the bot structure.
+            // Apply scan parameters via Blockly's block API — no XML manipulation
             applyParamsToWorkspace({
                 predBefore,
                 predAfter,
@@ -188,12 +215,6 @@ const EntryScanner: React.FC = observer(() => {
                 stopLoss,
                 martingale: useMartingale ? martingale : 1,
             });
-
-            setModalOpen(false);
-            setTimeout(() => {
-                dashboard.setActiveTab(1);
-                window.location.hash = 'bot_builder';
-            }, 400);
         } catch (err) {
             console.error('Failed to launch bot:', err);
             setStatusMsg('⚠️ Failed to load bot. Please try again.');
