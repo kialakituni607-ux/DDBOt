@@ -140,9 +140,9 @@ const EntryScanner: React.FC = () => {
                     <label className='es-label'>BEST MARKET</label>
                     <div className='es-result-box'>{bestResult?.marketLabel || '—'}</div>
                 </div>
-                <div className='es-control-group es-control-group--full'>
+                <div className='es-control-group'>
                     <label className='es-label'>STRATEGY</label>
-                    <div className='es-result-box'>{bestResult?.strategy || '—'}</div>
+                    <div className='es-result-box es-result-box--small'>{bestResult?.strategy || '—'}</div>
                 </div>
                 <div className='es-control-group'>
                     <label className='es-label'>ENTRY DIGIT</label>
