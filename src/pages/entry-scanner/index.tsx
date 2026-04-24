@@ -131,23 +131,34 @@ const EntryScanner: React.FC = observer(() => {
     const [statusMsg, setStatusMsg]           = useState('');
     const abortRef = useRef(false);
 
-    // Modal state
+    // Modal state — numeric fields are kept as strings so the user can
+    // delete the value and leave the box blank while typing a new one.
     const [modalOpen, setModalOpen]           = useState(false);
     const [launching, setLaunching]           = useState(false);
-    const [stake, setStake]                   = useState(0.5);
-    const [martingale, setMartingale]         = useState(2);
-    const [numWins, setNumWins]               = useState(5);
-    const [digitsToCheck, setDigitsToCheck]   = useState(1);
-    const [stopLoss, setStopLoss]             = useState(50);
+    const [stake, setStake]                   = useState('0.5');
+    const [martingale, setMartingale]         = useState('2');
+    const [numWins, setNumWins]               = useState('5');
+    const [digitsToCheck, setDigitsToCheck]   = useState('1');
+    const [stopLoss, setStopLoss]             = useState('50');
     const [useMartingale, setUseMartingale]   = useState(true);
     const [autoStart, setAutoStart]           = useState(true);
     const [botLaunched, setBotLaunched]       = useState(false);
     const [activeBotTab, setActiveBotTab]     = useState<'summary' | 'transactions' | 'journal'>('summary');
 
+    // Button-state rules:
+    //  • Load Bot is disabled until a deep scan has produced a result AND the bot
+    //    hasn't already been launched for that result.
+    //  • Deep Scan is disabled once a scan has finished, and stays disabled until
+    //    the user loads & launches the bot for that result (then it unlocks again
+    //    so the user can scan for a fresh market).
+    const loadBotDisabled = bestResult === null || botLaunched;
+    const deepScanDisabled = bestResult !== null && !botLaunched;
+
     const startScan = async () => {
         abortRef.current = false;
         setScanning(true);
         setBestResult(null);
+        setBotLaunched(false);
         setProgress(0);
         setStatusMsg('Connecting to market data...');
         setMarketProgress(MARKETS.map(m => ({ label: m.label, status: 'pending' })));
@@ -291,14 +302,20 @@ const EntryScanner: React.FC = observer(() => {
 
             const symbol = bestResult?.marketSymbol;
 
+            // Parse the (string) modal inputs into numbers, falling back to
+            // sane defaults if the user left a field blank.
+            const stakeNum      = parseFloat(stake)      || 0.35;
+            const stopLossNum   = parseInt(stopLoss, 10) || 1;
+            const martingaleNum = parseFloat(martingale) || 1;
+
             // Apply numeric params immediately after load
             applyParamsToWorkspace({
                 predBefore,
                 predAfter,
                 entryDigit: bestResult?.entryDigit ?? 3,
-                stake,
-                stopLoss,
-                martingale: useMartingale ? martingale : 1,
+                stake: stakeNum,
+                stopLoss: stopLossNum,
+                martingale: useMartingale ? martingaleNum : 1,
                 symbol,
             });
 
@@ -317,10 +334,9 @@ const EntryScanner: React.FC = observer(() => {
                 }
             }
 
-            // Navigate back to Entry Scanner so the user stays on this page,
-            // then reveal the right-side live bot panel.
-            dashboard.setActiveTab(DBOT_TABS.ENTRY_SCANNER);
-            window.location.hash = 'entry_scanner';
+            // Stay on Bot Builder — that's where the user wants to land after
+            // launching the bot. We still mark the bot as launched so the
+            // Deep Scan / Load Bot button states update correctly.
             setBotLaunched(true);
             setActiveBotTab('summary');
 
@@ -411,7 +427,12 @@ const EntryScanner: React.FC = observer(() => {
 
                 <div className='es-actions'>
                     {!scanning ? (
-                        <button className='es-btn es-btn--primary' onClick={startScan}>
+                        <button
+                            className='es-btn es-btn--primary'
+                            onClick={startScan}
+                            disabled={deepScanDisabled}
+                            title={deepScanDisabled ? 'Load and launch the bot before starting another scan' : undefined}
+                        >
                             🔍 Deep Scan for Best Market
                         </button>
                     ) : (
@@ -419,7 +440,12 @@ const EntryScanner: React.FC = observer(() => {
                             ⏹ Stop Scan
                         </button>
                     )}
-                    <button className='es-btn es-btn--load' onClick={() => setModalOpen(true)}>
+                    <button
+                        className='es-btn es-btn--load'
+                        onClick={() => setModalOpen(true)}
+                        disabled={loadBotDisabled}
+                        title={loadBotDisabled ? (botLaunched ? 'Run a new deep scan to load another bot' : 'Run a deep scan first') : undefined}
+                    >
                         🤖 Load Bot
                     </button>
                 </div>
@@ -516,27 +542,27 @@ const EntryScanner: React.FC = observer(() => {
                             <div className='es-modal__field'>
                                 <label className='es-modal__label'>STAKE</label>
                                 <input className='es-modal__input' type='number' min={0.35} step={0.01}
-                                    value={stake} onChange={e => setStake(parseFloat(e.target.value) || 0.35)} />
+                                    value={stake} onChange={e => setStake(e.target.value)} />
                             </div>
                             <div className='es-modal__field'>
                                 <label className='es-modal__label'>MARTINGALE</label>
                                 <input className='es-modal__input' type='number' min={1} step={0.1}
-                                    value={martingale} onChange={e => setMartingale(parseFloat(e.target.value) || 1)} />
+                                    value={martingale} onChange={e => setMartingale(e.target.value)} />
                             </div>
                             <div className='es-modal__field'>
                                 <label className='es-modal__label'>NUMBER OF WINS</label>
                                 <input className='es-modal__input' type='number' min={1}
-                                    value={numWins} onChange={e => setNumWins(parseInt(e.target.value) || 1)} />
+                                    value={numWins} onChange={e => setNumWins(e.target.value)} />
                             </div>
                             <div className='es-modal__field'>
                                 <label className='es-modal__label'>NO. OF DIGITS TO CHECK</label>
                                 <input className='es-modal__input' type='number' min={1} max={10}
-                                    value={digitsToCheck} onChange={e => setDigitsToCheck(parseInt(e.target.value) || 1)} />
+                                    value={digitsToCheck} onChange={e => setDigitsToCheck(e.target.value)} />
                             </div>
                             <div className='es-modal__field es-modal__field--full'>
                                 <label className='es-modal__label'>STOP LOSS</label>
                                 <input className='es-modal__input' type='number' min={1}
-                                    value={stopLoss} onChange={e => setStopLoss(parseInt(e.target.value) || 1)} />
+                                    value={stopLoss} onChange={e => setStopLoss(e.target.value)} />
                             </div>
                         </div>
 
