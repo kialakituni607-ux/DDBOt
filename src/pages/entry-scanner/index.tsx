@@ -6,14 +6,20 @@ const WS_URL = `wss://ws.derivws.com/websockets/v3?app_id=${APP_ID}`;
 
 const MARKETS = [
     { symbol: '1HZ10V',  label: 'Volatility 10 (1s) Index'  },
+    { symbol: '1HZ15V',  label: 'Volatility 15 (1s) Index'  },
     { symbol: '1HZ25V',  label: 'Volatility 25 (1s) Index'  },
+    { symbol: '1HZ30V',  label: 'Volatility 30 (1s) Index'  },
     { symbol: '1HZ50V',  label: 'Volatility 50 (1s) Index'  },
     { symbol: '1HZ75V',  label: 'Volatility 75 (1s) Index'  },
+    { symbol: '1HZ90V',  label: 'Volatility 90 (1s) Index'  },
     { symbol: '1HZ100V', label: 'Volatility 100 (1s) Index' },
     { symbol: 'R_10',    label: 'Volatility 10 Index'       },
+    { symbol: 'R_15',    label: 'Volatility 15 Index'       },
     { symbol: 'R_25',    label: 'Volatility 25 Index'       },
+    { symbol: 'R_30',    label: 'Volatility 30 Index'       },
     { symbol: 'R_50',    label: 'Volatility 50 Index'       },
     { symbol: 'R_75',    label: 'Volatility 75 Index'       },
+    { symbol: 'R_90',    label: 'Volatility 90 Index'       },
     { symbol: 'R_100',   label: 'Volatility 100 Index'      },
 ];
 
@@ -30,31 +36,81 @@ const STRATEGIES = [
     { label: 'Under 9 Recovery Under 6', mainType: 'under' as const, mainDigit: 9, recoveryType: 'under' as const, recoveryDigit: 6 },
 ];
 
-function fetchTicks(symbol: string, count: number): Promise<number[]> {
+// ─── Single shared WebSocket that handles all market requests via req_id ───────
+type PendingRequest = {
+    resolve: (prices: number[]) => void;
+    reject: (err: Error) => void;
+    timer: ReturnType<typeof setTimeout>;
+};
+
+function createSharedWS(): Promise<{
+    fetchTicks: (symbol: string, count: number) => Promise<number[]>;
+    close: () => void;
+}> {
     return new Promise((resolve, reject) => {
         const ws = new WebSocket(WS_URL);
-        let done = false;
-        const timeout = setTimeout(() => {
-            if (!done) { done = true; ws.close(); reject(new Error('Timeout')); }
-        }, 15000);
-        ws.onopen = () => {
-            ws.send(JSON.stringify({ ticks_history: symbol, count, end: 'latest', start: 1, style: 'ticks' }));
-        };
-        ws.onmessage = event => {
-            if (done) return;
-            done = true;
-            clearTimeout(timeout);
+        const pending = new Map<number, PendingRequest>();
+        let nextId = 1;
+        let connTimer: ReturnType<typeof setTimeout>;
+
+        connTimer = setTimeout(() => {
             ws.close();
-            const msg = JSON.parse(event.data);
-            if (msg.error) return reject(new Error(msg.error.message));
-            resolve((msg.history?.prices as number[]) || []);
+            reject(new Error('Connection timeout'));
+        }, 12000);
+
+        ws.onopen = () => {
+            clearTimeout(connTimer);
+            resolve({
+                fetchTicks(symbol: string, count: number) {
+                    return new Promise<number[]>((res, rej) => {
+                        const id = nextId++;
+                        const timer = setTimeout(() => {
+                            pending.delete(id);
+                            rej(new Error(`Timeout: ${symbol}`));
+                        }, 20000);
+                        pending.set(id, { resolve: res, reject: rej, timer });
+                        ws.send(JSON.stringify({
+                            ticks_history: symbol,
+                            count,
+                            end: 'latest',
+                            start: 1,
+                            style: 'ticks',
+                            req_id: id,
+                        }));
+                    });
+                },
+                close() { ws.close(); },
+            });
         };
+
+        ws.onmessage = event => {
+            try {
+                const msg = JSON.parse(event.data as string);
+                const id: number | undefined = msg.req_id;
+                if (id === undefined || !pending.has(id)) return;
+                const { resolve: res, reject: rej, timer } = pending.get(id)!;
+                clearTimeout(timer);
+                pending.delete(id);
+                if (msg.error) rej(new Error(msg.error.message));
+                else res((msg.history?.prices as number[]) || []);
+            } catch { /* ignore parse errors */ }
+        };
+
         ws.onerror = () => {
-            if (!done) { done = true; clearTimeout(timeout); reject(new Error('WS error')); }
+            clearTimeout(connTimer);
+            pending.forEach(({ reject: rej, timer }) => { clearTimeout(timer); rej(new Error('WS error')); });
+            pending.clear();
+            reject(new Error('WebSocket connection error'));
+        };
+
+        ws.onclose = () => {
+            pending.forEach(({ reject: rej, timer }) => { clearTimeout(timer); rej(new Error('WS closed')); });
+            pending.clear();
         };
     });
 }
 
+// ─── Analysis helpers ──────────────────────────────────────────────────────────
 function getLastDigit(price: number): number {
     const s = price.toFixed(2);
     return parseInt(s[s.length - 1], 10);
@@ -91,17 +147,14 @@ function analyzeStrategy(
 
     if (triggerResults.length === 0) return null;
 
-    const winCount  = triggerResults.filter(r => r.win).length;
-    const winRate   = (winCount / triggerResults.length) * 100;
-
-    const recentN   = Math.min(20, triggerResults.length);
-    const recentWins = triggerResults.slice(-recentN).filter(r => r.win).length;
+    const winCount      = triggerResults.filter(r => r.win).length;
+    const winRate       = (winCount / triggerResults.length) * 100;
+    const recentN       = Math.min(20, triggerResults.length);
+    const recentWins    = triggerResults.slice(-recentN).filter(r => r.win).length;
     const recentWinRate = (recentWins / recentN) * 100;
-
     const sampleSize    = triggerResults.length;
     const qualityScore  = (winRate * 0.6 + recentWinRate * 0.4) * (sampleSize / (sampleSize + 3));
 
-    // Entry digit = most common winning digit among recovery wins
     const winDigits = triggerResults.filter(r => r.win).map(r => r.digit);
     const freq: Record<number, number> = {};
     winDigits.forEach(d => { freq[d] = (freq[d] || 0) + 1; });
@@ -112,83 +165,119 @@ function analyzeStrategy(
     return { winRate, sampleSize, recentWinRate, qualityScore, entryDigit };
 }
 
-type MarketProgress = { label: string; done: boolean; wins?: number; total?: number };
+// ─── Component ────────────────────────────────────────────────────────────────
+type MarketProgress = { label: string; status: 'pending' | 'scanning' | 'done' | 'failed'; winRate?: number };
 
 const EntryScanner: React.FC = () => {
-    const [tickCount, setTickCount]         = useState(500);
-    const [scanning, setScanning]           = useState(false);
-    const [progress, setProgress]           = useState(0);
+    const [tickCount, setTickCount]           = useState(500);
+    const [scanning, setScanning]             = useState(false);
+    const [progress, setProgress]             = useState(0);
     const [marketProgress, setMarketProgress] = useState<MarketProgress[]>([]);
-    const [bestResult, setBestResult]       = useState<ScanResult | null>(null);
-    const [allResults, setAllResults]       = useState<ScanResult[]>([]);
-    const [statusMsg, setStatusMsg]         = useState('');
-    const abortRef = useRef(false);
+    const [bestResult, setBestResult]         = useState<ScanResult | null>(null);
+    const [topResults, setTopResults]         = useState<ScanResult[]>([]);
+    const [statusMsg, setStatusMsg]           = useState('');
+    const abortRef  = useRef(false);
+    const wsRef     = useRef<{ fetchTicks: (s: string, c: number) => Promise<number[]>; close: () => void } | null>(null);
 
     const startScan = async () => {
         abortRef.current = false;
         setScanning(true);
         setBestResult(null);
-        setAllResults([]);
+        setTopResults([]);
         setProgress(0);
-        setStatusMsg('Connecting to live market data...');
-        setMarketProgress(MARKETS.map(m => ({ label: m.label, done: false })));
+        setStatusMsg('Connecting to Deriv live market data...');
+        setMarketProgress(MARKETS.map(m => ({ label: m.label, status: 'pending' })));
 
-        const results: ScanResult[] = [];
-        const total = MARKETS.length;
+        // Collect best result per market, plus overall best
+        const perMarketBest: ScanResult[] = [];
+        let overallBest: ScanResult | null = null;
 
-        for (let mi = 0; mi < total; mi++) {
-            if (abortRef.current) break;
-            const market = MARKETS[mi];
-            setStatusMsg(`Scanning ${market.label}...`);
+        try {
+            setStatusMsg('Opening WebSocket connection...');
+            const ws = await createSharedWS();
+            wsRef.current = ws;
 
-            try {
-                const prices = await fetchTicks(market.symbol, tickCount);
-                const digits = prices.map(getLastDigit);
-                let bestForMarket: ScanResult | null = null;
+            for (let mi = 0; mi < MARKETS.length; mi++) {
+                if (abortRef.current) break;
+                const market = MARKETS[mi];
 
-                for (const strat of STRATEGIES) {
+                setMarketProgress(prev => prev.map((p, i) => i === mi ? { ...p, status: 'scanning' } : p));
+                setStatusMsg(`Scanning ${market.label}...`);
+
+                try {
+                    const prices = await ws.fetchTicks(market.symbol, tickCount);
                     if (abortRef.current) break;
-                    const res = analyzeStrategy(digits, strat.mainType, strat.mainDigit, strat.recoveryType, strat.recoveryDigit);
-                    if (!res) continue;
-                    const sr: ScanResult = {
-                        market: market.symbol,
-                        marketLabel: market.label,
-                        strategy: strat.label,
-                        entryDigit: res.entryDigit,
-                        winRate: res.winRate,
-                        sampleSize: res.sampleSize,
-                        recentWinRate: res.recentWinRate,
-                        qualityScore: res.qualityScore,
-                    };
-                    results.push(sr);
-                    if (!bestForMarket || sr.qualityScore > bestForMarket.qualityScore) bestForMarket = sr;
+
+                    const digits = prices.map(getLastDigit);
+                    let bestForMarket: ScanResult | null = null;
+
+                    for (const strat of STRATEGIES) {
+                        const res = analyzeStrategy(digits, strat.mainType, strat.mainDigit, strat.recoveryType, strat.recoveryDigit);
+                        if (!res) continue;
+                        const sr: ScanResult = {
+                            market: market.symbol,
+                            marketLabel: market.label,
+                            strategy: strat.label,
+                            entryDigit: res.entryDigit,
+                            winRate: res.winRate,
+                            sampleSize: res.sampleSize,
+                            recentWinRate: res.recentWinRate,
+                            qualityScore: res.qualityScore,
+                        };
+                        if (!bestForMarket || sr.qualityScore > bestForMarket.qualityScore) bestForMarket = sr;
+                    }
+
+                    if (bestForMarket) {
+                        perMarketBest.push(bestForMarket);
+                        if (!overallBest || bestForMarket.qualityScore > overallBest.qualityScore) overallBest = bestForMarket;
+                    }
+
+                    setMarketProgress(prev => prev.map((p, i) =>
+                        i === mi ? { ...p, status: 'done', winRate: bestForMarket ? Math.round(bestForMarket.winRate) : 0 } : p
+                    ));
+                } catch {
+                    setMarketProgress(prev => prev.map((p, i) => i === mi ? { ...p, status: 'failed' } : p));
                 }
 
-                setMarketProgress(prev => prev.map((p, i) =>
-                    i === mi ? { ...p, done: true, wins: bestForMarket ? Math.round(bestForMarket.winRate) : 0, total: digits.length } : p
-                ));
-            } catch {
-                setMarketProgress(prev => prev.map((p, i) => i === mi ? { ...p, done: true } : p));
+                setProgress(Math.round(((mi + 1) / MARKETS.length) * 100));
             }
 
-            setProgress(Math.round(((mi + 1) / total) * 100));
+            ws.close();
+            wsRef.current = null;
+        } catch (err: any) {
+            setStatusMsg(`Connection error: ${err?.message || 'Unknown error'}. Try again.`);
+            setScanning(false);
+            return;
         }
 
-        results.sort((a, b) => b.qualityScore - a.qualityScore);
-        setAllResults(results.slice(0, 5));
-        if (results.length > 0) {
-            setBestResult(results[0]);
-            setStatusMsg(`Best market: ${results[0].marketLabel} | ${results[0].strategy} | Entry ${results[0].entryDigit} | Quality ${results[0].qualityScore.toFixed(2)}%`);
+        // Sort per-market best by quality score descending → top results (one per market)
+        perMarketBest.sort((a, b) => b.qualityScore - a.qualityScore);
+        setTopResults(perMarketBest.slice(0, 8));
+        setBestResult(overallBest);
+
+        if (overallBest) {
+            setStatusMsg(
+                `✅ Best: ${overallBest.marketLabel} | ${overallBest.strategy} | Entry ${overallBest.entryDigit} | Quality ${overallBest.qualityScore.toFixed(2)}%`
+            );
         } else {
-            setStatusMsg('Scan complete. No results found.');
+            setStatusMsg('Scan complete. Could not retrieve data. Check your connection and try again.');
         }
         setScanning(false);
     };
 
     const stopScan = () => {
         abortRef.current = true;
+        wsRef.current?.close();
+        wsRef.current = null;
         setScanning(false);
         setStatusMsg('Scan stopped.');
+    };
+
+    const statusIcon = (s: MarketProgress['status']) => {
+        if (s === 'done')     return <span className='es-market-item__check'>✓</span>;
+        if (s === 'failed')   return <span className='es-market-item__fail'>✗</span>;
+        if (s === 'scanning') return <span className='es-market-item__spinner' />;
+        return <span className='es-market-item__dot' />;
     };
 
     return (
@@ -199,8 +288,8 @@ const EntryScanner: React.FC = () => {
                     Entry Scanner
                 </div>
                 <p className='es-header__desc'>
-                    Deep scanner evaluates all synthetic index random markets, then finds the best entry point digit and
-                    strategy profile from historical tick data.
+                    Deep scanner evaluates all {MARKETS.length} synthetic volatility markets using real Deriv tick data,
+                    finds the best entry point digit and strategy profile across all Over/Under recovery combinations.
                 </p>
             </div>
 
@@ -217,17 +306,14 @@ const EntryScanner: React.FC = () => {
                         disabled={scanning}
                     />
                 </div>
-
                 <div className='es-control-group'>
                     <label className='es-label'>BEST MARKET</label>
                     <div className='es-result-box'>{bestResult?.marketLabel || '—'}</div>
                 </div>
-
                 <div className='es-control-group'>
                     <label className='es-label'>STRATEGY</label>
                     <div className='es-result-box'>{bestResult?.strategy || '—'}</div>
                 </div>
-
                 <div className='es-control-group'>
                     <label className='es-label'>ENTRY DIGIT</label>
                     <div className='es-result-box es-result-box--highlight'>{bestResult !== null ? bestResult.entryDigit : '—'}</div>
@@ -258,20 +344,25 @@ const EntryScanner: React.FC = () => {
                 </div>
             )}
 
-            {scanning && (
+            {(scanning || marketProgress.length > 0) && (
                 <div className='es-progress-section'>
-                    <div className='es-progress-bar-track'>
-                        <div className='es-progress-bar-fill' style={{ width: `${progress}%` }} />
-                    </div>
-                    <div className='es-market-list'>
+                    {scanning && (
+                        <div className='es-progress-bar-track'>
+                            <div className='es-progress-bar-fill' style={{ width: `${progress}%` }} />
+                            <span className='es-progress-bar-label'>{progress}%</span>
+                        </div>
+                    )}
+                    <div className='es-market-grid'>
                         {marketProgress.map((m, i) => (
-                            <div key={i} className={`es-market-item ${m.done ? 'es-market-item--done' : 'es-market-item--scanning'}`}>
-                                <span className='es-market-item__dot' />
+                            <div
+                                key={i}
+                                className={`es-market-item es-market-item--${m.status}`}
+                            >
+                                {statusIcon(m.status)}
                                 <span className='es-market-item__label'>{m.label}</span>
-                                {m.done && m.wins !== undefined && (
-                                    <span className='es-market-item__result'>{m.wins}%</span>
+                                {m.status === 'done' && m.winRate !== undefined && (
+                                    <span className='es-market-item__result'>{m.winRate}%</span>
                                 )}
-                                {!m.done && <span className='es-market-item__spinner' />}
                             </div>
                         ))}
                     </div>
@@ -279,13 +370,21 @@ const EntryScanner: React.FC = () => {
             )}
 
             {statusMsg && (
-                <div className='es-status-msg'>{statusMsg}</div>
+                <div className={`es-status-msg ${statusMsg.startsWith('✅') ? 'es-status-msg--success' : ''}`}>
+                    {statusMsg}
+                </div>
             )}
 
-            {allResults.length > 0 && !scanning && (
+            {topResults.length > 0 && !scanning && (
                 <div className='es-top-results'>
-                    <div className='es-top-results__title'>🏆 Top Results</div>
-                    {allResults.map((r, i) => (
+                    <div className='es-top-results__title'>🏆 Best Strategy Per Market</div>
+                    <div className='es-top-results__legend'>
+                        <span>Market</span>
+                        <span>Strategy</span>
+                        <span>Digit</span>
+                        <span>Quality</span>
+                    </div>
+                    {topResults.map((r, i) => (
                         <div key={i} className={`es-result-row ${i === 0 ? 'es-result-row--best' : ''}`}>
                             <span className='es-result-row__rank'>#{i + 1}</span>
                             <span className='es-result-row__market'>{r.marketLabel}</span>
