@@ -185,6 +185,9 @@ const EntryScanner: React.FC = () => {
                         ⏹ Stop Scan
                     </button>
                 )}
+                <button className='es-btn es-btn--load'>
+                    🤖 Load Bot
+                </button>
             </div>
         </div>
     );

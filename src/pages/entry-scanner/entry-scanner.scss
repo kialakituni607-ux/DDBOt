@@ -349,6 +349,9 @@
 
 .es-actions {
     padding-bottom: 2rem;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
 }
 
 .es-btn {
@@ -356,7 +359,7 @@
     padding: 1.4rem;
     border: none;
     border-radius: 1rem;
-    font-size: 1.5rem;
+    font-size: 1.3rem;
     font-weight: 800;
     cursor: pointer;
     transition: all 0.2s;
@@ -376,6 +379,14 @@
         box-shadow: 0 4px 16px rgba(231, 76, 60, 0.3);
 
         &:hover { background: #c0392b; }
+    }
+
+    &--load {
+        background: linear-gradient(90deg, #1a7a4a, #27ae60);
+        color: #ffffff;
+        box-shadow: 0 4px 16px rgba(39, 174, 96, 0.35);
+
+        &:hover { box-shadow: 0 6px 24px rgba(39, 174, 96, 0.5); transform: translateY(-1px); }
     }
 }
 
