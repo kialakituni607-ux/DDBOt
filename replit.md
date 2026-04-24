@@ -117,9 +117,26 @@ Preferred communication style: Simple, everyday language.
 ## Recent Changes
 
 ### Free Bots Feature (December 2025)
-- Added Free Bots page with 12 pre-built trading bot templates
+- Added Free Bots page with 13 pre-built trading bot templates
 - Bot cards display with category filtering (Speed Trading, AI Trading, Pattern Analysis, etc.)
 - Click-to-load functionality that imports bot XML into Bot Builder
 - Responsive card design with hover effects and loading states
-- Bot XML files stored in `/public/bots/` directory
+- Bot XML files stored in `/public/bots/` and `/server/bots/` (protected via JWT tokens)
 - Files: `src/pages/free-bots/index.tsx`, `src/pages/free-bots/free-bots.scss`
+
+### Entry Scanner Tab (April 2026)
+- New nav tab: "Entry Scanner" (tab index 7)
+- Connects directly to Deriv WebSocket and fetches real tick data for 10 volatility markets
+- Tests 10 Over/Under + Recovery strategies on live historical tick data
+- Shows Win Rate, Sample Size, Quality Score, Recent Win Rate
+- Progress bar with per-market scan status
+- Top 5 results ranked by quality score
+- Files: `src/pages/entry-scanner/index.tsx`, `src/pages/entry-scanner/entry-scanner.scss`
+
+### Antipoverty AI Tab (April 2026)
+- New nav tab: "Antipoverty AI" (tab index 8)
+- Dedicated premium page for the Antipoverty AI bot (Under 8 / Recovery Under 5, Martingale x2)
+- Shows strategy breakdown, default parameters, how-it-works steps
+- "Load Bot" button loads bot XML into Bot Builder
+- Bot XML: `public/bots/Antipoverty_AI.xml`, `server/bots/Antipoverty_AI.xml`
+- Files: `src/pages/antipoverty-ai/index.tsx`, `src/pages/antipoverty-ai/antipoverty-ai.scss`

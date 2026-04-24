@@ -1,0 +1,294 @@
+.antipoverty-ai {
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+    padding: 2rem;
+    background: #f4f5ff;
+    min-height: 100%;
+    overflow-y: auto;
+    max-width: 900px;
+    margin: 0 auto;
+}
+
+.apai-hero {
+    background: linear-gradient(135deg, #2A2E9B 0%, #1a1d7a 100%);
+    border-radius: 1.6rem;
+    padding: 3rem 2.4rem;
+    text-align: center;
+    box-shadow: 0 8px 32px rgba(42, 46, 155, 0.35);
+    position: relative;
+    overflow: hidden;
+
+    &::before {
+        content: '';
+        position: absolute;
+        top: -40%;
+        left: -20%;
+        width: 60%;
+        height: 180%;
+        background: rgba(255, 255, 255, 0.04);
+        border-radius: 50%;
+    }
+
+    &::after {
+        content: '';
+        position: absolute;
+        bottom: -50%;
+        right: -15%;
+        width: 50%;
+        height: 160%;
+        background: rgba(255, 255, 255, 0.03);
+        border-radius: 50%;
+    }
+
+    &__badge {
+        display: inline-block;
+        background: rgba(255, 215, 0, 0.2);
+        color: #ffd700;
+        border: 1px solid rgba(255, 215, 0, 0.4);
+        border-radius: 2rem;
+        padding: 0.4rem 1.2rem;
+        font-size: 1.1rem;
+        font-weight: 700;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        margin-bottom: 1.2rem;
+    }
+
+    &__icon {
+        font-size: 5rem;
+        margin-bottom: 1rem;
+        display: block;
+    }
+
+    &__title {
+        font-size: 3.2rem;
+        font-weight: 900;
+        color: #ffffff;
+        margin: 0 0 1rem;
+        text-shadow: 0 2px 8px rgba(0,0,0,0.3);
+    }
+
+    &__tagline {
+        font-size: 1.4rem;
+        color: rgba(255, 255, 255, 0.8);
+        line-height: 1.5;
+        margin: 0;
+        max-width: 55rem;
+        margin: 0 auto;
+    }
+}
+
+.apai-stats {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1.2rem;
+
+    @media (max-width: 700px) {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    @media (max-width: 400px) {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+
+.apai-stat {
+    background: #ffffff;
+    border-radius: 1.2rem;
+    padding: 1.6rem 1rem;
+    text-align: center;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.4rem;
+
+    &__icon { font-size: 2rem; }
+
+    &__value {
+        font-size: 1.35rem;
+        font-weight: 900;
+        color: #2A2E9B;
+    }
+
+    &__label {
+        font-size: 1.05rem;
+        color: #999;
+        font-weight: 600;
+    }
+}
+
+.apai-strategy {
+    background: #ffffff;
+    border-radius: 1.4rem;
+    padding: 2rem;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+
+    &__title {
+        font-size: 1.7rem;
+        font-weight: 800;
+        color: #2A2E9B;
+        margin: 0 0 1.6rem;
+    }
+
+    &__steps {
+        display: flex;
+        flex-direction: column;
+        gap: 1.2rem;
+    }
+}
+
+.apai-step {
+    display: flex;
+    align-items: flex-start;
+    gap: 1.4rem;
+
+    &__num {
+        width: 3.2rem;
+        height: 3.2rem;
+        background: linear-gradient(135deg, #2A2E9B, #6c63ff);
+        color: #ffffff;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.4rem;
+        font-weight: 900;
+        flex-shrink: 0;
+    }
+
+    &__content {
+        padding-top: 0.4rem;
+
+        strong {
+            display: block;
+            font-size: 1.3rem;
+            font-weight: 800;
+            color: #2A2E9B;
+            margin-bottom: 0.3rem;
+        }
+
+        p {
+            margin: 0;
+            font-size: 1.2rem;
+            color: #666;
+            line-height: 1.5;
+        }
+    }
+}
+
+.apai-params {
+    background: #ffffff;
+    border-radius: 1.4rem;
+    padding: 2rem;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+
+    &__title {
+        font-size: 1.7rem;
+        font-weight: 800;
+        color: #2A2E9B;
+        margin: 0 0 1.6rem;
+    }
+
+    &__grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1rem;
+
+        @media (max-width: 500px) {
+            grid-template-columns: 1fr;
+        }
+    }
+}
+
+.apai-param {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: #f8f8ff;
+    border-radius: 0.8rem;
+    padding: 1rem 1.4rem;
+    border-left: 3px solid #2A2E9B;
+
+    &__key {
+        font-size: 1.15rem;
+        font-weight: 600;
+        color: #555;
+    }
+
+    &__val {
+        font-size: 1.2rem;
+        font-weight: 900;
+        color: #2A2E9B;
+    }
+}
+
+.apai-warning {
+    background: #fff8e1;
+    border: 1px solid #ffe082;
+    border-radius: 0.8rem;
+    padding: 1rem 1.4rem;
+    font-size: 1.2rem;
+    color: #795548;
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+
+    &__icon { font-size: 1.4rem; flex-shrink: 0; }
+
+    strong { color: #5d4037; }
+}
+
+.apai-actions {
+    padding-bottom: 2rem;
+}
+
+.apai-btn {
+    width: 100%;
+    padding: 1.6rem;
+    border: none;
+    border-radius: 1.2rem;
+    font-size: 1.6rem;
+    font-weight: 800;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.8rem;
+
+    &--primary {
+        background: linear-gradient(90deg, #2A2E9B, #6c63ff);
+        color: #ffffff;
+        box-shadow: 0 6px 24px rgba(42, 46, 155, 0.4);
+
+        &:hover:not(:disabled) {
+            box-shadow: 0 8px 32px rgba(42, 46, 155, 0.55);
+            transform: translateY(-2px);
+        }
+    }
+
+    &--success {
+        background: linear-gradient(90deg, #27ae60, #2ecc71);
+        color: #ffffff;
+        box-shadow: 0 6px 24px rgba(39, 174, 96, 0.3);
+        cursor: default;
+    }
+
+    &:disabled { opacity: 0.85; }
+
+    &__spinner {
+        width: 1.8rem;
+        height: 1.8rem;
+        border: 3px solid rgba(255, 255, 255, 0.3);
+        border-top-color: #ffffff;
+        border-radius: 50%;
+        animation: apai-spin 0.7s linear infinite;
+        flex-shrink: 0;
+    }
+}
+
+@keyframes apai-spin {
+    to { transform: rotate(360deg); }
+}
