@@ -4,6 +4,10 @@ import { useStore } from '@/hooks/useStore';
 import { load, save_types } from '@/external/bot-skeleton';
 import { generateDerivApiInstance } from '@/external/bot-skeleton/services/api/appId';
 import tmApi from '@/utils/tm-api';
+import { DBOT_TABS } from '@/constants/bot-contents';
+import Journal from '@/components/journal';
+import Summary from '@/components/summary';
+import Transactions from '@/components/transactions';
 import './entry-scanner.scss';
 
 const MARKETS = [
@@ -137,6 +141,8 @@ const EntryScanner: React.FC = observer(() => {
     const [stopLoss, setStopLoss]             = useState(50);
     const [useMartingale, setUseMartingale]   = useState(true);
     const [autoStart, setAutoStart]           = useState(true);
+    const [botLaunched, setBotLaunched]       = useState(false);
+    const [activeBotTab, setActiveBotTab]     = useState<'summary' | 'transactions' | 'journal'>('summary');
 
     const startScan = async () => {
         abortRef.current = false;
@@ -311,6 +317,13 @@ const EntryScanner: React.FC = observer(() => {
                 }
             }
 
+            // Navigate back to Entry Scanner so the user stays on this page,
+            // then reveal the right-side live bot panel.
+            dashboard.setActiveTab(DBOT_TABS.ENTRY_SCANNER);
+            window.location.hash = 'entry_scanner';
+            setBotLaunched(true);
+            setActiveBotTab('summary');
+
             // Auto-start: trigger the Run button programmatically so the bot
             // starts trading immediately without the user having to click Run.
             if (autoStart) {
@@ -331,83 +344,141 @@ const EntryScanner: React.FC = observer(() => {
     };
 
     return (
-        <div className='entry-scanner'>
-            <div className='es-header'>
-                <div className='es-header__title'>
-                    <span className='es-header__icon'>🔍</span>
-                    Entry Scanner
+        <div className={`entry-scanner ${botLaunched ? 'entry-scanner--split' : ''}`}>
+            {/* ── LEFT COLUMN: Scanner ───────────────────────────────────── */}
+            <div className='es-scanner-col'>
+                <div className='es-header'>
+                    <div className='es-header__title'>
+                        <span className='es-header__icon'>🔍</span>
+                        Entry Scanner
+                    </div>
+                    <p className='es-header__desc'>
+                        Scans all {MARKETS.length} synthetic volatility markets and identifies the optimal market, strategy, and entry digit for your next trade.
+                    </p>
                 </div>
-                <p className='es-header__desc'>
-                    Scans all {MARKETS.length} synthetic volatility markets and identifies the optimal market, strategy, and entry digit for your next trade.
-                </p>
-            </div>
 
-            <div className='es-controls'>
-                <div className='es-control-group'>
-                    <label className='es-label'>NUMBER OF TICKS TO SCAN</label>
-                    <input
-                        className='es-input'
-                        type='number'
-                        min={100}
-                        max={5000}
-                        value={tickCount}
-                        onChange={e => setTickCount(Math.max(100, Math.min(5000, parseInt(e.target.value) || 500)))}
-                        disabled={scanning}
-                    />
+                <div className='es-controls'>
+                    <div className='es-control-group'>
+                        <label className='es-label'>NUMBER OF TICKS TO SCAN</label>
+                        <input
+                            className='es-input'
+                            type='number'
+                            min={100}
+                            max={5000}
+                            value={tickCount}
+                            onChange={e => setTickCount(Math.max(100, Math.min(5000, parseInt(e.target.value) || 500)))}
+                            disabled={scanning}
+                        />
+                    </div>
+                    <div className='es-control-group'>
+                        <label className='es-label'>BEST MARKET</label>
+                        <div className='es-result-box'>{bestResult?.marketLabel || '—'}</div>
+                    </div>
+                    <div className='es-control-group'>
+                        <label className='es-label'>STRATEGY</label>
+                        <div className='es-result-box es-result-box--small'>{bestResult?.strategy || '—'}</div>
+                    </div>
+                    <div className='es-control-group'>
+                        <label className='es-label'>ENTRY DIGIT</label>
+                        <div className='es-result-box es-result-box--highlight'>{bestResult !== null ? bestResult.entryDigit : '—'}</div>
+                    </div>
                 </div>
-                <div className='es-control-group'>
-                    <label className='es-label'>BEST MARKET</label>
-                    <div className='es-result-box'>{bestResult?.marketLabel || '—'}</div>
-                </div>
-                <div className='es-control-group'>
-                    <label className='es-label'>STRATEGY</label>
-                    <div className='es-result-box es-result-box--small'>{bestResult?.strategy || '—'}</div>
-                </div>
-                <div className='es-control-group'>
-                    <label className='es-label'>ENTRY DIGIT</label>
-                    <div className='es-result-box es-result-box--highlight'>{bestResult !== null ? bestResult.entryDigit : '—'}</div>
-                </div>
-            </div>
 
-            {(scanning || marketProgress.length > 0) && (
-                <div className='es-progress-section'>
-                    {scanning && (
-                        <div className='es-progress-bar-track'>
-                            <div className='es-progress-bar-fill' style={{ width: `${progress}%` }} />
-                            <span className='es-progress-bar-label'>{progress}%</span>
-                        </div>
-                    )}
-                    <div className='es-market-grid'>
-                        {marketProgress.map((m, i) => (
-                            <div key={i} className={`es-market-item es-market-item--${m.status}`}>
-                                {statusIcon(m.status)}
-                                <span className='es-market-item__label'>{m.label}</span>
+                {(scanning || marketProgress.length > 0) && (
+                    <div className='es-progress-section'>
+                        {scanning && (
+                            <div className='es-progress-bar-track'>
+                                <div className='es-progress-bar-fill' style={{ width: `${progress}%` }} />
+                                <span className='es-progress-bar-label'>{progress}%</span>
                             </div>
+                        )}
+                        <div className='es-market-grid'>
+                            {marketProgress.map((m, i) => (
+                                <div key={i} className={`es-market-item es-market-item--${m.status}`}>
+                                    {statusIcon(m.status)}
+                                    <span className='es-market-item__label'>{m.label}</span>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
+
+                {statusMsg && (
+                    <div className={`es-status-msg ${statusMsg.startsWith('✅') ? 'es-status-msg--success' : ''}`}>
+                        {statusMsg}
+                    </div>
+                )}
+
+                <div className='es-actions'>
+                    {!scanning ? (
+                        <button className='es-btn es-btn--primary' onClick={startScan}>
+                            🔍 Deep Scan for Best Market
+                        </button>
+                    ) : (
+                        <button className='es-btn es-btn--stop' onClick={stopScan}>
+                            ⏹ Stop Scan
+                        </button>
+                    )}
+                    <button className='es-btn es-btn--load' onClick={() => setModalOpen(true)}>
+                        🤖 Load Bot
+                    </button>
+                </div>
+            </div>
+
+            {/* ── RIGHT COLUMN: Live Bot Panel ───────────────────────────── */}
+            {botLaunched && (
+                <div className='es-bot-panel'>
+                    <div className='es-bot-panel__header'>
+                        <div className='es-bot-panel__title'>
+                            <span className='es-bot-panel__icon'>🤖</span>
+                            Antipoverty AI
+                        </div>
+                        {bestResult && (
+                            <div className='es-bot-panel__market'>{bestResult.marketLabel}</div>
+                        )}
+                    </div>
+
+                    <div className='es-bot-panel__run-row'>
+                        {run_panel.is_running ? (
+                            <button
+                                className='es-bot-panel__run-btn es-bot-panel__run-btn--stop'
+                                onClick={() => run_panel.stopBot()}
+                            >
+                                ⏹ Stop Bot
+                            </button>
+                        ) : (
+                            <button
+                                className='es-bot-panel__run-btn es-bot-panel__run-btn--run'
+                                onClick={() => run_panel.onRunButtonClick()}
+                            >
+                                ▶ Run Bot
+                            </button>
+                        )}
+                        <span className={`es-bot-panel__status-dot ${run_panel.is_running ? 'es-bot-panel__status-dot--live' : ''}`} />
+                        <span className='es-bot-panel__status-label'>
+                            {run_panel.is_running ? 'LIVE' : 'STOPPED'}
+                        </span>
+                    </div>
+
+                    <div className='es-bot-panel__tabs'>
+                        {(['summary', 'transactions', 'journal'] as const).map(tab => (
+                            <button
+                                key={tab}
+                                className={`es-bot-panel__tab ${activeBotTab === tab ? 'es-bot-panel__tab--active' : ''}`}
+                                onClick={() => setActiveBotTab(tab)}
+                            >
+                                {tab.charAt(0).toUpperCase() + tab.slice(1)}
+                            </button>
                         ))}
+                    </div>
+
+                    <div className='es-bot-panel__content'>
+                        {activeBotTab === 'summary'      && <Summary      is_drawer_open={true} />}
+                        {activeBotTab === 'transactions' && <Transactions is_drawer_open={true} />}
+                        {activeBotTab === 'journal'      && <Journal />}
                     </div>
                 </div>
             )}
-
-            {statusMsg && (
-                <div className={`es-status-msg ${statusMsg.startsWith('✅') ? 'es-status-msg--success' : ''}`}>
-                    {statusMsg}
-                </div>
-            )}
-
-            <div className='es-actions'>
-                {!scanning ? (
-                    <button className='es-btn es-btn--primary' onClick={startScan}>
-                        🔍 Deep Scan for Best Market
-                    </button>
-                ) : (
-                    <button className='es-btn es-btn--stop' onClick={stopScan}>
-                        ⏹ Stop Scan
-                    </button>
-                )}
-                <button className='es-btn es-btn--load' onClick={() => setModalOpen(true)}>
-                    🤖 Load Bot
-                </button>
-            </div>
 
             {/* ── Scanner Parameters Modal ─────────────────────────────── */}
             {modalOpen && (
