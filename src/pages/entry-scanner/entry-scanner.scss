@@ -514,6 +514,44 @@
         .es-modal__toggle--on & { left: calc(100% - 2.3rem); }
     }
 
+    &__results {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0.8rem;
+    }
+
+    &__result-item {
+        background: #f4f5ff;
+        border: 1.5px solid #d8daff;
+        border-radius: 0.8rem;
+        padding: 0.8rem 1rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.3rem;
+
+        &--full { grid-column: 1 / -1; }
+    }
+
+    &__result-value {
+        font-size: 1.1rem;
+        font-weight: 700;
+        color: #2A2E9B;
+
+        &--small { font-size: 0.95rem; line-height: 1.3; }
+
+        &--digit {
+            font-size: 2rem;
+            font-weight: 900;
+            color: #2A2E9B;
+        }
+    }
+
+    &__divider {
+        height: 1px;
+        background: #e8e8f0;
+        margin: 0 -0.4rem;
+    }
+
     &__actions {
         display: grid;
         grid-template-columns: 1fr 1fr;

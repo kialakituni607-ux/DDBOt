@@ -199,6 +199,24 @@ const EntryScanner: React.FC = () => {
                             <button className='es-modal__close' onClick={() => setModalOpen(false)}>✕</button>
                         </div>
 
+                        {/* Scan results — auto-filled from deep scan */}
+                        <div className='es-modal__results'>
+                            <div className='es-modal__result-item es-modal__result-item--full'>
+                                <span className='es-modal__label'>BEST MARKET</span>
+                                <span className='es-modal__result-value'>{bestResult?.marketLabel || '— Run a deep scan first —'}</span>
+                            </div>
+                            <div className='es-modal__result-item'>
+                                <span className='es-modal__label'>STRATEGY</span>
+                                <span className='es-modal__result-value es-modal__result-value--small'>{bestResult?.strategy || '—'}</span>
+                            </div>
+                            <div className='es-modal__result-item'>
+                                <span className='es-modal__label'>ENTRY DIGIT</span>
+                                <span className='es-modal__result-value es-modal__result-value--digit'>{bestResult !== null ? bestResult.entryDigit : '—'}</span>
+                            </div>
+                        </div>
+
+                        <div className='es-modal__divider' />
+
                         <div className='es-modal__grid'>
                             <div className='es-modal__field'>
                                 <label className='es-modal__label'>STAKE</label>
