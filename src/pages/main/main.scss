@@ -714,7 +714,9 @@
 }
 
 .free-bots-wrapper,
-.analysis-tool-wrapper {
+.analysis-tool-wrapper,
+.entry-scanner-wrapper,
+.antipoverty-ai-wrapper {
     width: 100%;
     height: calc(100vh - 14rem);
     overflow-y: auto;

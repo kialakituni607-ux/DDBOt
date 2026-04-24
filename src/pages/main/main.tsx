@@ -436,13 +436,15 @@ const AppWrapper = observer(() => {
                                 }
                                 id='id-entry-scanner'
                             >
-                                <Suspense
-                                    fallback={
-                                        <ChunkLoader message={localize('Please wait, loading Entry Scanner...')} />
-                                    }
-                                >
-                                    <EntryScanner />
-                                </Suspense>
+                                <div className='entry-scanner-wrapper'>
+                                    <Suspense
+                                        fallback={
+                                            <ChunkLoader message={localize('Please wait, loading Entry Scanner...')} />
+                                        }
+                                    >
+                                        <EntryScanner />
+                                    </Suspense>
+                                </div>
                             </div>
                             <div
                                 label={
@@ -457,13 +459,15 @@ const AppWrapper = observer(() => {
                                 }
                                 id='id-antipoverty-ai'
                             >
-                                <Suspense
-                                    fallback={
-                                        <ChunkLoader message={localize('Please wait, loading Antipoverty AI...')} />
-                                    }
-                                >
-                                    <AntiPovertyAI />
-                                </Suspense>
+                                <div className='antipoverty-ai-wrapper'>
+                                    <Suspense
+                                        fallback={
+                                            <ChunkLoader message={localize('Please wait, loading Antipoverty AI...')} />
+                                        }
+                                    >
+                                        <AntiPovertyAI />
+                                    </Suspense>
+                                </div>
                             </div>
                         </Tabs>
                         {!isDesktop && right_tab_shadow && <span className='tabs-shadow tabs-shadow--right' />}{' '}
