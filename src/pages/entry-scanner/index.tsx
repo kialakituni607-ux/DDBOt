@@ -250,10 +250,26 @@ const EntryScanner: React.FC = () => {
             return;
         }
 
-        // Sort per-market best by quality score descending → top results (one per market)
+        // Sort per-market best by quality score descending
         perMarketBest.sort((a, b) => b.qualityScore - a.qualityScore);
-        setTopResults(perMarketBest.slice(0, 1));
-        setBestResult(overallBest);
+
+        // Weighted random selection among markets within 15% of the top score
+        // (markets this close are statistically equal — this prevents the same market always winning)
+        let selected: ScanResult | null = null;
+        if (perMarketBest.length > 0) {
+            const topScore = perMarketBest[0].qualityScore;
+            const candidates = perMarketBest.filter(r => r.qualityScore >= topScore * 0.85);
+            const totalWeight = candidates.reduce((s, r) => s + r.qualityScore, 0);
+            let pick = Math.random() * totalWeight;
+            for (const c of candidates) {
+                pick -= c.qualityScore;
+                if (pick <= 0) { selected = c; break; }
+            }
+            if (!selected) selected = candidates[0];
+        }
+
+        setTopResults(selected ? [selected] : []);
+        setBestResult(selected);
 
         if (overallBest) {
             setStatusMsg(
