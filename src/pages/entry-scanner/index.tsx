@@ -253,19 +253,25 @@ const EntryScanner: React.FC = () => {
         // Sort per-market best by quality score descending
         perMarketBest.sort((a, b) => b.qualityScore - a.qualityScore);
 
-        // Weighted random selection among markets within 15% of the top score
-        // (markets this close are statistically equal — this prevents the same market always winning)
+        // Enforce rotation: track last N winners in localStorage so no market repeats
+        // until every other market has had a turn
+        const HISTORY_KEY = 'es_recent_winners';
+        const HISTORY_SIZE = Math.min(8, MARKETS.length - 1); // block last 8 winners
+        let recentWinners: string[] = [];
+        try {
+            recentWinners = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
+        } catch { recentWinners = []; }
+
+        // Pick best market not in recent history; fall back to full list if all blocked
         let selected: ScanResult | null = null;
-        if (perMarketBest.length > 0) {
-            const topScore = perMarketBest[0].qualityScore;
-            const candidates = perMarketBest.filter(r => r.qualityScore >= topScore * 0.85);
-            const totalWeight = candidates.reduce((s, r) => s + r.qualityScore, 0);
-            let pick = Math.random() * totalWeight;
-            for (const c of candidates) {
-                pick -= c.qualityScore;
-                if (pick <= 0) { selected = c; break; }
-            }
-            if (!selected) selected = candidates[0];
+        const fresh = perMarketBest.filter(r => !recentWinners.includes(r.market));
+        const pool = fresh.length > 0 ? fresh : perMarketBest;
+        selected = pool[0] ?? null;
+
+        // Save winner to history
+        if (selected) {
+            recentWinners = [selected.market, ...recentWinners].slice(0, HISTORY_SIZE);
+            try { localStorage.setItem(HISTORY_KEY, JSON.stringify(recentWinners)); } catch { /* ignore */ }
         }
 
         setTopResults(selected ? [selected] : []);
