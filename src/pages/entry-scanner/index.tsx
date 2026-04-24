@@ -38,23 +38,15 @@ const STRAT_KEY = 'es_recent_strategies';
 function pickStrategy(): string {
     let recent: string[] = [];
     try { recent = JSON.parse(localStorage.getItem(STRAT_KEY) || '[]'); } catch { recent = []; }
-
     const available = STRATEGIES.filter(s => !recent.includes(s));
     const pool = available.length > 0 ? available : STRATEGIES;
     const picked = pool[Math.floor(Math.random() * pool.length)];
-
     recent = [picked, ...recent].slice(0, STRATEGIES.length - 1);
     try { localStorage.setItem(STRAT_KEY, JSON.stringify(recent)); } catch { /* ignore */ }
-
     return picked;
 }
 
-type ScanResult = {
-    marketLabel: string;
-    strategy: string;
-    entryDigit: number;
-};
-
+type ScanResult   = { marketLabel: string; strategy: string; entryDigit: number };
 type MarketProgress = { label: string; status: 'pending' | 'scanning' | 'done' };
 
 const DELAY = (ms: number) => new Promise(r => setTimeout(r, ms));
@@ -68,6 +60,15 @@ const EntryScanner: React.FC = () => {
     const [statusMsg, setStatusMsg]           = useState('');
     const abortRef = useRef(false);
 
+    // Modal state
+    const [modalOpen, setModalOpen]           = useState(false);
+    const [stake, setStake]                   = useState(0.5);
+    const [martingale, setMartingale]         = useState(2);
+    const [numWins, setNumWins]               = useState(5);
+    const [digitsToCheck, setDigitsToCheck]   = useState(1);
+    const [stopLoss, setStopLoss]             = useState(50);
+    const [useMartingale, setUseMartingale]   = useState(true);
+
     const startScan = async () => {
         abortRef.current = false;
         setScanning(true);
@@ -76,7 +77,6 @@ const EntryScanner: React.FC = () => {
         setStatusMsg('Scanning all volatility markets...');
         setMarketProgress(MARKETS.map(m => ({ label: m.label, status: 'pending' })));
 
-        // Scale delay with tick count: 100 ticks ≈ 150ms/market, 5000 ticks ≈ 450ms/market
         const perMarketDelay = Math.round(150 + (tickCount / 5000) * 300);
 
         for (let mi = 0; mi < MARKETS.length; mi++) {
@@ -185,10 +185,69 @@ const EntryScanner: React.FC = () => {
                         ⏹ Stop Scan
                     </button>
                 )}
-                <button className='es-btn es-btn--load'>
+                <button className='es-btn es-btn--load' onClick={() => setModalOpen(true)}>
                     🤖 Load Bot
                 </button>
             </div>
+
+            {/* ── Scanner Parameters Modal ─────────────────────────────── */}
+            {modalOpen && (
+                <div className='es-modal-overlay' onClick={() => setModalOpen(false)}>
+                    <div className='es-modal' onClick={e => e.stopPropagation()}>
+                        <div className='es-modal__header'>
+                            <span className='es-modal__title'>Scanner Parameters</span>
+                            <button className='es-modal__close' onClick={() => setModalOpen(false)}>✕</button>
+                        </div>
+
+                        <div className='es-modal__grid'>
+                            <div className='es-modal__field'>
+                                <label className='es-modal__label'>STAKE</label>
+                                <input className='es-modal__input' type='number' min={0.35} step={0.01}
+                                    value={stake} onChange={e => setStake(parseFloat(e.target.value) || 0.35)} />
+                            </div>
+                            <div className='es-modal__field'>
+                                <label className='es-modal__label'>MARTINGALE</label>
+                                <input className='es-modal__input' type='number' min={1} step={0.1}
+                                    value={martingale} onChange={e => setMartingale(parseFloat(e.target.value) || 1)} />
+                            </div>
+                            <div className='es-modal__field'>
+                                <label className='es-modal__label'>NUMBER OF WINS</label>
+                                <input className='es-modal__input' type='number' min={1}
+                                    value={numWins} onChange={e => setNumWins(parseInt(e.target.value) || 1)} />
+                            </div>
+                            <div className='es-modal__field'>
+                                <label className='es-modal__label'>NO. OF DIGITS TO CHECK</label>
+                                <input className='es-modal__input' type='number' min={1} max={10}
+                                    value={digitsToCheck} onChange={e => setDigitsToCheck(parseInt(e.target.value) || 1)} />
+                            </div>
+                            <div className='es-modal__field es-modal__field--full'>
+                                <label className='es-modal__label'>STOP LOSS</label>
+                                <input className='es-modal__input' type='number' min={1}
+                                    value={stopLoss} onChange={e => setStopLoss(parseInt(e.target.value) || 1)} />
+                            </div>
+                        </div>
+
+                        <div className='es-modal__toggle-row'>
+                            <span className='es-modal__toggle-label'>Use Martingale</span>
+                            <button
+                                className={`es-modal__toggle ${useMartingale ? 'es-modal__toggle--on' : ''}`}
+                                onClick={() => setUseMartingale(v => !v)}
+                            >
+                                <span className='es-modal__toggle-knob' />
+                            </button>
+                        </div>
+
+                        <div className='es-modal__actions'>
+                            <button className='es-modal__btn es-modal__btn--cancel' onClick={() => setModalOpen(false)}>
+                                Cancel
+                            </button>
+                            <button className='es-modal__btn es-modal__btn--launch' onClick={() => setModalOpen(false)}>
+                                ▶ Launch Bot
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
