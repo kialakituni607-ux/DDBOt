@@ -76,7 +76,6 @@ function patchNumField(xml: string, blockId: string, value: number): string {
 
 function patchXml(
     xml: string,
-    symbol: string,
     entryDigit: number,
     predBefore: number,
     predAfter: number,
@@ -84,9 +83,10 @@ function patchXml(
     stopLoss: number,
     martingale: number
 ): string {
-    // Market symbol — only field[name="SYMBOL_LIST"] matches this pattern
-    xml = xml.replace(/<field name="SYMBOL_LIST">[^<]*<\/field>/,
-        `<field name="SYMBOL_LIST">${symbol}</field>`);
+    // SYMBOL_LIST is a dynamic Blockly dropdown populated from the Deriv API at runtime.
+    // Setting it in the raw XML causes clearWorkspaceAndLoadFromXml to throw because the
+    // options list is empty until the API resolves. We leave it as-is (defaults to R_10)
+    // and show the recommended market to the user in the modal instead.
 
     // All numeric patches operate on the raw string — no serializer involved
     xml = patchNumField(xml, 'Ai5]{:#d~w;]%q`:p[h,',  predBefore);   // Prediction before loss
@@ -178,9 +178,9 @@ const EntryScanner: React.FC = observer(() => {
             const rawXml = xmlContent;
 
             // Inject scan results + modal parameters into the XML
+            // (SYMBOL_LIST is left unchanged — dynamic Blockly dropdown)
             xmlContent = patchXml(
                 xmlContent,
-                bestResult?.marketSymbol || 'R_10',
                 bestResult?.entryDigit ?? 3,
                 predBefore,
                 predAfter,
@@ -325,6 +325,11 @@ const EntryScanner: React.FC = observer(() => {
                             <div className='es-modal__result-item es-modal__result-item--full'>
                                 <span className='es-modal__label'>BEST MARKET</span>
                                 <span className='es-modal__result-value'>{bestResult?.marketLabel || '— Run a deep scan first —'}</span>
+                                {bestResult && (
+                                    <span className='es-modal__market-hint'>
+                                        ⚠ Set market to <strong>{bestResult.marketSymbol}</strong> in the Bot Builder after loading
+                                    </span>
+                                )}
                             </div>
                             <div className='es-modal__result-item'>
                                 <span className='es-modal__label'>STRATEGY</span>

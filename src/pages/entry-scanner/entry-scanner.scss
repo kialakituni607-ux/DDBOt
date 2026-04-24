@@ -532,6 +532,18 @@
         &--full { grid-column: 1 / -1; }
     }
 
+    &__market-hint {
+        font-size: 0.75rem;
+        color: #b45309;
+        background: #fef3c7;
+        border: 1px solid #f59e0b;
+        border-radius: 0.4rem;
+        padding: 0.25rem 0.5rem;
+        margin-top: 0.15rem;
+
+        strong { color: #92400e; }
+    }
+
     &__result-value {
         font-size: 1.1rem;
         font-weight: 700;
