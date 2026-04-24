@@ -760,3 +760,31 @@
         background-color: #ff9800 !important;
     }
 }
+
+.coming-soon-toast {
+    position: fixed;
+    bottom: 2.4rem;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+    background: #2A2E9B;
+    color: #ffffff;
+    padding: 1rem 1.6rem;
+    border-radius: 999px;
+    font-size: 1.3rem;
+    font-weight: 700;
+    box-shadow: 0 6px 24px rgba(42, 46, 155, 0.35);
+    z-index: 9999;
+    animation: coming-soon-in 0.25s ease-out;
+
+    &__icon {
+        font-size: 1.5rem;
+    }
+}
+
+@keyframes coming-soon-in {
+    from { opacity: 0; transform: translate(-50%, 1rem); }
+    to   { opacity: 1; transform: translate(-50%, 0);     }
+}

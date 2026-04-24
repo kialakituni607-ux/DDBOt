@@ -78,6 +78,7 @@ const AppWrapper = observer(() => {
     const navigate = useNavigate();
     const [left_tab_shadow, setLeftTabShadow] = useState<boolean>(false);
     const [right_tab_shadow, setRightTabShadow] = useState<boolean>(false);
+    const [coming_soon_visible, setComingSoonVisible] = useState<boolean>(false);
 
     let tab_value: number | string = active_tab;
     const GetHashedValue = (tab: number) => {
@@ -158,8 +159,11 @@ const AppWrapper = observer(() => {
         }
 
         if (init_render.current) {
-            setActiveTab(Number(active_hash_tab));
-            if (!isDesktop) handleTabChange(Number(active_hash_tab));
+            // Antipoverty AI is hidden — never land on it from a stale URL hash.
+            const requested = Number(active_hash_tab);
+            const safe_tab = requested === DBOT_TABS.ANTIPOVERTY_AI ? DBOT_TABS.DASHBOARD : requested;
+            setActiveTab(safe_tab);
+            if (!isDesktop) handleTabChange(safe_tab);
             init_render.current = false;
         } else {
             navigate(`#${hash[active_tab] || hash[0]}`);
@@ -220,6 +224,14 @@ const AppWrapper = observer(() => {
 
     const handleTabChange = React.useCallback(
         (tab_index: number) => {
+            // Antipoverty AI is not released yet — clicking the tab should not
+            // navigate to the (hidden) page. Instead, surface a brief
+            // "coming soon" toast and stay on the current tab.
+            if (tab_index === DBOT_TABS.ANTIPOVERTY_AI) {
+                setComingSoonVisible(true);
+                window.setTimeout(() => setComingSoonVisible(false), 2200);
+                return;
+            }
             setActiveTab(tab_index);
             const el_id = TAB_IDS[tab_index];
             if (el_id) {
@@ -484,6 +496,14 @@ const AppWrapper = observer(() => {
             </DesktopWrapper>
             <MobileWrapper>{!is_open && <RunPanel />}</MobileWrapper>
             <RiskDisclaimer />
+            {coming_soon_visible && (
+                <div className='coming-soon-toast' role='status' aria-live='polite'>
+                    <span className='coming-soon-toast__icon'>🚧</span>
+                    <span className='coming-soon-toast__text'>
+                        <Localize i18n_default_text='Antipoverty AI — Coming Soon' />
+                    </span>
+                </div>
+            )}
             <Dialog
                 cancel_button_text={cancel_button_text || localize('Cancel')}
                 className='dc-dialog__wrapper--fixed'
