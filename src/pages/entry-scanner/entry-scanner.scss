@@ -1,10 +1,17 @@
 .entry-scanner {
     display: flex;
     flex-direction: column;
-    gap: 1.6rem;
-    padding: 1.6rem;
+    gap: 1.4rem;
+    padding: 2rem 1.6rem;
     background: #f4f5ff;
     min-height: 100%;
+    max-width: 560px;
+    margin: 0 auto;
+    width: 100%;
+
+    @media (max-width: 600px) {
+        padding: 1.2rem 1rem;
+    }
 }
 
 .es-header {
@@ -37,12 +44,8 @@
 
 .es-controls {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(20rem, 1fr));
-    gap: 1.2rem;
-
-    @media (max-width: 600px) {
-        grid-template-columns: 1fr 1fr;
-    }
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
 }
 
 .es-control-group {
@@ -184,10 +187,10 @@
 
 .es-market-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(21rem, 1fr));
-    gap: 0.6rem;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.5rem;
 
-    @media (max-width: 500px) {
+    @media (max-width: 400px) {
         grid-template-columns: 1fr;
     }
 }
