@@ -62,16 +62,31 @@ function patchField(xml: string, blockId: string, newValue: string | number): st
     return xml.slice(0, numStart) + String(newValue) + xml.slice(numEnd);
 }
 
+// Parse "Under 8 Recovery Under 6" → { predBefore: 8, predAfter: 6 }
+function parseStrategy(strategy: string): { predBefore: number; predAfter: number } {
+    const match = strategy.match(/\d+/g);
+    if (match && match.length >= 2) {
+        return { predBefore: parseInt(match[0]), predAfter: parseInt(match[1]) };
+    }
+    return { predBefore: 8, predAfter: 5 }; // Antipoverty AI defaults
+}
+
 function patchXml(
     xml: string,
     symbol: string,
     entryDigit: number,
+    predBefore: number,
+    predAfter: number,
     stake: number,
     stopLoss: number,
     martingale: number
 ): string {
     // Market symbol
     xml = xml.replace(/<field name="SYMBOL_LIST">[^<]*<\/field>/, `<field name="SYMBOL_LIST">${symbol}</field>`);
+    // Prediction before loss
+    xml = patchField(xml, 'Ai5]{:#d~w;]%q`:p[h,', predBefore);
+    // Prediction after loss
+    xml = patchField(xml, 'gT6?xbULKjs8^Sw?0iH%', predAfter);
     // Entrypoint-Digit block
     xml = patchField(xml, 'KR2=c$XO!b_Bgl_ASR4(', entryDigit);
     // Stake block
@@ -151,11 +166,16 @@ const EntryScanner: React.FC = observer(() => {
         try {
             let xmlContent = await tmApi.getBotXml('Antipoverty_AI.xml');
 
+            // Parse prediction digits from strategy string e.g. "Under 8 Recovery Under 6"
+            const { predBefore, predAfter } = parseStrategy(bestResult?.strategy || '');
+
             // Inject scan results + modal parameters into the XML
             xmlContent = patchXml(
                 xmlContent,
                 bestResult?.marketSymbol || 'R_10',
                 bestResult?.entryDigit ?? 3,
+                predBefore,
+                predAfter,
                 stake,
                 stopLoss,
                 useMartingale ? martingale : 1
