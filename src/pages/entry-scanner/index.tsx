@@ -167,9 +167,13 @@ const EntryScanner: React.FC = observer(() => {
         setLaunching(true);
         try {
             let xmlContent = await tmApi.getBotXml('Antipoverty_AI.xml');
+            console.log('[ES] XML fetched. Length:', xmlContent.length,
+                '| Starts with:', xmlContent.slice(0, 80));
 
             // Parse prediction digits from strategy string e.g. "Under 8 Recovery Under 6"
             const { predBefore, predAfter } = parseStrategy(bestResult?.strategy || '');
+
+            const rawXml = xmlContent;
 
             // Inject scan results + modal parameters into the XML
             xmlContent = patchXml(
@@ -182,6 +186,20 @@ const EntryScanner: React.FC = observer(() => {
                 stopLoss,
                 useMartingale ? martingale : 1
             );
+
+            // Pre-validate with DOMParser before handing to DBot
+            const preCheck = new DOMParser().parseFromString(xmlContent, 'application/xml');
+            const parseErrors = preCheck.getElementsByTagName('parsererror');
+            if (parseErrors.length > 0) {
+                console.error('[ES] Patched XML has parseerror — falling back to raw XML');
+                console.error('[ES] parseerror text:', parseErrors[0].textContent);
+                console.error('[ES] Patched XML (first 800 chars):', xmlContent.slice(0, 800));
+                // Fall back to the unpatched XML so the bot still loads
+                xmlContent = rawXml;
+            } else {
+                console.log('[ES] Patched XML is valid. Blocks found:',
+                    preCheck.querySelectorAll('block').length);
+            }
 
             await load({
                 block_string: xmlContent,
