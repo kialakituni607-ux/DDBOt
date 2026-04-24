@@ -70,6 +70,7 @@ function applyParamsToWorkspace(params: {
     stake: number;
     stopLoss: number;
     martingale: number;
+    symbol?: string;
 }) {
     const workspace = (window as any).Blockly?.derivWorkspace;
     if (!workspace) return;
@@ -93,6 +94,21 @@ function applyParamsToWorkspace(params: {
                 valueBlock.setFieldValue(String(numMap[varName]), 'NUM');
             }
         });
+
+    // Set the market symbol on the trade_definition_market block.
+    // The SYMBOL_LIST dropdown is populated from the Deriv API after workspace load,
+    // so we set it after the numeric fields to maximise the chance the options are ready.
+    if (params.symbol) {
+        const marketBlock = workspace.getAllBlocks(false)
+            .find((b: any) => b.type === 'trade_definition_market');
+        if (marketBlock) {
+            try {
+                marketBlock.setFieldValue(params.symbol, 'SYMBOL_LIST');
+            } catch {
+                // Dropdown may not have the option yet — silently ignore
+            }
+        }
+    }
 }
 
 type ScanResult   = { marketLabel: string; marketSymbol: string; strategy: string; entryDigit: number };
@@ -266,7 +282,9 @@ const EntryScanner: React.FC = observer(() => {
                 showIncompatibleStrategyDialog: null,
             });
 
-            // Apply scan parameters via Blockly's block API — no XML manipulation
+            const symbol = bestResult?.marketSymbol;
+
+            // Apply numeric params immediately after load
             applyParamsToWorkspace({
                 predBefore,
                 predAfter,
@@ -274,7 +292,23 @@ const EntryScanner: React.FC = observer(() => {
                 stake,
                 stopLoss,
                 martingale: useMartingale ? martingale : 1,
+                symbol,
             });
+
+            // The SYMBOL_LIST dropdown is populated asynchronously from the Deriv API.
+            // Retry setting the market for up to 4 s until the field value actually sticks.
+            if (symbol) {
+                for (let i = 0; i < 40; i++) {
+                    await new Promise(r => setTimeout(r, 100));
+                    const B = (window as any).Blockly;
+                    const mBlock = B?.derivWorkspace?.getAllBlocks(false)
+                        ?.find((b: any) => b.type === 'trade_definition_market');
+                    if (!mBlock) break;
+                    const currentVal = mBlock.getFieldValue('SYMBOL_LIST');
+                    if (currentVal === symbol) break; // already set — done
+                    try { mBlock.setFieldValue(symbol, 'SYMBOL_LIST'); } catch { /* not ready yet */ }
+                }
+            }
         } catch (err) {
             console.error('Failed to launch bot:', err);
             setStatusMsg('⚠️ Failed to load bot. Please try again.');
