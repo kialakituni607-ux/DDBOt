@@ -1,38 +1,15 @@
 import { useState } from 'react';
 import { observer } from 'mobx-react-lite';
-import { useStore } from '@/hooks/useStore';
-import { load, save_types } from '@/external/bot-skeleton';
-import tmApi from '@/utils/tm-api';
 import './antipoverty-ai.scss';
 
 const AntiPovertyAI = observer(() => {
-    const { dashboard } = useStore();
-    const [loading, setLoading] = useState(false);
-    const [loaded, setLoaded] = useState(false);
+    // Antipoverty AI is not available yet — clicking the action button just
+    // surfaces a brief "coming soon" notice instead of loading the bot.
+    const [showComingSoon, setShowComingSoon] = useState(false);
 
-    const loadBot = async () => {
-        try {
-            setLoading(true);
-            const xmlContent = await tmApi.getBotXml('Antipoverty_AI.xml');
-            await load({
-                block_string: xmlContent,
-                file_name: 'Antipoverty AI',
-                workspace: (window as any).Blockly?.derivWorkspace,
-                from: save_types.LOCAL,
-                drop_event: null,
-                strategy_id: null,
-                showIncompatibleStrategyDialog: null,
-            });
-            setLoaded(true);
-            setTimeout(() => {
-                dashboard.setActiveTab(1);
-                window.location.hash = 'bot_builder';
-            }, 800);
-        } catch (error) {
-            console.error('Error loading Antipoverty AI:', error);
-        } finally {
-            setLoading(false);
-        }
+    const handleComingSoon = () => {
+        setShowComingSoon(true);
+        setTimeout(() => setShowComingSoon(false), 2500);
     };
 
     return (
@@ -148,18 +125,20 @@ const AntiPovertyAI = observer(() => {
 
             <div className='apai-actions'>
                 <button
-                    className={`apai-btn ${loaded ? 'apai-btn--success' : 'apai-btn--primary'}`}
-                    onClick={loadBot}
-                    disabled={loading || loaded}
+                    className={`apai-btn ${showComingSoon ? 'apai-btn--success' : 'apai-btn--primary'}`}
+                    onClick={handleComingSoon}
                 >
-                    {loading ? (
-                        <><span className='apai-btn__spinner' /> Loading bot...</>
-                    ) : loaded ? (
-                        <>✅ Bot Loaded — Redirecting to Builder</>
+                    {showComingSoon ? (
+                        <>🚧 Coming Soon</>
                     ) : (
                         <>💰 Load Antipoverty AI into Bot Builder</>
                     )}
                 </button>
+                {showComingSoon && (
+                    <p className='apai-coming-soon-msg'>
+                        Antipoverty AI is coming soon — stay tuned!
+                    </p>
+                )}
             </div>
         </div>
     );

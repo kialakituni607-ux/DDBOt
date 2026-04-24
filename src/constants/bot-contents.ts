@@ -16,10 +16,10 @@ export const DBOT_TABS: TDashboardTabIndex = Object.freeze({
     BOT_BUILDER: 1,
     CHART: 2,
     TUTORIAL: 3,
-    FREE_BOTS: 4,
-    ANALYSIS_TOOL: 5,
-    SMART_ANALYSER: 6,
-    ENTRY_SCANNER: 7,
+    ENTRY_SCANNER: 4,
+    FREE_BOTS: 5,
+    ANALYSIS_TOOL: 6,
+    SMART_ANALYSER: 7,
     ANTIPOVERTY_AI: 8,
 });
 
@@ -30,10 +30,10 @@ export const TAB_IDS = [
     'id-bot-builder',
     'id-charts',
     'id-tutorials',
+    'id-entry-scanner',
     'id-free-bots',
     'id-analysis-tool',
     'id-smart-analyser',
-    'id-entry-scanner',
     'id-antipoverty-ai',
 ];
 

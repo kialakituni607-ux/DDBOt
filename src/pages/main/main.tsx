@@ -72,7 +72,7 @@ const AppWrapper = observer(() => {
     const { clear } = summary_card;
     const { DASHBOARD, BOT_BUILDER } = DBOT_TABS;
     const init_render = React.useRef(true);
-    const hash = ['dashboard', 'bot_builder', 'chart', 'tutorial', 'free_bots', 'analysis_tool', 'smart_analyser', 'entry_scanner', 'antipoverty_ai'];
+    const hash = ['dashboard', 'bot_builder', 'chart', 'tutorial', 'entry_scanner', 'free_bots', 'analysis_tool', 'smart_analyser', 'antipoverty_ai'];
     const { isDesktop } = useDevice();
     const location = useLocation();
     const navigate = useNavigate();
@@ -359,6 +359,29 @@ const AppWrapper = observer(() => {
                             <div
                                 label={
                                     <>
+                                        <LabelPairedChartLineCaptionRegularIcon
+                                            height='24px'
+                                            width='24px'
+                                            fill='var(--text-general)'
+                                        />
+                                        <Localize i18n_default_text='Entry Scanner' />
+                                    </>
+                                }
+                                id='id-entry-scanner'
+                            >
+                                <div className='entry-scanner-wrapper'>
+                                    <Suspense
+                                        fallback={
+                                            <ChunkLoader message={localize('Please wait, loading Entry Scanner...')} />
+                                        }
+                                    >
+                                        <EntryScanner />
+                                    </Suspense>
+                                </div>
+                            </div>
+                            <div
+                                label={
+                                    <>
                                         <LabelPairedObjectsColumnCaptionRegularIcon
                                             height='24px'
                                             width='24px'
@@ -422,29 +445,6 @@ const AppWrapper = observer(() => {
                                 >
                                     <SmartAnalyser />
                                 </Suspense>
-                            </div>
-                            <div
-                                label={
-                                    <>
-                                        <LabelPairedChartLineCaptionRegularIcon
-                                            height='24px'
-                                            width='24px'
-                                            fill='var(--text-general)'
-                                        />
-                                        <Localize i18n_default_text='Entry Scanner' />
-                                    </>
-                                }
-                                id='id-entry-scanner'
-                            >
-                                <div className='entry-scanner-wrapper'>
-                                    <Suspense
-                                        fallback={
-                                            <ChunkLoader message={localize('Please wait, loading Entry Scanner...')} />
-                                        }
-                                    >
-                                        <EntryScanner />
-                                    </Suspense>
-                                </div>
                             </div>
                             <div
                                 label={

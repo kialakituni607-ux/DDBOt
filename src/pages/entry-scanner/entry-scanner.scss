@@ -201,8 +201,10 @@
     grid-template-columns: 1fr 1fr;
     gap: 0.5rem;
 
-    @media (max-width: 400px) {
-        grid-template-columns: 1fr;
+    // On phones, keep two columns and tighten spacing so the
+    // Deep Scan / Load Bot buttons remain visible below the list.
+    @media (max-width: 600px) {
+        gap: 0.35rem;
     }
 }
 
@@ -217,6 +219,19 @@
     border-radius: 0.6rem;
     padding: 0.5rem 0.8rem;
     transition: all 0.2s;
+
+    @media (max-width: 600px) {
+        font-size: 0.95rem;
+        gap: 0.45rem;
+        padding: 0.35rem 0.55rem;
+        min-width: 0;
+
+        &__label {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+    }
 
     &--pending  { color: #bbb; }
     &--scanning { color: #ff9800; background: #fff8f0; border: 1px solid #ffe0b2; }

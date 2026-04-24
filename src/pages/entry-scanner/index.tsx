@@ -121,7 +121,7 @@ type MarketProgress = { label: string; status: 'pending' | 'scanning' | 'done' }
 const DELAY = (ms: number) => new Promise(r => setTimeout(r, ms));
 
 const EntryScanner: React.FC = observer(() => {
-    const { dashboard, run_panel } = useStore();
+    const { dashboard, run_panel, client } = useStore();
 
     const [tickCount, setTickCount]           = useState(500);
     const [scanning, setScanning]             = useState(false);
@@ -252,6 +252,16 @@ const EntryScanner: React.FC = observer(() => {
 
     const handleLaunchBot = async () => {
         if (launching) return;
+
+        // Require login before loading/launching a bot. If the user is not
+        // signed in, close this modal and surface the standard "Log in / Sign up"
+        // dialog used by the rest of the app (run panel).
+        if (!client?.is_logged_in) {
+            setModalOpen(false);
+            run_panel.showLoginDialog();
+            return;
+        }
+
         setLaunching(true);
         try {
             // Fetch raw XML exactly as Antipoverty AI page does — no patching
