@@ -2,6 +2,7 @@ import React, { useState, useRef } from 'react';
 import { observer } from 'mobx-react-lite';
 import { useStore } from '@/hooks/useStore';
 import { load, save_types } from '@/external/bot-skeleton';
+import { generateDerivApiInstance } from '@/external/bot-skeleton/services/api/appId';
 import tmApi from '@/utils/tm-api';
 import './entry-scanner.scss';
 
@@ -125,26 +126,85 @@ const EntryScanner: React.FC = observer(() => {
         setScanning(true);
         setBestResult(null);
         setProgress(0);
-        setStatusMsg('Scanning all volatility markets...');
+        setStatusMsg('Connecting to market data...');
         setMarketProgress(MARKETS.map(m => ({ label: m.label, status: 'pending' })));
 
-        const perMarketDelay = Math.round(150 + (tickCount / 5000) * 300);
+        // Pick a strategy up front so all markets are scored against the same one
+        const strategy = pickStrategy();
+        const { predBefore } = parseStrategy(strategy);
+        const isUnder = strategy.toLowerCase().startsWith('under');
+
+        // Extract the true last decimal digit from a tick price
+        // e.g. 9823.147 → 7,  1234.56 → 6
+        const getLastDigit = (price: number): number => {
+            const s = price.toString();
+            const dot = s.indexOf('.');
+            if (dot === -1) return Math.abs(price) % 10;
+            return parseInt(s[s.length - 1], 10);
+        };
+
+        // Create a dedicated WebSocket API just for scanning
+        let api: any = null;
+        try {
+            api = generateDerivApiInstance();
+        } catch (e) {
+            setStatusMsg('⚠️ Could not connect to market data. Check your connection.');
+            setScanning(false);
+            return;
+        }
+
+        let best: ScanResult | null = null;
+        let bestScore = -1;
 
         for (let mi = 0; mi < MARKETS.length; mi++) {
             if (abortRef.current) break;
+
+            const { symbol, label } = MARKETS[mi];
             setMarketProgress(prev => prev.map((p, i) => i === mi ? { ...p, status: 'scanning' } : p));
-            await DELAY(perMarketDelay);
-            if (abortRef.current) break;
+            setStatusMsg(`Scanning ${label}…`);
+
+            try {
+                const response: any = await api.send({
+                    ticks_history: symbol,
+                    count: tickCount,
+                    end: 'latest',
+                    start: 1,
+                    style: 'ticks',
+                    adjust_start_time: 1,
+                });
+
+                const prices: number[] = response.history.prices.map(Number);
+                const digits = prices.map(getLastDigit);
+
+                // Win rate for the primary prediction digit
+                const wins = digits.filter(d => isUnder ? d < predBefore : d > predBefore).length;
+                const score = wins / digits.length;
+
+                // Entry digit = last digit that appeared (most recent tick)
+                const entryDigit = digits[digits.length - 1] ?? 3;
+
+                if (score > bestScore) {
+                    bestScore = score;
+                    best = { marketLabel: label, marketSymbol: symbol, strategy, entryDigit };
+                }
+            } catch (e) {
+                console.warn(`[ES] Could not fetch ticks for ${symbol}:`, e);
+            }
+
             setMarketProgress(prev => prev.map((p, i) => i === mi ? { ...p, status: 'done' } : p));
             setProgress(Math.round(((mi + 1) / MARKETS.length) * 100));
         }
 
+        // Clean up the scan connection
+        try { api.disconnect?.(); } catch { /* ignore */ }
+
         if (!abortRef.current) {
-            const randomMarket = MARKETS[Math.floor(Math.random() * MARKETS.length)];
-            const randomDigit  = Math.floor(Math.random() * 10);
-            const strategy     = pickStrategy();
-            setBestResult({ marketLabel: randomMarket.label, marketSymbol: randomMarket.symbol, strategy, entryDigit: randomDigit });
-            setStatusMsg('✅ Scan complete');
+            if (best) {
+                setBestResult(best);
+                setStatusMsg(`✅ Scan complete — ${(bestScore * 100).toFixed(1)}% win-rate on best market`);
+            } else {
+                setStatusMsg('⚠️ Scan finished but could not retrieve market data. Check connection.');
+            }
         }
 
         setScanning(false);
