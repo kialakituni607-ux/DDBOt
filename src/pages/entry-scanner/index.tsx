@@ -372,6 +372,25 @@ const EntryScanner: React.FC = observer(() => {
                 }
             }
 
+            // The TYPE_LIST dropdown on trade_definition_contracttype is populated lazily
+            // by an onchange handler tied to TRADETYPE_LIST. Retry for up to 4 s until
+            // every contract-type block actually reflects the chosen direction —
+            // otherwise the field can stay on the bot's default ("Both").
+            if (contractType) {
+                for (let i = 0; i < 40; i++) {
+                    await new Promise(r => setTimeout(r, 100));
+                    const B = (window as any).Blockly;
+                    const ctBlocks: any[] = B?.derivWorkspace?.getAllBlocks(false)
+                        ?.filter((b: any) => b.type === 'trade_definition_contracttype') || [];
+                    if (ctBlocks.length === 0) break;
+                    const allSet = ctBlocks.every(b => b.getFieldValue('TYPE_LIST') === contractType);
+                    if (allSet) break;
+                    ctBlocks.forEach(b => {
+                        try { b.setFieldValue(contractType, 'TYPE_LIST'); } catch { /* not ready yet */ }
+                    });
+                }
+            }
+
             // Stay on Bot Builder — that's where the user wants to land after
             // launching the bot. We still mark the bot as launched so the
             // Deep Scan / Load Bot button states update correctly.
