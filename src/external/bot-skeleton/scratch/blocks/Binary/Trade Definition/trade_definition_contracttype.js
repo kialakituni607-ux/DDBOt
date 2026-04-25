@@ -43,7 +43,11 @@ window.Blockly.Blocks.trade_definition_contracttype = {
 
                 const trade_types = getContractTypeOptions('both', trade_type);
 
-                if (trade_types.length > 1) {
+                // Suppress the "Both" option for Over/Under digit trades — TradeMasters'
+                // Entry Scanner picks a specific direction (Over or Under) per scan and
+                // sets the contract type automatically, so "Both" is never the right
+                // choice and only confuses the user. All other trade types keep "Both".
+                if (trade_types.length > 1 && trade_type !== 'overunder') {
                     contract_type_options.push([localize('Both'), 'both']);
                 }
 
