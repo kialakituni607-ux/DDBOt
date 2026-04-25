@@ -367,6 +367,30 @@
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 1rem;
+
+    // Compact variant — used after a scan completes so the action buttons
+    // sit neatly under the results without dominating the page or pushing
+    // important content off-screen.
+    &--compact {
+        gap: 0.7rem;
+        padding-bottom: 1.2rem;
+        max-width: 480px;
+        margin: 0 auto;
+
+        .es-btn {
+            padding: 0.85rem 1rem;
+            font-size: 1.05rem;
+            font-weight: 700;
+            border-radius: 0.7rem;
+            box-shadow: 0 2px 8px rgba(42, 46, 155, 0.2);
+
+            &--primary { box-shadow: 0 2px 8px rgba(42, 46, 155, 0.25); }
+            &--load    { box-shadow: 0 2px 8px rgba(39, 174, 96, 0.25); }
+            &--stop    { box-shadow: 0 2px 8px rgba(231, 76, 60, 0.2); }
+
+            &:hover { transform: none; }
+        }
+    }
 }
 
 .es-btn {
@@ -379,6 +403,13 @@
     cursor: pointer;
     transition: all 0.2s;
     letter-spacing: 0.02em;
+
+    &:disabled {
+        opacity: 0.55;
+        cursor: not-allowed;
+        box-shadow: none;
+        transform: none;
+    }
 
     &--primary {
         background: linear-gradient(90deg, #2A2E9B, #6c63ff);
@@ -583,6 +614,19 @@
         height: 1px;
         background: #e8e8f0;
         margin: 0 -0.4rem;
+    }
+
+    // Inline notice shown when an unauthenticated user clicks Launch Bot —
+    // intentionally tiny, no buttons, no redirect. Just a hint.
+    &__login-notice {
+        background: #fef3c7;
+        border: 1px solid #f59e0b;
+        color: #92400e;
+        font-size: 1rem;
+        font-weight: 600;
+        padding: 0.7rem 1rem;
+        border-radius: 0.6rem;
+        text-align: center;
     }
 
     &__actions {

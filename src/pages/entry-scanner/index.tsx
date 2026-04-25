@@ -36,8 +36,8 @@ const STRATEGIES = [
     'Under 8 Recovery Under 6',
     'Over 1 Recovery Over 5',
     'Under 9 Recovery Under 5',
-    'Over 3 Recovery Under 5',
-    'Under 6 Recovery Over 5',
+    'Over 1 Recovery Over 5',
+    'Under 9 Recovery Under 7',
     'Over 1 Recovery Over 4',
     'Under 9 Recovery Under 6',
 ];
@@ -75,7 +75,7 @@ function applyParamsToWorkspace(params: {
     stopLoss: number;
     martingale: number;
     symbol?: string;
-    contractType?: 'DIGITOVER' | 'DIGITUNDER';
+    contractType?: 'DIGITOVER' | 'DIGITUNDER' | 'BOTH';
 }) {
     const workspace = (window as any).Blockly?.derivWorkspace;
     if (!workspace) return;
@@ -115,10 +115,10 @@ function applyParamsToWorkspace(params: {
         }
     }
 
-    // Set the contract type (DIGITOVER / DIGITUNDER) on every
-    // trade_definition_contracttype block based on the chosen strategy direction.
-    // Done in-place via Blockly's API so the bot's existing logic is untouched —
-    // we only flip the OVER/UNDER selector to match the scanner's pick.
+    // Set the contract type dropdown to "BOTH" on every trade_definition_contracttype block.
+    // The bot's own runtime logic decides whether to buy Over or Under at trade-time
+    // (via its purchase blocks) — leaving Contract Type as "Both" lets that logic run
+    // unimpeded. PURCHASE_LIST is intentionally NOT modified.
     if (params.contractType) {
         workspace.getAllBlocks(false)
             .filter((b: any) => b.type === 'trade_definition_contracttype')
@@ -127,21 +127,6 @@ function applyParamsToWorkspace(params: {
                     block.setFieldValue(params.contractType, 'TYPE_LIST');
                 } catch {
                     // Dropdown options not ready yet — silently ignore
-                }
-            });
-
-        // ALSO update every `purchase` block's PURCHASE_LIST. This is the field
-        // that actually decides what contract is bought at runtime — the
-        // contract-type block above only filters what's *available* to choose from.
-        // Without this, a bot whose XML hardcodes Purchase=DIGITUNDER will keep
-        // buying UNDER even after Contract Type flips to OVER (and vice versa).
-        workspace.getAllBlocks(false)
-            .filter((b: any) => b.type === 'purchase')
-            .forEach((block: any) => {
-                try {
-                    block.setFieldValue(params.contractType, 'PURCHASE_LIST');
-                } catch {
-                    // Options not populated yet — silently ignore
                 }
             });
     }
@@ -155,7 +140,9 @@ const DELAY = (ms: number) => new Promise(r => setTimeout(r, ms));
 const EntryScanner: React.FC = observer(() => {
     const { dashboard, run_panel, client } = useStore();
 
-    const [tickCount, setTickCount]           = useState(500);
+    // Kept as a string so the user can clear the field and type a new value
+    // without it snapping back to a default mid-edit.
+    const [tickCount, setTickCount]           = useState('500');
     const [scanning, setScanning]             = useState(false);
     const [progress, setProgress]             = useState(0);
     const [marketProgress, setMarketProgress] = useState<MarketProgress[]>([]);
@@ -167,6 +154,7 @@ const EntryScanner: React.FC = observer(() => {
     // delete the value and leave the box blank while typing a new one.
     const [modalOpen, setModalOpen]           = useState(false);
     const [launching, setLaunching]           = useState(false);
+    const [loginNotice, setLoginNotice]       = useState(false);
     const [stake, setStake]                   = useState('0.5');
     const [martingale, setMartingale]         = useState('2');
     const [numWins, setNumWins]               = useState('5');
@@ -180,11 +168,12 @@ const EntryScanner: React.FC = observer(() => {
     // Button-state rules:
     //  • Load Bot is disabled until a deep scan has produced a result AND the bot
     //    hasn't already been launched for that result.
-    //  • Deep Scan is disabled once a scan has finished, and stays disabled until
-    //    the user loads & launches the bot for that result (then it unlocks again
-    //    so the user can scan for a fresh market).
-    const loadBotDisabled = bestResult === null || botLaunched;
-    const deepScanDisabled = bestResult !== null && !botLaunched;
+    //  • Deep Scan is disabled once a scan has finished (until the user loads &
+    //    launches the bot for that result), and is also disabled while the bot
+    //    is actively running so the user can't kick off a fresh scan mid-trade.
+    const loadBotDisabled  = bestResult === null || botLaunched;
+    const deepScanDisabled =
+        (bestResult !== null && !botLaunched) || run_panel.is_running || dashboard.is_es_overlay_active;
 
     const startScan = async () => {
         abortRef.current = false;
@@ -230,9 +219,11 @@ const EntryScanner: React.FC = observer(() => {
             setStatusMsg(`Scanning ${label}…`);
 
             try {
+                // Parse the user's tick count, clamp to 100..5000, fall back to 500.
+                const parsedCount = Math.max(100, Math.min(5000, parseInt(tickCount, 10) || 500));
                 const response: any = await api.send({
                     ticks_history: symbol,
-                    count: tickCount,
+                    count: parsedCount,
                     end: 'latest',
                     start: 1,
                     style: 'ticks',
@@ -286,13 +277,14 @@ const EntryScanner: React.FC = observer(() => {
         if (launching) return;
 
         // Require login before loading/launching a bot. If the user is not
-        // signed in, close this modal and surface the standard "Log in / Sign up"
-        // dialog used by the rest of the app (run panel).
+        // signed in, just show a small inline notice in the modal (no
+        // redirect, no Log in / Sign up buttons — they can use the main
+        // login flow on their own).
         if (!client?.is_logged_in) {
-            setModalOpen(false);
-            run_panel.showLoginDialog();
+            setLoginNotice(true);
             return;
         }
+        setLoginNotice(false);
 
         setLaunching(true);
         try {
@@ -303,15 +295,11 @@ const EntryScanner: React.FC = observer(() => {
             // Parse prediction digits from strategy e.g. "Under 8 Recovery Under 6"
             const { predBefore, predAfter } = parseStrategy(bestResult?.strategy || '');
 
-            // Derive the contract type from the strategy's first word.
-            // "Over …" → digitover,  "Under …" → digitunder.
-            // Falls back to undefined (leave the bot's default in place) if the
-            // strategy doesn't start with either keyword.
-            const stratLower = (bestResult?.strategy || '').trim().toLowerCase();
-            const contractType: 'DIGITOVER' | 'DIGITUNDER' | undefined =
-                stratLower.startsWith('over')  ? 'DIGITOVER'  :
-                stratLower.startsWith('under') ? 'DIGITUNDER' :
-                undefined;
+            // Force the Contract Type dropdown to "Both" — the bot's own purchase
+            // logic decides at runtime whether to buy Over or Under, so leaving
+            // the field on "Both" lets that logic run without the scanner picking
+            // a side for it.
+            const contractType: 'BOTH' = 'BOTH';
 
             // CRITICAL: Navigate to bot builder BEFORE loading.
             // The Blockly workspace only initialises when the bot builder tab is rendered.
@@ -387,35 +375,32 @@ const EntryScanner: React.FC = observer(() => {
                 }
             }
 
-            // The TYPE_LIST and PURCHASE_LIST dropdowns are populated lazily by
-            // onchange handlers tied to TRADETYPE_LIST. Retry for up to 4 s until
-            // every contract-type AND every purchase block actually reflects the
-            // chosen direction — otherwise the bot can keep trading the wrong side.
+            // The TYPE_LIST dropdown is populated lazily by onchange handlers
+            // tied to TRADETYPE_LIST. Retry for up to 4 s until every
+            // contract-type block actually shows "Both". PURCHASE_LIST is
+            // intentionally left untouched so the bot's runtime logic
+            // continues to choose Over / Under by itself.
             if (contractType) {
                 for (let i = 0; i < 40; i++) {
                     await new Promise(r => setTimeout(r, 100));
                     const B = (window as any).Blockly;
                     const allBlocks: any[] = B?.derivWorkspace?.getAllBlocks(false) || [];
                     const ctBlocks = allBlocks.filter((b: any) => b.type === 'trade_definition_contracttype');
-                    const pBlocks  = allBlocks.filter((b: any) => b.type === 'purchase');
-                    if (ctBlocks.length === 0 && pBlocks.length === 0) break;
+                    if (ctBlocks.length === 0) break;
                     const ctOk = ctBlocks.every(b => b.getFieldValue('TYPE_LIST') === contractType);
-                    const pOk  = pBlocks.every(b  => b.getFieldValue('PURCHASE_LIST') === contractType);
-                    if (ctOk && pOk) break;
+                    if (ctOk) break;
                     ctBlocks.forEach(b => {
                         try { b.setFieldValue(contractType, 'TYPE_LIST'); } catch { /* not ready yet */ }
-                    });
-                    pBlocks.forEach(b => {
-                        try { b.setFieldValue(contractType, 'PURCHASE_LIST'); } catch { /* not ready yet */ }
                     });
                 }
             }
 
-            // Stay on Bot Builder — that's where the user wants to land after
-            // launching the bot. We still mark the bot as launched so the
-            // Deep Scan / Load Bot button states update correctly.
+            // Mark the bot as launched and activate the overlay so the
+            // bot-builder workspace is hidden behind the Entry-Scanner panel —
+            // users see the trading status and tabs, not the raw bot blocks.
             setBotLaunched(true);
             setActiveBotTab('summary');
+            dashboard.setEsOverlayActive(true);
 
             // Auto-start: trigger the Run button programmatically so the bot
             // starts trading immediately without the user having to click Run.
@@ -458,8 +443,15 @@ const EntryScanner: React.FC = observer(() => {
                             type='number'
                             min={100}
                             max={5000}
+                            placeholder='500'
                             value={tickCount}
-                            onChange={e => setTickCount(Math.max(100, Math.min(5000, parseInt(e.target.value) || 500)))}
+                            onChange={e => {
+                                // Accept blank (so the user can clear and retype)
+                                // and any digit-only input. Clamping happens at
+                                // scan-time so partial values like "5" don't snap.
+                                const v = e.target.value;
+                                if (v === '' || /^\d+$/.test(v)) setTickCount(v);
+                            }}
                             disabled={scanning}
                         />
                     </div>
@@ -502,13 +494,19 @@ const EntryScanner: React.FC = observer(() => {
                     </div>
                 )}
 
-                <div className='es-actions'>
+                <div className={`es-actions ${bestResult ? 'es-actions--compact' : ''}`}>
                     {!scanning ? (
                         <button
                             className='es-btn es-btn--primary'
                             onClick={startScan}
                             disabled={deepScanDisabled}
-                            title={deepScanDisabled ? 'Load and launch the bot before starting another scan' : undefined}
+                            title={
+                                run_panel.is_running || dashboard.is_es_overlay_active
+                                    ? 'Stop the running bot before starting another scan'
+                                    : deepScanDisabled
+                                        ? 'Load and launch the bot before starting another scan'
+                                        : undefined
+                            }
                         >
                             🔍 Deep Scan for Best Market
                         </button>
@@ -585,12 +583,26 @@ const EntryScanner: React.FC = observer(() => {
 
             {/* ── Scanner Parameters Modal ─────────────────────────────── */}
             {modalOpen && (
-                <div className='es-modal-overlay' onClick={() => setModalOpen(false)}>
+                <div
+                    className='es-modal-overlay'
+                    onClick={() => { setModalOpen(false); setLoginNotice(false); }}
+                >
                     <div className='es-modal' onClick={e => e.stopPropagation()}>
                         <div className='es-modal__header'>
                             <span className='es-modal__title'>Scanner Parameters</span>
-                            <button className='es-modal__close' onClick={() => setModalOpen(false)}>✕</button>
+                            <button
+                                className='es-modal__close'
+                                onClick={() => { setModalOpen(false); setLoginNotice(false); }}
+                            >
+                                ✕
+                            </button>
                         </div>
+
+                        {loginNotice && (
+                            <div className='es-modal__login-notice'>
+                                Please log in to launch the bot.
+                            </div>
+                        )}
 
                         {/* Scan results — auto-filled from deep scan */}
                         <div className='es-modal__results'>
