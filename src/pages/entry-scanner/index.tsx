@@ -115,7 +115,7 @@ function applyParamsToWorkspace(params: {
         }
     }
 
-    // Set the contract type (digitover / digitunder) on every
+    // Set the contract type (DIGITOVER / DIGITUNDER) on every
     // trade_definition_contracttype block based on the chosen strategy direction.
     // Done in-place via Blockly's API so the bot's existing logic is untouched —
     // we only flip the OVER/UNDER selector to match the scanner's pick.
@@ -127,6 +127,21 @@ function applyParamsToWorkspace(params: {
                     block.setFieldValue(params.contractType, 'TYPE_LIST');
                 } catch {
                     // Dropdown options not ready yet — silently ignore
+                }
+            });
+
+        // ALSO update every `purchase` block's PURCHASE_LIST. This is the field
+        // that actually decides what contract is bought at runtime — the
+        // contract-type block above only filters what's *available* to choose from.
+        // Without this, a bot whose XML hardcodes Purchase=DIGITUNDER will keep
+        // buying UNDER even after Contract Type flips to OVER (and vice versa).
+        workspace.getAllBlocks(false)
+            .filter((b: any) => b.type === 'purchase')
+            .forEach((block: any) => {
+                try {
+                    block.setFieldValue(params.contractType, 'PURCHASE_LIST');
+                } catch {
+                    // Options not populated yet — silently ignore
                 }
             });
     }
@@ -372,21 +387,26 @@ const EntryScanner: React.FC = observer(() => {
                 }
             }
 
-            // The TYPE_LIST dropdown on trade_definition_contracttype is populated lazily
-            // by an onchange handler tied to TRADETYPE_LIST. Retry for up to 4 s until
-            // every contract-type block actually reflects the chosen direction —
-            // otherwise the field can stay on the bot's default ("Both").
+            // The TYPE_LIST and PURCHASE_LIST dropdowns are populated lazily by
+            // onchange handlers tied to TRADETYPE_LIST. Retry for up to 4 s until
+            // every contract-type AND every purchase block actually reflects the
+            // chosen direction — otherwise the bot can keep trading the wrong side.
             if (contractType) {
                 for (let i = 0; i < 40; i++) {
                     await new Promise(r => setTimeout(r, 100));
                     const B = (window as any).Blockly;
-                    const ctBlocks: any[] = B?.derivWorkspace?.getAllBlocks(false)
-                        ?.filter((b: any) => b.type === 'trade_definition_contracttype') || [];
-                    if (ctBlocks.length === 0) break;
-                    const allSet = ctBlocks.every(b => b.getFieldValue('TYPE_LIST') === contractType);
-                    if (allSet) break;
+                    const allBlocks: any[] = B?.derivWorkspace?.getAllBlocks(false) || [];
+                    const ctBlocks = allBlocks.filter((b: any) => b.type === 'trade_definition_contracttype');
+                    const pBlocks  = allBlocks.filter((b: any) => b.type === 'purchase');
+                    if (ctBlocks.length === 0 && pBlocks.length === 0) break;
+                    const ctOk = ctBlocks.every(b => b.getFieldValue('TYPE_LIST') === contractType);
+                    const pOk  = pBlocks.every(b  => b.getFieldValue('PURCHASE_LIST') === contractType);
+                    if (ctOk && pOk) break;
                     ctBlocks.forEach(b => {
                         try { b.setFieldValue(contractType, 'TYPE_LIST'); } catch { /* not ready yet */ }
+                    });
+                    pBlocks.forEach(b => {
+                        try { b.setFieldValue(contractType, 'PURCHASE_LIST'); } catch { /* not ready yet */ }
                     });
                 }
             }
