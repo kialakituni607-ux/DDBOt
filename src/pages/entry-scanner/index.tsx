@@ -75,7 +75,10 @@ function applyParamsToWorkspace(params: {
     stopLoss: number;
     martingale: number;
     symbol?: string;
-    contractType?: 'DIGITOVER' | 'DIGITUNDER' | 'BOTH';
+    // The TYPE_LIST dropdown stores the "Both" option as the lowercase
+    // string 'both' (see trade_definition_contracttype.js). Anything else
+    // is silently rejected by the dropdown and the field keeps its old value.
+    contractType?: 'DIGITOVER' | 'DIGITUNDER' | 'both';
     purchaseSide?: 'DIGITOVER' | 'DIGITUNDER';
 }) {
     const workspace = (window as any).Blockly?.derivWorkspace;
@@ -315,13 +318,13 @@ const EntryScanner: React.FC = observer(() => {
             // Parse prediction digits from strategy e.g. "Under 8 Recovery Under 6"
             const { predBefore, predAfter } = parseStrategy(bestResult?.strategy || '');
 
-            // The Contract Type dropdown stays on "Both" (UI), but the purchase
-            // side is derived from the strategy name's first word: "Over …" →
-            // buy DIGITOVER, "Under …" → buy DIGITUNDER. This matches the
-            // strategies the scanner picks (e.g. "Over 1 Recovery Over 5",
-            // "Under 9 Recovery Under 7") and prevents the API rejecting the
-            // proposal at trade time.
-            const contractType: 'BOTH' = 'BOTH';
+            // The Contract Type dropdown stays on "Both" (UI label) — its
+            // internal value is the lowercase string 'both'. The purchase
+            // side is what actually drives the trade and is derived from the
+            // strategy's first word: "Over …" → DIGITOVER, "Under …" →
+            // DIGITUNDER. This keeps the dropdown looking the same for every
+            // strategy while sending the correct contract to the API.
+            const contractType: 'both' = 'both';
             const strategyName = bestResult?.strategy || '';
             const purchaseSide: 'DIGITOVER' | 'DIGITUNDER' =
                 strategyName.toLowerCase().trim().startsWith('under') ? 'DIGITUNDER' : 'DIGITOVER';
