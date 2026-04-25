@@ -14,11 +14,15 @@
 
         &--mobile {
             position: absolute;
-            top: 0;
+            // The app header is now sticky on mobile (5.6rem tall) so the
+            // drawer needs to start below it — otherwise the Reset button
+            // and the collapse chevron sit underneath the header and look
+            // clipped to the user.
+            top: 5.6rem;
             left: 0;
             width: 100vw;
             z-index: var(--zindex-drawer);
-            height: calc(100% - env(safe-area-inset-bottom, 0));
+            height: calc(100% - 5.6rem - env(safe-area-inset-bottom, 0));
             padding-bottom: env(safe-area-inset-bottom, 0);
 
             &-closed {
