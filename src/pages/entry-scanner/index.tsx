@@ -35,11 +35,11 @@ const STRATEGIES = [
     'Over 2 Recovery Over 4',
     'Under 8 Recovery Under 6',
     'Over 1 Recovery Over 5',
-    'Under 9 Recovery Under 5',
+    'Under 7 Recovery Under 5',
     'Over 1 Recovery Over 5',
     'Under 9 Recovery Under 7',
     'Over 1 Recovery Over 4',
-    'Under 9 Recovery Under 6',
+    'Under 8 Recovery Under 5',
 ];
 
 const STRAT_KEY = 'es_recent_strategies';
