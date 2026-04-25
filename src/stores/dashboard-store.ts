@@ -121,8 +121,6 @@ export default class DashboardStore implements IDashboardStore {
             is_chart_modal_visible: observable,
             is_trading_view_modal_visible: observable,
             bot_builder_symbol: observable,
-            is_es_overlay_active: observable,
-            setEsOverlayActive: action.bound,
         });
         this.root_store = root_store;
         this.core = core;
@@ -208,11 +206,6 @@ export default class DashboardStore implements IDashboardStore {
     is_chart_modal_visible = false;
     is_trading_view_modal_visible = false;
     faq_title = '';
-    is_es_overlay_active = false;
-
-    setEsOverlayActive = (active: boolean) => {
-        this.is_es_overlay_active = active;
-    };
 
     setFaqTitle = (faq_title: string) => {
         this.faq_title = faq_title;

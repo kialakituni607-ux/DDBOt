@@ -172,8 +172,11 @@ const EntryScanner: React.FC = observer(() => {
     //    launches the bot for that result), and is also disabled while the bot
     //    is actively running so the user can't kick off a fresh scan mid-trade.
     const loadBotDisabled  = bestResult === null || botLaunched;
+    // Deep Scan locks while a result is awaiting launch OR while the bot is
+    // actively trading. Once the user stops the bot, run_panel.is_running
+    // flips back to false and the button unlocks immediately.
     const deepScanDisabled =
-        (bestResult !== null && !botLaunched) || run_panel.is_running || dashboard.is_es_overlay_active;
+        (bestResult !== null && !botLaunched) || run_panel.is_running;
 
     const startScan = async () => {
         abortRef.current = false;
@@ -395,12 +398,10 @@ const EntryScanner: React.FC = observer(() => {
                 }
             }
 
-            // Mark the bot as launched and activate the overlay so the
-            // bot-builder workspace is hidden behind the Entry-Scanner panel —
-            // users see the trading status and tabs, not the raw bot blocks.
+            // Mark the bot as launched so the right-hand live panel renders
+            // and the Load Bot / Deep Scan buttons reflect the new state.
             setBotLaunched(true);
             setActiveBotTab('summary');
-            dashboard.setEsOverlayActive(true);
 
             // Auto-start: trigger the Run button programmatically so the bot
             // starts trading immediately without the user having to click Run.
@@ -501,7 +502,7 @@ const EntryScanner: React.FC = observer(() => {
                             onClick={startScan}
                             disabled={deepScanDisabled}
                             title={
-                                run_panel.is_running || dashboard.is_es_overlay_active
+                                run_panel.is_running
                                     ? 'Stop the running bot before starting another scan'
                                     : deepScanDisabled
                                         ? 'Load and launch the bot before starting another scan'

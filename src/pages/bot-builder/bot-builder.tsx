@@ -10,7 +10,6 @@ import { TBlocklyEvents } from 'Types';
 import LoadModal from '../../components/load-modal';
 import SaveModal from '../dashboard/bot-list/save-modal';
 import BotBuilderTourHandler from '../tutorials/dbot-tours/bot-builder-tour';
-import EsOverlay from './es-overlay';
 import QuickStrategy1 from './quick-strategy';
 import WorkspaceWrapper from './workspace-wrapper';
 
@@ -122,7 +121,6 @@ const BotBuilder = observer(() => {
                 <div id='scratch_div' ref={el_ref}>
                     <WorkspaceWrapper />
                 </div>
-                <EsOverlay />
             </div>
             {active_tab === 1 && <BotBuilderTourHandler is_mobile={!isDesktop} />}
             {/* removed this outside from toolbar becuase it needs to loaded seperately without dependency */}
