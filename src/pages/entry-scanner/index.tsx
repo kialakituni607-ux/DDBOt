@@ -76,6 +76,7 @@ function applyParamsToWorkspace(params: {
     martingale: number;
     symbol?: string;
     contractType?: 'DIGITOVER' | 'DIGITUNDER' | 'BOTH';
+    purchaseSide?: 'DIGITOVER' | 'DIGITUNDER';
 }) {
     const workspace = (window as any).Blockly?.derivWorkspace;
     if (!workspace) return;
@@ -115,16 +116,32 @@ function applyParamsToWorkspace(params: {
         }
     }
 
-    // Set the contract type dropdown to "BOTH" on every trade_definition_contracttype block.
-    // The bot's own runtime logic decides whether to buy Over or Under at trade-time
-    // (via its purchase blocks) — leaving Contract Type as "Both" lets that logic run
-    // unimpeded. PURCHASE_LIST is intentionally NOT modified.
+    // Set the contract type dropdown to "Both" on every trade_definition_contracttype
+    // block — this keeps the UI showing "Both" as requested. The proposal stream
+    // subscribes to both Over and Under candidates so either side is ready to buy.
     if (params.contractType) {
         workspace.getAllBlocks(false)
             .filter((b: any) => b.type === 'trade_definition_contracttype')
             .forEach((block: any) => {
                 try {
                     block.setFieldValue(params.contractType, 'TYPE_LIST');
+                } catch {
+                    // Dropdown options not ready yet — silently ignore
+                }
+            });
+    }
+
+    // Set the actual purchase side on every purchase block based on the
+    // strategy name (Over… → DIGITOVER, Under… → DIGITUNDER). Without this,
+    // the purchase block keeps whatever value the XML shipped with, which can
+    // mismatch the proposal stream and trigger
+    // "Input validation failed: parameters/contract_type" at trade time.
+    if (params.purchaseSide) {
+        workspace.getAllBlocks(false)
+            .filter((b: any) => b.type === 'purchase')
+            .forEach((block: any) => {
+                try {
+                    block.setFieldValue(params.purchaseSide, 'PURCHASE_LIST');
                 } catch {
                     // Dropdown options not ready yet — silently ignore
                 }
@@ -298,11 +315,16 @@ const EntryScanner: React.FC = observer(() => {
             // Parse prediction digits from strategy e.g. "Under 8 Recovery Under 6"
             const { predBefore, predAfter } = parseStrategy(bestResult?.strategy || '');
 
-            // Force the Contract Type dropdown to "Both" — the bot's own purchase
-            // logic decides at runtime whether to buy Over or Under, so leaving
-            // the field on "Both" lets that logic run without the scanner picking
-            // a side for it.
+            // The Contract Type dropdown stays on "Both" (UI), but the purchase
+            // side is derived from the strategy name's first word: "Over …" →
+            // buy DIGITOVER, "Under …" → buy DIGITUNDER. This matches the
+            // strategies the scanner picks (e.g. "Over 1 Recovery Over 5",
+            // "Under 9 Recovery Under 7") and prevents the API rejecting the
+            // proposal at trade time.
             const contractType: 'BOTH' = 'BOTH';
+            const strategyName = bestResult?.strategy || '';
+            const purchaseSide: 'DIGITOVER' | 'DIGITUNDER' =
+                strategyName.toLowerCase().trim().startsWith('under') ? 'DIGITUNDER' : 'DIGITOVER';
 
             // CRITICAL: Navigate to bot builder BEFORE loading.
             // The Blockly workspace only initialises when the bot builder tab is rendered.
@@ -361,6 +383,7 @@ const EntryScanner: React.FC = observer(() => {
                 martingale: useMartingale ? martingaleNum : 1,
                 symbol,
                 contractType,
+                purchaseSide,
             });
 
             // The SYMBOL_LIST dropdown is populated asynchronously from the Deriv API.
@@ -378,24 +401,27 @@ const EntryScanner: React.FC = observer(() => {
                 }
             }
 
-            // The TYPE_LIST dropdown is populated lazily by onchange handlers
-            // tied to TRADETYPE_LIST. Retry for up to 4 s until every
-            // contract-type block actually shows "Both". PURCHASE_LIST is
-            // intentionally left untouched so the bot's runtime logic
-            // continues to choose Over / Under by itself.
-            if (contractType) {
-                for (let i = 0; i < 40; i++) {
-                    await new Promise(r => setTimeout(r, 100));
-                    const B = (window as any).Blockly;
-                    const allBlocks: any[] = B?.derivWorkspace?.getAllBlocks(false) || [];
-                    const ctBlocks = allBlocks.filter((b: any) => b.type === 'trade_definition_contracttype');
-                    if (ctBlocks.length === 0) break;
-                    const ctOk = ctBlocks.every(b => b.getFieldValue('TYPE_LIST') === contractType);
-                    if (ctOk) break;
-                    ctBlocks.forEach(b => {
-                        try { b.setFieldValue(contractType, 'TYPE_LIST'); } catch { /* not ready yet */ }
-                    });
-                }
+            // The TYPE_LIST and PURCHASE_LIST dropdowns are populated lazily by
+            // onchange handlers tied to TRADETYPE_LIST. Retry for up to 4 s until
+            // every contract-type block shows "Both" AND every purchase block
+            // shows the correct side — otherwise the bot can fire a contract that
+            // doesn't match the proposal subscription and fail validation.
+            for (let i = 0; i < 40; i++) {
+                await new Promise(r => setTimeout(r, 100));
+                const B = (window as any).Blockly;
+                const allBlocks: any[] = B?.derivWorkspace?.getAllBlocks(false) || [];
+                const ctBlocks = allBlocks.filter((b: any) => b.type === 'trade_definition_contracttype');
+                const pBlocks  = allBlocks.filter((b: any) => b.type === 'purchase');
+                if (ctBlocks.length === 0 && pBlocks.length === 0) break;
+                const ctOk = ctBlocks.every(b => b.getFieldValue('TYPE_LIST') === contractType);
+                const pOk  = pBlocks.every(b  => b.getFieldValue('PURCHASE_LIST') === purchaseSide);
+                if (ctOk && pOk) break;
+                ctBlocks.forEach(b => {
+                    try { b.setFieldValue(contractType, 'TYPE_LIST'); } catch { /* not ready yet */ }
+                });
+                pBlocks.forEach(b => {
+                    try { b.setFieldValue(purchaseSide, 'PURCHASE_LIST'); } catch { /* not ready yet */ }
+                });
             }
 
             // Mark the bot as launched so the right-hand live panel renders
