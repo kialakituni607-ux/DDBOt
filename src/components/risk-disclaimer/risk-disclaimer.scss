@@ -8,6 +8,17 @@
         @media (max-width: 768px) {
             bottom: 7.5rem;
         }
+
+        // When the run-panel drawer is open on mobile, the disclaimer
+        // button used to sit directly on top of the "Contracts lost"
+        // statistic. Hide it in that state so the trading stats are fully
+        // visible — the user can still open the disclaimer from elsewhere
+        // when the drawer is closed.
+        @media (max-width: 768px) {
+            body:has(.run-panel__container--mobile) & {
+                display: none;
+            }
+        }
         background: #f0c000;
         color: #1a1a1a;
         border: none;

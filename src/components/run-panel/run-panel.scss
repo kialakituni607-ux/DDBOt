@@ -14,19 +14,27 @@
 
         &--mobile {
             position: absolute;
-            // The app header is now sticky on mobile (5.6rem tall) so the
-            // drawer needs to start below it — otherwise the Reset button
-            // and the collapse chevron sit underneath the header and look
-            // clipped to the user.
-            top: 5.6rem;
+            top: 0;
             left: 0;
             width: 100vw;
             z-index: var(--zindex-drawer);
-            height: calc(100% - 5.6rem - env(safe-area-inset-bottom, 0));
+            height: calc(100% - env(safe-area-inset-bottom, 0));
             padding-bottom: env(safe-area-inset-bottom, 0);
 
             &-closed {
                 position: unset;
+            }
+
+            // The app header is sticky on mobile (5.6rem tall). The drawer
+            // inside is `position: fixed` and slides up via translateY when
+            // open — its default open position puts its top edge at ~3.9rem,
+            // which is *behind* the sticky header. Reduce the upward
+            // translation so the open drawer starts just below the header
+            // instead of underneath it.
+            .dc-drawer--open {
+                @include mobile-or-tablet-screen {
+                    transform: translateY(calc(-100% + 9.2rem)) !important;
+                }
             }
         }
 
