@@ -7,6 +7,16 @@
     height: auto !important;
     padding: 0 !important;
 
+    // On mobile the page scrolls inside the bot builder / transactions
+    // panels, which used to push the brand + balance row out of view. Pin
+    // the header to the top so the user can always see their account
+    // balance while the bot is trading. Desktop stays unchanged.
+    @include mobile-screen {
+        position: sticky;
+        top: 0;
+        z-index: 50;
+    }
+
     &__top-row {
         display: flex;
         align-items: center;

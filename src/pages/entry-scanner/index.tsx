@@ -37,7 +37,7 @@ const STRATEGIES = [
     'Over 1 Recovery Over 5',
     'Under 7 Recovery Under 5',
     'Over 1 Recovery Over 5',
-    'Under 9 Recovery Under 7',
+    'Over 2 Recovery Over 5',
     'Over 1 Recovery Over 4',
     'Under 8 Recovery Under 5',
 ];
