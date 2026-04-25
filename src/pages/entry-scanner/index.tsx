@@ -75,7 +75,7 @@ function applyParamsToWorkspace(params: {
     stopLoss: number;
     martingale: number;
     symbol?: string;
-    contractType?: 'digitover' | 'digitunder';
+    contractType?: 'DIGITOVER' | 'DIGITUNDER';
 }) {
     const workspace = (window as any).Blockly?.derivWorkspace;
     if (!workspace) return;
@@ -293,9 +293,9 @@ const EntryScanner: React.FC = observer(() => {
             // Falls back to undefined (leave the bot's default in place) if the
             // strategy doesn't start with either keyword.
             const stratLower = (bestResult?.strategy || '').trim().toLowerCase();
-            const contractType: 'digitover' | 'digitunder' | undefined =
-                stratLower.startsWith('over')  ? 'digitover'  :
-                stratLower.startsWith('under') ? 'digitunder' :
+            const contractType: 'DIGITOVER' | 'DIGITUNDER' | undefined =
+                stratLower.startsWith('over')  ? 'DIGITOVER'  :
+                stratLower.startsWith('under') ? 'DIGITUNDER' :
                 undefined;
 
             // CRITICAL: Navigate to bot builder BEFORE loading.
