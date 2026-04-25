@@ -75,6 +75,7 @@ function applyParamsToWorkspace(params: {
     stopLoss: number;
     martingale: number;
     symbol?: string;
+    contractType?: 'digitover' | 'digitunder';
 }) {
     const workspace = (window as any).Blockly?.derivWorkspace;
     if (!workspace) return;
@@ -112,6 +113,22 @@ function applyParamsToWorkspace(params: {
                 // Dropdown may not have the option yet — silently ignore
             }
         }
+    }
+
+    // Set the contract type (digitover / digitunder) on every
+    // trade_definition_contracttype block based on the chosen strategy direction.
+    // Done in-place via Blockly's API so the bot's existing logic is untouched —
+    // we only flip the OVER/UNDER selector to match the scanner's pick.
+    if (params.contractType) {
+        workspace.getAllBlocks(false)
+            .filter((b: any) => b.type === 'trade_definition_contracttype')
+            .forEach((block: any) => {
+                try {
+                    block.setFieldValue(params.contractType, 'TYPE_LIST');
+                } catch {
+                    // Dropdown options not ready yet — silently ignore
+                }
+            });
     }
 }
 
@@ -271,6 +288,16 @@ const EntryScanner: React.FC = observer(() => {
             // Parse prediction digits from strategy e.g. "Under 8 Recovery Under 6"
             const { predBefore, predAfter } = parseStrategy(bestResult?.strategy || '');
 
+            // Derive the contract type from the strategy's first word.
+            // "Over …" → digitover,  "Under …" → digitunder.
+            // Falls back to undefined (leave the bot's default in place) if the
+            // strategy doesn't start with either keyword.
+            const stratLower = (bestResult?.strategy || '').trim().toLowerCase();
+            const contractType: 'digitover' | 'digitunder' | undefined =
+                stratLower.startsWith('over')  ? 'digitover'  :
+                stratLower.startsWith('under') ? 'digitunder' :
+                undefined;
+
             // CRITICAL: Navigate to bot builder BEFORE loading.
             // The Blockly workspace only initialises when the bot builder tab is rendered.
             // Calling load() from the Entry Scanner tab (workspace not yet ready) triggers
@@ -327,6 +354,7 @@ const EntryScanner: React.FC = observer(() => {
                 stopLoss: stopLossNum,
                 martingale: useMartingale ? martingaleNum : 1,
                 symbol,
+                contractType,
             });
 
             // The SYMBOL_LIST dropdown is populated asynchronously from the Deriv API.
