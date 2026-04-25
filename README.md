@@ -1,4 +1,6 @@
-# Create Deriv V2
+# TradeMasters
+
+[![Vercel Deployment](https://img.shields.io/github/deployments/kialakituni607/trademasters/production?label=vercel&logo=vercel&style=flat-square)](https://vercel.com/kialakituni607-uxs-projects/trademasters)
 
 This template was generated using `create-deriv-v2`
 
