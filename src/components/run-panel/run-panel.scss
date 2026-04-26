@@ -28,12 +28,15 @@
             // The app header is sticky on mobile (5.6rem tall). The drawer
             // inside is `position: fixed` and slides up via translateY when
             // open — its default open position puts its top edge at ~3.9rem,
-            // which is *behind* the sticky header. Reduce the upward
-            // translation so the open drawer starts just below the header
-            // instead of underneath it.
-            .dc-drawer--open {
+            // which is *behind* the sticky header. Shrinking the drawer's
+            // own height by the header height makes the upward translation
+            // smaller (since translateY is relative to its own height), so
+            // the open drawer's top sits just below the header while its
+            // bottom edge stays in the same place — keeping the trading
+            // stats fully visible above the Run/Stop bar.
+            .dc-drawer {
                 @include mobile-or-tablet-screen {
-                    transform: translateY(calc(-100% + 9.2rem)) !important;
+                    height: calc(100% - 10.1rem - 5.6rem) !important;
                 }
             }
         }
