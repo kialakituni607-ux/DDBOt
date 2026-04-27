@@ -151,7 +151,16 @@ function applyParamsToWorkspace(params: {
     }
 }
 
-type ScanResult   = { marketLabel: string; marketSymbol: string; strategy: string; entryDigit: number };
+type ScanResult = {
+    marketLabel: string;
+    marketSymbol: string;
+    strategy: string;
+    entryDigit: number;
+    winRate: number;        // 0-100
+    qualityScore: number;   // 0-100
+    recentWinRate: number;  // 0-100
+    sampleSize: number;     // tick count used in the scan
+};
 type MarketProgress = { label: string; status: 'pending' | 'scanning' | 'done' };
 
 const DELAY = (ms: number) => new Promise(r => setTimeout(r, ms));
@@ -167,6 +176,10 @@ const EntryScanner: React.FC = observer(() => {
     const [marketProgress, setMarketProgress] = useState<MarketProgress[]>([]);
     const [bestResult, setBestResult]         = useState<ScanResult | null>(null);
     const [statusMsg, setStatusMsg]           = useState('');
+    // Label of the market currently being scanned — shown above the
+    // progress bar in the new card design.
+    const [currentMarket, setCurrentMarket]   = useState('');
+    const [scannedCount, setScannedCount]     = useState(0);
     const abortRef = useRef(false);
 
     // Modal state — numeric fields are kept as strings so the user can
@@ -204,6 +217,8 @@ const EntryScanner: React.FC = observer(() => {
         setBestResult(null);
         setBotLaunched(false);
         setProgress(0);
+        setScannedCount(0);
+        setCurrentMarket('');
         setStatusMsg('Connecting to market data...');
         setMarketProgress(MARKETS.map(m => ({ label: m.label, status: 'pending' })));
 
@@ -239,6 +254,7 @@ const EntryScanner: React.FC = observer(() => {
 
             const { symbol, label } = MARKETS[mi];
             setMarketProgress(prev => prev.map((p, i) => i === mi ? { ...p, status: 'scanning' } : p));
+            setCurrentMarket(label);
             setStatusMsg(`Scanning ${label}…`);
 
             try {
@@ -265,13 +281,35 @@ const EntryScanner: React.FC = observer(() => {
 
                 if (score > bestScore) {
                     bestScore = score;
-                    best = { marketLabel: label, marketSymbol: symbol, strategy, entryDigit };
+
+                    // Recent win rate = same calculation but on the last
+                    // 100 ticks (or all of them if fewer were returned).
+                    const recentWindow = digits.slice(-Math.min(100, digits.length));
+                    const recentWins = recentWindow.filter(d => isUnder ? d < predBefore : d > predBefore).length;
+                    const recentRate = (recentWins / recentWindow.length) * 100;
+
+                    // Quality score = win rate haircut by a sample-size
+                    // confidence factor. Larger sample → smaller haircut.
+                    const winPct = score * 100;
+                    const quality = Math.max(0, winPct - (100 / Math.sqrt(digits.length)));
+
+                    best = {
+                        marketLabel: label,
+                        marketSymbol: symbol,
+                        strategy,
+                        entryDigit,
+                        winRate: winPct,
+                        qualityScore: quality,
+                        recentWinRate: recentRate,
+                        sampleSize: digits.length,
+                    };
                 }
             } catch (e) {
                 console.warn(`[ES] Could not fetch ticks for ${symbol}:`, e);
             }
 
             setMarketProgress(prev => prev.map((p, i) => i === mi ? { ...p, status: 'done' } : p));
+            setScannedCount(mi + 1);
             setProgress(Math.round(((mi + 1) / MARKETS.length) * 100));
         }
 
@@ -447,89 +485,99 @@ const EntryScanner: React.FC = observer(() => {
         }
     };
 
-    const statusIcon = (s: MarketProgress['status']) => {
-        if (s === 'done')     return <span className='es-market-item__check'>✓</span>;
-        if (s === 'scanning') return <span className='es-market-item__spinner' />;
-        return <span className='es-market-item__dot' />;
+    // Close handler for the X button — sends the user back to Dashboard.
+    const handleClose = () => {
+        dashboard.setActiveTab(0);
+        window.location.hash = 'dashboard';
     };
+
+    // Format a 0-100 number as "12.3%" (or em-dash when no scan yet).
+    const fmtPct = (v: number | undefined) =>
+        v === undefined || isNaN(v) ? '—' : `${v.toFixed(1)}%`;
 
     return (
         <div className={`entry-scanner ${botLaunched ? 'entry-scanner--split' : ''}`}>
-            {/* ── LEFT COLUMN: Scanner ───────────────────────────────────── */}
+            {/* ── LEFT COLUMN: Scanner card ──────────────────────────────── */}
             <div className='es-scanner-col'>
-                <div className='es-header'>
-                    <div className='es-header__title'>
-                        <span className='es-header__icon'>🔍</span>
-                        Entry Scanner
+                <div className='es-card'>
+                    <div className='es-card__header'>
+                        <span className='es-card__title'>Entry Scanner</span>
+                        <button className='es-card__close' onClick={handleClose} aria-label='Close'>✕</button>
                     </div>
-                    <p className='es-header__desc'>
-                        Scans all {MARKETS.length} synthetic volatility markets and identifies the optimal market, strategy, and entry digit for your next trade.
-                    </p>
-                </div>
 
-                <div className='es-controls'>
-                    <div className='es-control-group'>
-                        <label className='es-label'>NUMBER OF TICKS TO SCAN</label>
-                        <input
-                            className='es-input'
-                            type='number'
-                            min={100}
-                            max={5000}
-                            placeholder='500'
-                            value={tickCount}
-                            onChange={e => {
-                                // Accept blank (so the user can clear and retype)
-                                // and any digit-only input. Clamping happens at
-                                // scan-time so partial values like "5" don't snap.
-                                const v = e.target.value;
-                                if (v === '' || /^\d+$/.test(v)) setTickCount(v);
-                            }}
-                            disabled={scanning}
-                        />
+                    <div className='es-card__desc'>
+                        Deep scanner evaluates all synthetic index random markets, then finds
+                        the best entry point digit and strategy profile from historical tick data.
                     </div>
-                    <div className='es-control-group'>
-                        <label className='es-label'>BEST MARKET</label>
-                        <div className='es-result-box'>{bestResult?.marketLabel || '—'}</div>
-                    </div>
-                    <div className='es-control-group'>
-                        <label className='es-label'>STRATEGY</label>
-                        <div className='es-result-box es-result-box--small'>{bestResult?.strategy || '—'}</div>
-                    </div>
-                    <div className='es-control-group'>
-                        <label className='es-label'>ENTRY DIGIT</label>
-                        <div className='es-result-box es-result-box--highlight'>{bestResult !== null ? bestResult.entryDigit : '—'}</div>
-                    </div>
-                </div>
 
-                {(scanning || marketProgress.length > 0) && (
-                    <div className='es-progress-section'>
-                        {scanning && (
-                            <div className='es-progress-bar-track'>
-                                <div className='es-progress-bar-fill' style={{ width: `${progress}%` }} />
-                                <span className='es-progress-bar-label'>{progress}%</span>
-                            </div>
-                        )}
-                        <div className='es-market-grid'>
-                            {marketProgress.map((m, i) => (
-                                <div key={i} className={`es-market-item es-market-item--${m.status}`}>
-                                    {statusIcon(m.status)}
-                                    <span className='es-market-item__label'>{m.label}</span>
-                                </div>
-                            ))}
+                    <div className='es-card__grid'>
+                        <div className='es-card__field'>
+                            <label className='es-card__label'>NUMBER OF TICKS TO SCAN</label>
+                            <input
+                                className='es-card__input'
+                                type='number'
+                                min={100}
+                                max={5000}
+                                placeholder='500'
+                                value={tickCount}
+                                onChange={e => {
+                                    const v = e.target.value;
+                                    if (v === '' || /^\d+$/.test(v)) setTickCount(v);
+                                }}
+                                disabled={scanning}
+                            />
+                        </div>
+                        <div className='es-card__field'>
+                            <label className='es-card__label'>BEST MARKET</label>
+                            <div className='es-card__readonly'>{bestResult?.marketLabel || '—'}</div>
+                        </div>
+                        <div className='es-card__field'>
+                            <label className='es-card__label'>STRATEGY</label>
+                            <div className='es-card__readonly'>{bestResult?.strategy || '—'}</div>
+                        </div>
+                        <div className='es-card__field'>
+                            <label className='es-card__label'>ENTRY DIGIT</label>
+                            <div className='es-card__readonly'>{bestResult ? bestResult.entryDigit : '—'}</div>
                         </div>
                     </div>
-                )}
 
-                {statusMsg && (
-                    <div className={`es-status-msg ${statusMsg.startsWith('✅') ? 'es-status-msg--success' : ''}`}>
-                        {statusMsg}
+                    <div className='es-card__stats'>
+                        <span className='es-card__stat'>
+                            Win Rate: <strong>{fmtPct(bestResult?.winRate)}</strong>
+                        </span>
+                        <span className='es-card__stat'>
+                            Sample Size: <strong>{bestResult?.sampleSize ?? '—'}</strong>
+                        </span>
+                        <span className='es-card__stat'>
+                            Quality Score: <strong>{fmtPct(bestResult?.qualityScore)}</strong>
+                        </span>
+                        <span className='es-card__stat'>
+                            Recent Win Rate: <strong>{fmtPct(bestResult?.recentWinRate)}</strong>
+                        </span>
                     </div>
-                )}
 
-                <div className={`es-actions ${bestResult ? 'es-actions--compact' : ''}`}>
+                    {(scanning || scannedCount > 0) && (
+                        <div className='es-card__progress'>
+                            <div className='es-card__progress-row'>
+                                <span>{currentMarket || (scanning ? 'Connecting…' : 'Done')}</span>
+                                <span>{scannedCount}/{MARKETS.length}</span>
+                            </div>
+                            <div className='es-card__progress-track'>
+                                <div className='es-card__progress-fill' style={{ width: `${progress}%` }} />
+                            </div>
+                        </div>
+                    )}
+
+                    {bestResult && (
+                        <div className='es-card__summary'>
+                            Best market: {bestResult.marketLabel} | {bestResult.strategy} |
+                            Entry {bestResult.entryDigit} | Quality {bestResult.qualityScore.toFixed(2)}%
+                        </div>
+                    )}
+
                     {!scanning ? (
                         <button
-                            className='es-btn es-btn--primary'
+                            className='es-card__btn es-card__btn--primary'
                             onClick={startScan}
                             disabled={deepScanDisabled}
                             title={
@@ -540,20 +588,20 @@ const EntryScanner: React.FC = observer(() => {
                                         : undefined
                             }
                         >
-                            🔍 Deep Scan for Best Market
+                            Deep Scan for Best Market
                         </button>
                     ) : (
-                        <button className='es-btn es-btn--stop' onClick={stopScan}>
+                        <button className='es-card__btn es-card__btn--stop' onClick={stopScan}>
                             ⏹ Stop Scan
                         </button>
                     )}
                     <button
-                        className='es-btn es-btn--load'
+                        className='es-card__btn es-card__btn--outline'
                         onClick={() => setModalOpen(true)}
                         disabled={loadBotDisabled}
                         title={loadBotDisabled ? (botLaunched ? 'Run a new deep scan to load another bot' : 'Run a deep scan first') : undefined}
                     >
-                        🤖 Load Bot
+                        Load Deep Scanner Bot
                     </button>
                 </div>
             </div>
