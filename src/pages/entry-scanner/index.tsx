@@ -20,12 +20,9 @@ const MARKETS = [
     { symbol: '1HZ90V',  label: 'Volatility 90 (1s) Index'  },
     { symbol: '1HZ100V', label: 'Volatility 100 (1s) Index' },
     { symbol: 'R_10',    label: 'Volatility 10 Index'       },
-    { symbol: 'R_15',    label: 'Volatility 15 Index'       },
     { symbol: 'R_25',    label: 'Volatility 25 Index'       },
-    { symbol: 'R_30',    label: 'Volatility 30 Index'       },
     { symbol: 'R_50',    label: 'Volatility 50 Index'       },
     { symbol: 'R_75',    label: 'Volatility 75 Index'       },
-    { symbol: 'R_90',    label: 'Volatility 90 Index'       },
     { symbol: 'R_100',   label: 'Volatility 100 Index'      },
 ];
 
