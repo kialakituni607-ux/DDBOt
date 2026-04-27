@@ -70,6 +70,7 @@ function applyParamsToWorkspace(params: {
     entryDigit: number;
     stake: number;
     stopLoss: number;
+    expectedProfit: number;
     martingale: number;
     symbol?: string;
     // The TYPE_LIST dropdown stores the "Both" option as the lowercase
@@ -87,6 +88,7 @@ function applyParamsToWorkspace(params: {
         'Entrypoint-Digit':       params.entryDigit,
         'Stake':                  params.stake,
         'Stop Loss':              params.stopLoss,
+        'Expected Profit':        params.expectedProfit,
         'Martingale Split':       params.martingale,
     };
 
@@ -177,6 +179,7 @@ const EntryScanner: React.FC = observer(() => {
     const [numWins, setNumWins]               = useState('5');
     const [digitsToCheck, setDigitsToCheck]   = useState('1');
     const [stopLoss, setStopLoss]             = useState('50');
+    const [expectedProfit, setExpectedProfit] = useState('100');
     const [useMartingale, setUseMartingale]   = useState(true);
     const [autoStart, setAutoStart]           = useState(true);
     const [botLaunched, setBotLaunched]       = useState(false);
@@ -369,9 +372,10 @@ const EntryScanner: React.FC = observer(() => {
 
             // Parse the (string) modal inputs into numbers, falling back to
             // sane defaults if the user left a field blank.
-            const stakeNum      = parseFloat(stake)      || 0.35;
-            const stopLossNum   = parseInt(stopLoss, 10) || 1;
-            const martingaleNum = parseFloat(martingale) || 1;
+            const stakeNum          = parseFloat(stake)          || 0.35;
+            const stopLossNum       = parseInt(stopLoss, 10)     || 1;
+            const expectedProfitNum = parseFloat(expectedProfit) || 100;
+            const martingaleNum     = parseFloat(martingale)     || 1;
 
             // Apply numeric params immediately after load
             applyParamsToWorkspace({
@@ -380,6 +384,7 @@ const EntryScanner: React.FC = observer(() => {
                 entryDigit: bestResult?.entryDigit ?? 3,
                 stake: stakeNum,
                 stopLoss: stopLossNum,
+                expectedProfit: expectedProfitNum,
                 martingale: useMartingale ? martingaleNum : 1,
                 symbol,
                 contractType,
@@ -675,7 +680,12 @@ const EntryScanner: React.FC = observer(() => {
                                 <input className='es-modal__input' type='number' min={1} max={10}
                                     value={digitsToCheck} onChange={e => setDigitsToCheck(e.target.value)} />
                             </div>
-                            <div className='es-modal__field es-modal__field--full'>
+                            <div className='es-modal__field'>
+                                <label className='es-modal__label'>EXPECTED PROFIT</label>
+                                <input className='es-modal__input' type='number' min={1} step={0.1}
+                                    value={expectedProfit} onChange={e => setExpectedProfit(e.target.value)} />
+                            </div>
+                            <div className='es-modal__field'>
                                 <label className='es-modal__label'>STOP LOSS</label>
                                 <input className='es-modal__input' type='number' min={1}
                                     value={stopLoss} onChange={e => setStopLoss(e.target.value)} />
