@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useEffect } from 'react';
 import Cookies from 'js-cookie';
 import RootStore from '@/stores/root-store';
@@ -90,5 +90,14 @@ export const useOauth2 = ({
         }
     };
 
-    return { oAuthLogout: logoutHandler, retriggerOAuth2Login, isSingleLoggingIn };
+    // OIDC is enabled on production and staging hosts. We compute it the same
+    // way `useTMB` does so callers like `main.tsx` can branch on it.
+    const isOAuth2Enabled = useMemo(() => {
+        const host = window.location.hostname;
+        const is_staging = host.includes('staging');
+        const is_production = !is_staging;
+        return is_production || is_staging;
+    }, []);
+
+    return { oAuthLogout: logoutHandler, retriggerOAuth2Login, isSingleLoggingIn, isOAuth2Enabled };
 };

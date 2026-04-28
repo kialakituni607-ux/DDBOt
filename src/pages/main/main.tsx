@@ -17,14 +17,13 @@ import { useOauth2 } from '@/hooks/auth/useOauth2';
 import { useApiBase } from '@/hooks/useApiBase';
 import { useStore } from '@/hooks/useStore';
 import useTMB from '@/hooks/useTMB';
-import { handleOidcAuthFailure } from '@/utils/auth-utils';
+import { handleOidcAuthFailure, loginWithFallback } from '@/utils/auth-utils';
 import {
     LabelPairedChartLineCaptionRegularIcon,
     LabelPairedObjectsColumnCaptionRegularIcon,
     LabelPairedPuzzlePieceTwoCaptionBoldIcon,
 } from '@deriv/quill-icons/LabelPaired';
 import { LegacyGuide1pxIcon } from '@deriv/quill-icons/Legacy';
-import { requestOidcAuthentication } from '@deriv-com/auth-client';
 import { Localize, localize } from '@deriv-com/translations';
 import { useDevice } from '@deriv-com/ui';
 import RiskDisclaimer from '@/components/risk-disclaimer/risk-disclaimer';
@@ -247,39 +246,30 @@ const AppWrapper = observer(() => {
 
     const { isOAuth2Enabled } = useOauth2();
     const handleLoginGeneration = async () => {
+        const getQueryParams = new URLSearchParams(window.location.search);
+        const currency = getQueryParams.get('account') ?? '';
+        const query_param_currency = currency || sessionStorage.getItem('query_param_currency') || 'USD';
+
+        // If OIDC is explicitly disabled for this host, go straight to legacy.
         if (!isOAuth2Enabled) {
             window.location.replace(generateOAuthURL());
-        } else {
-            const getQueryParams = new URLSearchParams(window.location.search);
-            const currency = getQueryParams.get('account') ?? '';
-            const query_param_currency = currency || sessionStorage.getItem('query_param_currency') || 'USD';
+            return;
+        }
 
-            try {
-                // First, explicitly wait for TMB status to be determined
-                const tmbEnabled = await isTmbEnabled();
-                // Now use the result of the explicit check
-                if (tmbEnabled) {
-                    await onRenderTMBCheck();
-                } else {
-                    try {
-                        await requestOidcAuthentication({
-                            redirectCallbackUri: `${window.location.origin}/callback`,
-                            ...(query_param_currency
-                                ? {
-                                      state: {
-                                          account: query_param_currency,
-                                      },
-                                  }
-                                : {}),
-                        });
-                    } catch (err) {
-                        handleOidcAuthFailure(err);
-                    }
-                }
-            } catch (error) {
-                // eslint-disable-next-line no-console
-                console.error(error);
+        try {
+            // TMB takes precedence when it is enabled for this host.
+            const tmbEnabled = await isTmbEnabled();
+            if (tmbEnabled) {
+                await onRenderTMBCheck();
+                return;
             }
+
+            // Try the new Deriv OIDC flow first; fall back to the legacy
+            // oauth.deriv.com URL automatically if OIDC is unavailable for
+            // this app_id (so both old and new Deriv auth keep working).
+            await loginWithFallback({ currency: query_param_currency });
+        } catch (error) {
+            handleOidcAuthFailure(error);
         }
     };
     return (

@@ -6,6 +6,7 @@ import { standalone_routes } from '@/components/shared';
 import Button from '@/components/shared_ui/button';
 import useActiveAccount from '@/hooks/api/account/useActiveAccount';
 import { useOauth2 } from '@/hooks/auth/useOauth2';
+import { loginWithFallback } from '@/utils/auth-utils';
 import { useFirebaseCountriesConfig } from '@/hooks/firebase/useFirebaseCountriesConfig';
 import { useApiBase } from '@/hooks/useApiBase';
 import { useStore } from '@/hooks/useStore';
@@ -127,8 +128,10 @@ const AppHeader = observer(({ isAuthenticating }: TAppHeaderProps) => {
                     <Button
                         className='auth-actions__login'
                         onClick={() => {
-                            window.location.href =
-                                'https://oauth.deriv.com/oauth2/authorize?app_id=116874&l=EN&brand=deriv&affiliate_token=_AmUk5tNdldlMjdsyM5hasGNd7ZgqdRLk&utm_campaign=myaffiliates';
+                            // Try the new Deriv OIDC flow first, fall back to
+                            // the legacy oauth.deriv.com URL automatically if
+                            // OIDC is not available for this app.
+                            loginWithFallback();
                         }}
                     >
                         <Localize i18n_default_text='Log in' />
