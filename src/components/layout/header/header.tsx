@@ -18,6 +18,7 @@ import { Tooltip } from '@deriv-com/ui';
 import { AppLogo } from '../app-logo';
 import AccountsInfoLoader from './account-info-loader';
 import AccountSwitcher from './account-switcher';
+import AuthModeSwitcher from './auth-mode-switcher';
 import MenuItems from './menu-items';
 import MobileMenu from './mobile-menu';
 import './header.scss';
@@ -125,6 +126,7 @@ const AppHeader = observer(({ isAuthenticating }: TAppHeaderProps) => {
         } else {
             return (
                 <div className='auth-actions'>
+                    {isDesktop && <AuthModeSwitcher />}
                     <Button
                         className='auth-actions__login'
                         onClick={() => {
