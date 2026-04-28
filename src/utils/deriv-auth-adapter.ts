@@ -58,6 +58,20 @@ export interface LogoutOptions {
 const TRADEMASTERS_AFFILIATE_TOKEN = '_AmUk5tNdldlMjdsyM5hasGNd7ZgqdRLk';
 const AFFILIATE_COOKIE = 'affiliate_tracking';
 
+/**
+ * App IDs that we KNOW are registered as legacy OAuth apps only (i.e. they
+ * are NOT registered as OIDC clients on the new Deriv API). When a request to
+ * the OIDC `/oauth2/auth` endpoint is made for one of these app_ids, Deriv
+ * responds with `invalid_client: The requested OAuth 2.0 Client does not exist`.
+ *
+ * For these app_ids we skip the OIDC attempt in `auto` mode and go straight to
+ * the legacy URL — saves a network round-trip and avoids the brief flash of
+ * Deriv's OIDC error page.
+ */
+const LEGACY_ONLY_APP_IDS = new Set<number>([
+    116874, // trademasters.site (verified 2026-04-28: invalid_client on /oauth2/auth)
+]);
+
 declare global {
     interface Window {
         DERIV_AUTH_MODE?: AuthMode;
@@ -148,11 +162,67 @@ export const buildLegacyAuthorizeURL = (opts: LoginOptions = {}): string => {
     return url.toString();
 };
 
+/**
+ * Try to clear any stale Deriv session in the user's browser BEFORE we
+ * redirect to the OAuth login URL.
+ *
+ * Why: when the user already has an active session at deriv.com (e.g. from
+ * having logged into app.deriv.com earlier), Deriv's login page
+ * (`home.deriv.com/dashboard/login`) sees the active session and silently
+ * bounces the user to its own Trader's Hub at `app.deriv.com` — instead of
+ * completing the OAuth handshake back to our /callback. The blank page the
+ * user sometimes sees is the same React app failing mid-redirect.
+ *
+ * The fix: hit Deriv's session-logout endpoint in a hidden iframe first, with
+ * a short timeout. Whether or not the logout completes, we then navigate to
+ * the login URL. This removes the session-collision class of bug entirely.
+ */
+const preClearDerivSession = (): Promise<void> => {
+    return new Promise(resolve => {
+        try {
+            // Pick the right OAuth host for the user's region.
+            const host = window.location.hostname;
+            let oauth_host = 'oauth.deriv.com';
+            if (host.includes('.deriv.me')) oauth_host = 'oauth.deriv.me';
+            else if (host.includes('.deriv.be')) oauth_host = 'oauth.deriv.be';
+
+            const iframe = document.createElement('iframe');
+            iframe.setAttribute('aria-hidden', 'true');
+            iframe.style.position = 'fixed';
+            iframe.style.width = '0';
+            iframe.style.height = '0';
+            iframe.style.border = '0';
+            iframe.style.opacity = '0';
+            iframe.src = `https://${oauth_host}/oauth2/sessions/logout`;
+
+            const cleanup = () => {
+                try {
+                    iframe.remove();
+                } catch {
+                    /* noop */
+                }
+                resolve();
+            };
+
+            iframe.onload = cleanup;
+            iframe.onerror = cleanup;
+            // Safety net — never block the login click for more than 1.2s.
+            setTimeout(cleanup, 1200);
+
+            document.body.appendChild(iframe);
+        } catch {
+            resolve();
+        }
+    });
+};
+
 const legacyLogin = async (opts: LoginOptions): Promise<void> => {
     persistAffiliateTracking();
     if (opts.currency) {
         sessionStorage.setItem('query_param_currency', opts.currency);
     }
+    // Clear any stale Deriv session that would otherwise short-circuit OAuth.
+    await preClearDerivSession();
     window.location.href = buildLegacyAuthorizeURL(opts);
 };
 
@@ -206,7 +276,15 @@ export const derivLogin = async (options: LoginOptions = {}): Promise<void> => {
         return oidcLogin(opts);
     }
 
-    // mode === 'auto' → OIDC, then legacy.
+    // mode === 'auto' → If we know this app is legacy-only, skip OIDC entirely.
+    // Otherwise try OIDC, then legacy.
+    const app_id = Number(getAppId());
+    if (LEGACY_ONLY_APP_IDS.has(app_id)) {
+        // eslint-disable-next-line no-console
+        console.info(`[deriv-auth] auto: app_id ${app_id} is legacy-only → using legacy adapter`);
+        return legacyLogin(opts);
+    }
+
     try {
         await oidcLogin(opts);
     } catch (err) {
