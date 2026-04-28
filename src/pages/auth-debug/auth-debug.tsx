@@ -24,6 +24,7 @@ const AuthDebugPage = () => {
     const [appId, setAppId] = useState<string | number>('');
     const [legacyUrl, setLegacyUrl] = useState('');
     const [callbackPath, setCallbackPath] = useState('');
+    const [registeredRedirectUri, setRegisteredRedirectUri] = useState('');
     const [registeredHint, setRegisteredHint] = useState('');
     const [storedAuth, setStoredAuth] = useState<Record<string, string>>({});
     const [affiliateCookie, setAffiliateCookie] = useState<string>('');
@@ -33,13 +34,24 @@ const AuthDebugPage = () => {
         setOrigin(window.location.origin);
         setHost(window.location.hostname);
         setAppId(getAppId());
-        setLegacyUrl(buildLegacyAuthorizeURL());
+        const builtLegacyUrl = buildLegacyAuthorizeURL();
+        setLegacyUrl(builtLegacyUrl);
         setCallbackPath(`${window.location.origin}/callback`);
+
+        // The redirect_uri that will actually be sent to Deriv — extract from
+        // the built URL so this is always the ground truth.
+        try {
+            const parsed = new URL(builtLegacyUrl);
+            setRegisteredRedirectUri(parsed.searchParams.get('redirect_uri') ?? window.location.origin + '/');
+        } catch {
+            setRegisteredRedirectUri(window.location.origin + '/');
+        }
+
         setRegisteredHint(
             window.location.hostname === 'trademasters.site' ||
                 window.location.hostname === 'www.trademasters.site'
-                ? 'https://trademasters.site/callback'
-                : `${window.location.origin}/callback (must be added to Deriv app dashboard)`
+                ? 'https://trademasters.site/ (for legacy OAuth) — already registered per Deriv support'
+                : `${window.location.origin}/ — must be added to Deriv app dashboard`
         );
         setStoredAuth({
             authToken: localStorage.getItem('authToken') || '(none)',
@@ -153,25 +165,46 @@ const AuthDebugPage = () => {
             </section>
 
             <section className='auth-debug__section auth-debug__section--checklist'>
-                <h2>If login still bounces to app.deriv.com instead of /callback</h2>
+                <h2>Login bounces to app.deriv.com — fix checklist</h2>
+
+                <div className='auth-debug__alert'>
+                    <strong>Most common cause: OAuth scopes not ticked.</strong>
+                    <br />
+                    If <em>Read</em> and <em>Trade</em> are not ticked in your Deriv app dashboard,
+                    Deriv silently ignores the redirect_uri and sends you to app.deriv.com regardless
+                    of any code-side fix.
+                </div>
+
                 <ol>
                     <li>
-                        Open <a href='https://legacy-api.deriv.com/dashboard/' target='_blank' rel='noreferrer'>
-                            legacy-api.deriv.com/dashboard
+                        Open{' '}
+                        <a href='https://api.deriv.com/' target='_blank' rel='noreferrer'>
+                            api.deriv.com
                         </a>{' '}
-                        → click your app (id <strong>{String(appId)}</strong>).
+                        → log in → click <strong>Dashboard</strong> → find app id{' '}
+                        <strong>{String(appId)}</strong> and click <strong>Edit</strong>.
                     </li>
                     <li>
-                        Confirm <strong>Redirect URL</strong> is exactly <code>{callbackPath}</code> (no trailing
-                        slash, no www, no spaces). Click <strong>Update</strong>.
+                        Confirm <strong>Redirect URL</strong> is exactly{' '}
+                        <code>{registeredRedirectUri || 'https://trademasters.site/'}</code>{' '}
+                        (match it character for character — trailing slash, no www, no spaces).
+                        Click <strong>Save</strong>.
                     </li>
                     <li>
-                        Scroll to <strong>Scopes of authorisation</strong>. Tick at minimum <strong>Read</strong>{' '}
-                        and <strong>Trade</strong>. Without scopes, Deriv silently drops the redirect.
+                        <strong style={{ color: '#e74c3c' }}>
+                            Scroll to &quot;Scopes of authorisation&quot; → tick{' '}
+                            <em>Read</em>, <em>Trade</em>, <em>Payments</em>, and <em>Admin</em> →
+                            click <strong>Save</strong>.
+                        </strong>{' '}
+                        This is the most commonly missed step. Deriv silently drops the redirect if
+                        no scopes are selected.
                     </li>
                     <li>
-                        Open a private/incognito window and click &quot;Test Legacy login&quot; above. (Existing
-                        Deriv sessions in the same browser can short-circuit the flow.)
+                        Open a <strong>private / incognito window</strong>, go to{' '}
+                        <code>{window.location.origin}/auth-debug</code>, and click{' '}
+                        <strong>&quot;Test Legacy login&quot;</strong>. An existing Deriv session in
+                        the same browser auto-completes the flow and bypasses the redirect — incognito
+                        forces a fresh login.
                     </li>
                 </ol>
             </section>
