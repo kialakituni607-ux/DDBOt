@@ -130,16 +130,13 @@ const persistAffiliateTracking = () => {
 /* -------------------------------------------------------------------------- */
 
 /**
- * Build the legacy OAuth URL the SAME way the official Deriv DBot does.
+ * Build the legacy OAuth URL.
  *
- * KEY POINTS (learned the hard way):
- *  - DO NOT pass `redirect_uri`. Deriv legacy uses the URL registered on the
- *    app's dashboard. Passing it explicitly makes Deriv treat the request as
- *    a confidential-client flow and silently route the user to app.deriv.com
- *    instead of running the redirect-back. The redirect URL on the dashboard
- *    is the source of truth.
- *  - Only `app_id`, `l`, `brand` are needed. Everything else (affiliate token,
- *    currency, utm) goes into a cookie so Deriv's UI can read it post-login.
+ * IMPORTANT: Deriv's OAuth server now requires an explicit `redirect_uri` that
+ * exactly matches the URL registered in the app's dashboard. Without it, Deriv
+ * completes the login on their own page (app.deriv.com) and never redirects
+ * the user back to this app. The `redirect_uri` must be URL-encoded and must
+ * match scheme, domain, path, and trailing slash exactly.
  */
 export const buildLegacyAuthorizeURL = (opts: LoginOptions = {}): string => {
     const app_id = String(getAppId());
@@ -155,9 +152,10 @@ export const buildLegacyAuthorizeURL = (opts: LoginOptions = {}): string => {
     url.searchParams.set('l', 'EN');
     url.searchParams.set('brand', 'deriv');
 
-    // Only included if explicitly overridden — otherwise Deriv uses the
-    // dashboard-registered URL, which is what we want.
-    if (opts.redirectUri) url.searchParams.set('redirect_uri', opts.redirectUri);
+    // Always include redirect_uri — Deriv now requires it explicitly.
+    // Use the caller-supplied value, or default to `<current origin>/`.
+    const redirect_uri = opts.redirectUri || `${window.location.origin}/`;
+    url.searchParams.set('redirect_uri', redirect_uri);
 
     return url.toString();
 };

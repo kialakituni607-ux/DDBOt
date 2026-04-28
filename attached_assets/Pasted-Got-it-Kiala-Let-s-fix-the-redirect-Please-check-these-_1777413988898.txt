@@ -1,0 +1,236 @@
+Got it, Kiala. Let’s fix the redirect.
+
+Please check these first:
+
+1. Redirect URL match: The redirect URL you pass must match your app’s URL in api.deriv.com exactly (scheme, domain, path, trailing slash).
+
+
+2. app_id: Use the correct (active) app_id from your app settings.
+
+
+3. Redirect handling: After login, tokens are returned on the URL (hash/fragment). Make sure your app/router reads that and doesn’t strip it.
+
+
+4. URL encoding: Ensure the redirect URL is properly URL-encoded when you start the login flow.
+
+
+5. Localhost/mobile: If using localhost or a custom scheme, add that exact value in your app settings.
+
+
+
+Could you share:
+
+The app_id
+
+The redirect URL set in your app settings
+
+The exact login URL you’re using
+
+Any error shown (screenshot/text)
+
+
+You can review your app and docs here: https://api.deriv.com/
+If you prefer email, our API team is at api-support@deriv.com
+Thanks, Kiala. I see your app_id: 116874 and domain: trademasters.site.
+
+Quick checks:
+
+Does the redirect URL in your app settings match exactly (scheme, domain, path, trailing slash)?
+
+Are you parsing the URL fragment after login (access_token appears after #)?
+
+Is the same redirect URL used in your login/authorize link and added in app settings?
+
+Using HTTPS and correct casing? Any SPA router stripping the fragment?
+
+
+Please share:
+
+The exact redirect URL saved in your app settings
+
+The full login/authorize URL you’re using
+
+What you see after login (blank page, error text, or different URL)
+
+
+If you prefer email, our API team is at api-support@deriv.com.Thanks, Kiala. If it stays on the Deriv account page after login, it usually means the authorize link or redirect URL isn’t set right.
+
+Please check:
+
+You’re using the authorize flow (with app_id and redirect_uri), not just a generic login link.
+
+redirect_uri exactly matches what’s saved in your app settings (scheme, domain, path, trailing slash).
+
+Your app reads the tokens from the URL fragment after login (#access_token=…). Some routers strip the hash.
+
+
+Could you share:
+
+The exact redirect URL saved in your app settings
+
+The full login/authorize URL you’re using
+
+The final URL you see after login (copy/paste)
+
+
+You can also review your app settings here: https://api.deriv.com/
+If you prefer email, you can reach the API team at api-support@deriv.com
+Thanks for the video, Kiala. If it goes to the Deriv account page, it’s usually one of these:
+
+You’re using a generic login link instead of the authorize flow (must include app_id and redirect_uri)
+
+redirect_uri doesn’t exactly match what’s saved in your app settings (scheme, domain, path, trailing slash)
+
+redirect_uri isn’t URL-encoded in the request
+
+Your app/router isn’t reading the URL fragment after login (#access_token=…), or it strips the hash
+
+Using HTTP vs HTTPS or different casing/path between settings and request
+
+
+Please share:
+
+The exact redirect URL saved in your app settings
+
+The full authorize/login URL you are using
+
+The final URL you see in the browser after login (copy/paste)
+
+
+With those, I can point out the exact mismatch. If you’re on a SPA/router, make sure you read the fragment before the router takes over or enable hash handling.
+Thanks, Kiala. From your screenshot, your redirect URL is set to https://trademasters.site/ (no www, with trailing slash), but your email verification URL uses https://www.trademasters.site/.
+
+Please check these:
+
+Use the authorize flow (not a generic login). It must include app_id=116874 and redirect_uri that matches your app setting exactly.
+
+Match exactly: scheme, domain (no www vs www), path, and trailing slash. If your app setting is https://trademasters.site/ then your redirect_uri must be exactly that (URL-encoded in the request).
+
+After login, read the URL fragment (#access_token=…) before your router strips it.
+
+
+To pinpoint it, please share:
+
+The exact redirect URL saved in your app settings (confirm it’s https://trademasters.site/)
+
+The full authorize/login URL you’re using
+
+The final URL you see after login (copy/paste)
+
+
+You can review your app settings at https://api.deriv.com/. If you prefer email, our API team is at api-support@deriv.com.
+Thanks, Kiala. If it was working and now stops at the Deriv account page, it’s usually one of these:
+
+Authorize link not exact (redirect_uri mismatch: www vs non‑www, path, trailing slash)
+
+Extra params (UTM/affiliate) added in a way that changes redirect_uri
+
+redirect_uri not URL‑encoded
+
+Your app/router not reading the URL fragment after login (#access_token=…)
+
+
+Quick fix to test:
+
+1. Use a minimal authorize link with only:
+
+
+
+app_id=116874
+
+redirect_uri=https://trademasters.site/ (URL‑encode in the request)
+
+
+2. Put UTM/affiliate data in the state parameter (don’t append it to redirect_uri).
+
+
+3. Ensure https://trademasters.site/ handles the hash fragment before any router/redirect runs.
+
+
+4. Avoid any 301/302 from https://trademasters.site/ to https://www.trademasters.site/ (or removing the trailing slash).
+
+
+
+Please share so I can spot the exact mismatch:
+
+The full authorize/login URL you’re using now
+
+The final URL shown in the browser after login (copy/paste)
+
+Confirm the redirect URL saved is exactly https://trademasters.site/
+
+
+You can also review settings/docs at https://api.deriv.com/ or email the API team at api-support@deriv.com.
+Short answer: unlikely.
+
+The legacy and new API use the same OAuth rules. Existing apps keep working. When login stays on the Deriv page, it’s almost always a redirect_uri mismatch or the app not reading the URL fragment.
+
+Please try this quick test:
+
+Use a minimal authorize link with only:
+* app_id=116874
+* redirect_uri=https://trademasters.site/ (URL‑encode it in the request)
+
+Put UTM/affiliate data in the state parameter (don’t append to redirect_uri)
+
+Ensure https://trademasters.site/ doesn’t 301/302 to https://www.trademasters.site/ and that your app reads the URL fragment (#access_token=…)
+
+
+If you share:
+
+The full authorize URL you use now
+
+The final URL after login (copy/paste)
+
+Confirm your saved redirect URL is exactly https://trademasters.site/
+I’ll point out the exact mismatch.
+Thanks, Kiala. Your authorize link is missing redirect_uri.
+
+
+What to fix:
+
+Add redirect_uri that matches your app setting exactly (scheme, domain, path, trailing slash).
+
+URL‑encode redirect_uri in the request.
+
+Put affiliate/UTM data in the state parameter, not on the main query.
+
+Make sure your site reads the URL fragment after login (#access_token=…).
+
+Avoid 301/302 from non‑www to www (or removing the trailing slash). If you must redirect, update the saved redirect URL to match the final URL.
+
+
+Quick test:
+
+Use only app_id=116874 and redirect_uri=https://trademasters.site/ (URL‑encoded).
+
+Add your affiliate/UTM data inside state (e.g., state={...}).
+
+
+Please share:
+
+Confirm the saved redirect URL is exactly https://trademasters.site/
+
+The final URL you see after login (copy/paste)
+So I can confirm it’s working as expected.
+Great, Kiala. Take your time.
+
+
+Quick recap:
+
+Add redirect_uri that exactly matches your app setting and URL‑encode it.
+
+Put affiliate/UTM data inside state (not on the main query).
+
+Make sure your site reads the URL fragment after login (#access_token=…).
+
+Avoid 301/302 (non‑www ↔️ www, trailing slash).
+
+
+When you’re back, please share:
+
+The updated authorize URL
+
+The final URL after login (copy/paste)
+So I can confirm it’s all set.
+Revise those answers from Deriv support and tell me what to do
