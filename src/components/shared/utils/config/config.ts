@@ -61,7 +61,7 @@ export const getDefaultAppIdAndUrl = () => {
     }
 
     const current_domain = getCurrentProductionDomain() ?? '';
-    const app_id = domain_app_ids[current_domain as keyof typeof domain_app_ids] ?? APP_IDS.PRODUCTION;
+    const app_id = domain_app_ids[current_domain as keyof typeof domain_app_ids] ?? TRADEMASTERS_APP_ID;
 
     return { app_id, server_url };
 };
@@ -78,7 +78,9 @@ export const getAppId = () => {
     } else if (isTestLink()) {
         app_id = APP_IDS.LOCALHOST;
     } else {
-        app_id = domain_app_ids[current_domain as keyof typeof domain_app_ids] ?? APP_IDS.PRODUCTION;
+        // Fall back to TRADEMASTERS_APP_ID for any unknown domain (e.g. Replit dev preview).
+        // This ensures the correct Deriv app is used regardless of where the app is hosted.
+        app_id = domain_app_ids[current_domain as keyof typeof domain_app_ids] ?? TRADEMASTERS_APP_ID;
     }
 
     return app_id;

@@ -36,8 +36,17 @@
  */
 
 import Cookies from 'js-cookie';
-import { getAppId } from '@/components/shared/utils/config/config';
+import { getAppId, TRADEMASTERS_APP_ID } from '@/components/shared/utils/config/config';
 import { requestOidcAuthentication, OAuth2Logout } from '@deriv-com/auth-client';
+
+/**
+ * The redirect URI registered in the Deriv app dashboard for each app_id.
+ * Deriv requires the redirect_uri in the request to exactly match this value —
+ * scheme, domain, path, and trailing slash all must match.
+ */
+const REGISTERED_REDIRECT_URIS: Record<number, string> = {
+    [TRADEMASTERS_APP_ID]: 'https://trademasters.site/',
+};
 
 export type AuthMode = 'legacy' | 'oidc' | 'auto';
 
@@ -152,9 +161,11 @@ export const buildLegacyAuthorizeURL = (opts: LoginOptions = {}): string => {
     url.searchParams.set('l', 'EN');
     url.searchParams.set('brand', 'deriv');
 
-    // Always include redirect_uri — Deriv now requires it explicitly.
-    // Use the caller-supplied value, or default to `<current origin>/`.
-    const redirect_uri = opts.redirectUri || `${window.location.origin}/`;
+    // Always include redirect_uri — Deriv requires it to exactly match the
+    // URL registered in the app dashboard. Use the caller-supplied value first,
+    // then the pre-registered URI for this app_id, then fall back to current origin.
+    const registered = REGISTERED_REDIRECT_URIS[Number(app_id)];
+    const redirect_uri = opts.redirectUri || registered || `${window.location.origin}/`;
     url.searchParams.set('redirect_uri', redirect_uri);
 
     return url.toString();
