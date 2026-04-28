@@ -186,8 +186,9 @@ const AuthDebugPage = () => {
                     </li>
                     <li>
                         Confirm <strong>Redirect URL</strong> is exactly{' '}
-                        <code>{registeredRedirectUri || 'https://trademasters.site/'}</code>{' '}
-                        (match it character for character — trailing slash, no www, no spaces).
+                        <code>https://trademasters.site/</code>{' '}
+                        (trailing slash, no www, no spaces — this is where Deriv will send
+                        the user after login when using <code>redirect=home</code>).
                         Click <strong>Save</strong>.
                     </li>
                     <li>

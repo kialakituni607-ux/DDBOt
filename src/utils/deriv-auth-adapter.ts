@@ -139,13 +139,42 @@ const persistAffiliateTracking = () => {
 /* -------------------------------------------------------------------------- */
 
 /**
- * Build the legacy OAuth URL.
+ * Generate a cryptographically random state value for OAuth CSRF protection,
+ * persist it in sessionStorage, and return the base64url-encoded string.
  *
- * IMPORTANT: Deriv's OAuth server now requires an explicit `redirect_uri` that
- * exactly matches the URL registered in the app's dashboard. Without it, Deriv
- * completes the login on their own page (app.deriv.com) and never redirects
- * the user back to this app. The `redirect_uri` must be URL-encoded and must
- * match scheme, domain, path, and trailing slash exactly.
+ * Why: other Deriv-integrated platforms (e.g. dollarprinter.com) use a
+ * `state` nonce with `redirect=home` instead of a `redirect_uri` query param.
+ * This is the pattern Deriv's new `home.deriv.com` login portal honours for
+ * legacy (non-OIDC) apps — it uses the app's registered redirect URL from
+ * the Deriv dashboard rather than reading `redirect_uri` from the request,
+ * which it now ignores for non-OIDC app_ids.
+ */
+const generateOAuthState = (): string => {
+    const array = new Uint8Array(32);
+    crypto.getRandomValues(array);
+    const state = btoa(String.fromCharCode(...array))
+        .replace(/\+/g, '-')
+        .replace(/\//g, '_')
+        .replace(/=+$/, '');
+    try {
+        sessionStorage.setItem('deriv.oauth.state', state);
+    } catch {
+        /* sessionStorage may be unavailable — non-fatal */
+    }
+    return state;
+};
+
+/**
+ * Build the legacy OAuth URL using the pattern observed from working
+ * Deriv-integrated platforms:
+ *
+ *   ?app_id=<id>&brand=deriv&redirect=home&state=<nonce>
+ *
+ * Using `redirect=home` tells Deriv's login portal to redirect to the URL
+ * registered in the app's Deriv dashboard after authentication, rather than
+ * reading `redirect_uri` from the query string. Deriv's new
+ * `home.deriv.com/dashboard/login` portal ignores `redirect_uri` for
+ * non-OIDC apps, which is why the old approach failed.
  */
 export const buildLegacyAuthorizeURL = (opts: LoginOptions = {}): string => {
     const app_id = String(getAppId());
@@ -158,15 +187,22 @@ export const buildLegacyAuthorizeURL = (opts: LoginOptions = {}): string => {
 
     const url = new URL(`https://${oauth_host}/oauth2/authorize`);
     url.searchParams.set('app_id', app_id);
-    url.searchParams.set('l', 'EN');
     url.searchParams.set('brand', 'deriv');
 
-    // Always include redirect_uri — Deriv requires it to exactly match the
-    // URL registered in the app dashboard. Use the caller-supplied value first,
-    // then the pre-registered URI for this app_id, then fall back to current origin.
-    const registered = REGISTERED_REDIRECT_URIS[Number(app_id)];
-    const redirect_uri = opts.redirectUri || registered || `${window.location.origin}/`;
-    url.searchParams.set('redirect_uri', redirect_uri);
+    // Use `redirect=home` instead of `redirect_uri` — this is the parameter
+    // pattern used by other working Deriv platforms. It instructs Deriv's login
+    // portal to redirect to the app's pre-registered redirect URL on its server
+    // side, bypassing the `redirect_uri` parsing that the new portal ignores.
+    if (opts.redirectUri) {
+        // Caller explicitly supplied a URI (e.g. test harness) — honour it.
+        url.searchParams.set('redirect_uri', opts.redirectUri);
+    } else {
+        url.searchParams.set('redirect', 'home');
+    }
+
+    // Include a CSRF state nonce — standard OAuth2 best practice, and present
+    // in all observed working Deriv integrations.
+    url.searchParams.set('state', generateOAuthState());
 
     return url.toString();
 };
