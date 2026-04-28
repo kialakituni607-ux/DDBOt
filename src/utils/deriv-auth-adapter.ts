@@ -115,9 +115,20 @@ const persistAffiliateTracking = () => {
 /* Legacy adapter                                                             */
 /* -------------------------------------------------------------------------- */
 
-const buildLegacyAuthorizeURL = (opts: LoginOptions): string => {
+/**
+ * Build the legacy OAuth URL the SAME way the official Deriv DBot does.
+ *
+ * KEY POINTS (learned the hard way):
+ *  - DO NOT pass `redirect_uri`. Deriv legacy uses the URL registered on the
+ *    app's dashboard. Passing it explicitly makes Deriv treat the request as
+ *    a confidential-client flow and silently route the user to app.deriv.com
+ *    instead of running the redirect-back. The redirect URL on the dashboard
+ *    is the source of truth.
+ *  - Only `app_id`, `l`, `brand` are needed. Everything else (affiliate token,
+ *    currency, utm) goes into a cookie so Deriv's UI can read it post-login.
+ */
+export const buildLegacyAuthorizeURL = (opts: LoginOptions = {}): string => {
     const app_id = String(getAppId());
-    const redirect_uri = opts.redirectUri || `${window.location.origin}/callback`;
 
     // Pick the right OAuth host for the user's region.
     const host = window.location.hostname;
@@ -126,12 +137,13 @@ const buildLegacyAuthorizeURL = (opts: LoginOptions): string => {
     else if (host.includes('.deriv.be')) oauth_host = 'oauth.deriv.be';
 
     const url = new URL(`https://${oauth_host}/oauth2/authorize`);
-    // ONLY OAuth2-spec parameters here — Deriv rejects unknown params now.
     url.searchParams.set('app_id', app_id);
-    url.searchParams.set('redirect_uri', redirect_uri);
     url.searchParams.set('l', 'EN');
     url.searchParams.set('brand', 'deriv');
-    if (opts.currency) url.searchParams.set('account', opts.currency);
+
+    // Only included if explicitly overridden — otherwise Deriv uses the
+    // dashboard-registered URL, which is what we want.
+    if (opts.redirectUri) url.searchParams.set('redirect_uri', opts.redirectUri);
 
     return url.toString();
 };
