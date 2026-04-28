@@ -189,20 +189,10 @@ export const buildLegacyAuthorizeURL = (opts: LoginOptions = {}): string => {
     url.searchParams.set('app_id', app_id);
     url.searchParams.set('brand', 'deriv');
 
-    // Use `redirect=home` instead of `redirect_uri` — this is the parameter
-    // pattern used by other working Deriv platforms. It instructs Deriv's login
-    // portal to redirect to the app's pre-registered redirect URL on its server
-    // side, bypassing the `redirect_uri` parsing that the new portal ignores.
-    if (opts.redirectUri) {
-        // Caller explicitly supplied a URI (e.g. test harness) — honour it.
-        url.searchParams.set('redirect_uri', opts.redirectUri);
-    } else {
-        url.searchParams.set('redirect', 'home');
-    }
-
-    // Include a CSRF state nonce — standard OAuth2 best practice, and present
-    // in all observed working Deriv integrations.
-    url.searchParams.set('state', generateOAuthState());
+    // Use redirect_uri pointing to the registered URL in the Deriv app dashboard.
+    const registered = REGISTERED_REDIRECT_URIS[Number(app_id)];
+    const redirect_uri = opts.redirectUri || registered || `${window.location.origin}/`;
+    url.searchParams.set('redirect_uri', redirect_uri);
 
     return url.toString();
 };
