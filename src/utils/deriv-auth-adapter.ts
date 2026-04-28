@@ -172,57 +172,39 @@ export const buildLegacyAuthorizeURL = (opts: LoginOptions = {}): string => {
 };
 
 /**
- * Try to clear any stale Deriv session in the user's browser BEFORE we
- * redirect to the OAuth login URL.
+ * Clear any active Deriv session before starting the OAuth flow.
  *
- * Why: when the user already has an active session at deriv.com (e.g. from
- * having logged into app.deriv.com earlier), Deriv's login page
- * (`home.deriv.com/dashboard/login`) sees the active session and silently
- * bounces the user to its own Trader's Hub at `app.deriv.com` — instead of
- * completing the OAuth handshake back to our /callback. The blank page the
- * user sometimes sees is the same React app failing mid-redirect.
+ * Why this is needed: Deriv's new login portal (`home.deriv.com/dashboard/login`)
+ * auto-completes the flow using the existing browser session and redirects to
+ * `app.deriv.com` — completely ignoring the `redirect_uri` we supply. Clearing
+ * the session first forces the login portal to show the sign-in form and then
+ * honour our redirect_uri after the user authenticates.
  *
- * The fix: hit Deriv's session-logout endpoint in a hidden iframe first, with
- * a short timeout. Whether or not the logout completes, we then navigate to
- * the login URL. This removes the session-collision class of bug entirely.
+ * Previous approach (iframe) was blocked by Deriv's X-Frame-Options header.
+ * This approach uses fetch with `credentials: 'include'` so the browser sends
+ * the Deriv session cookie; Deriv's server clears it via Set-Cookie. We use
+ * `mode: 'no-cors'` and `redirect: 'manual'` so we never follow the server
+ * redirect — we only care that the session cookie is cleared.
  */
 const preClearDerivSession = (): Promise<void> => {
-    return new Promise(resolve => {
-        try {
-            // Pick the right OAuth host for the user's region.
-            const host = window.location.hostname;
-            let oauth_host = 'oauth.deriv.com';
-            if (host.includes('.deriv.me')) oauth_host = 'oauth.deriv.me';
-            else if (host.includes('.deriv.be')) oauth_host = 'oauth.deriv.be';
+    const host = window.location.hostname;
+    let oauth_host = 'oauth.deriv.com';
+    if (host.includes('.deriv.me')) oauth_host = 'oauth.deriv.me';
+    else if (host.includes('.deriv.be')) oauth_host = 'oauth.deriv.be';
 
-            const iframe = document.createElement('iframe');
-            iframe.setAttribute('aria-hidden', 'true');
-            iframe.style.position = 'fixed';
-            iframe.style.width = '0';
-            iframe.style.height = '0';
-            iframe.style.border = '0';
-            iframe.style.opacity = '0';
-            iframe.src = `https://${oauth_host}/oauth2/sessions/logout`;
+    const logoutUrl = `https://${oauth_host}/oauth2/sessions/logout`;
 
-            const cleanup = () => {
-                try {
-                    iframe.remove();
-                } catch {
-                    /* noop */
-                }
-                resolve();
-            };
-
-            iframe.onload = cleanup;
-            iframe.onerror = cleanup;
-            // Safety net — never block the login click for more than 1.2s.
-            setTimeout(cleanup, 1200);
-
-            document.body.appendChild(iframe);
-        } catch {
-            resolve();
-        }
-    });
+    // Race between the fetch completing and a 1.5s safety timeout so the
+    // login button never freezes even if the request hangs.
+    return Promise.race([
+        fetch(logoutUrl, {
+            method: 'GET',
+            credentials: 'include',
+            mode: 'no-cors',
+            redirect: 'manual',
+        }).catch(() => { /* network error — ignore, proceed to login */ }),
+        new Promise<void>(resolve => setTimeout(resolve, 1500)),
+    ]).then(() => { /* void */ });
 };
 
 const legacyLogin = async (opts: LoginOptions): Promise<void> => {
