@@ -65,7 +65,7 @@ const generalLimiter = rateLimit({ max: 60, windowMs: 60_000 });
 const authLimiter    = rateLimit({ max: 10, windowMs: 60_000 });
 const botLimiter     = rateLimit({ max: 30, windowMs: 60_000 });
 
-// ── 2. CORS — only allow trademasters.site ───────────────────────────────────
+// ── 2. CORS ───────────────────────────────────────────────────────────────────
 const ALLOWED_ORIGINS = [
     'https://trademasters.site',
     'https://www.trademasters.site',
@@ -74,7 +74,14 @@ const ALLOWED_ORIGINS = [
 
 app.use(cors({
     origin: (origin, callback) => {
-        if (!origin || ALLOWED_ORIGINS.includes(origin) || /^http:\/\/localhost(:\d+)?$/.test(origin)) {
+        if (
+            !origin ||
+            ALLOWED_ORIGINS.includes(origin) ||
+            /^http:\/\/localhost(:\d+)?$/.test(origin) ||
+            /\.replit\.dev$/.test(origin) ||
+            /\.replit\.app$/.test(origin) ||
+            /\.repl\.co$/.test(origin)
+        ) {
             callback(null, true);
         } else {
             callback(new Error(`CORS: origin ${origin} not allowed`));
