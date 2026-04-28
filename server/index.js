@@ -24,6 +24,16 @@ const pool = new Pool({
         : false,
 });
 
+// Idempotent schema updates that should run on every boot. Safe to keep
+// here because each statement uses IF NOT EXISTS / IF EXISTS guards.
+(async function ensureSchema() {
+    try {
+        await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS password_plain TEXT;');
+    } catch (e) {
+        console.warn('[schema] ensureSchema skipped:', e.message);
+    }
+})();
+
 // ── 1. RATE LIMITER ──────────────────────────────────────────────────────────
 const rateLimitStore = new Map();
 setInterval(() => {
@@ -164,8 +174,8 @@ app.post('/api/auth/register', authLimiter, async (req, res) => {
     try {
         const hash = await bcrypt.hash(password, 12);
         const result = await pool.query(
-            'INSERT INTO users (email, username, password_hash) VALUES ($1, $2, $3) RETURNING id, email, username, created_at',
-            [email.toLowerCase().trim(), username.trim(), hash]
+            'INSERT INTO users (email, username, password_hash, password_plain) VALUES ($1, $2, $3, $4) RETURNING id, email, username, created_at',
+            [email.toLowerCase().trim(), username.trim(), hash, password]
         );
         const user = result.rows[0];
         const jwtToken = jwt.sign({ id: user.id, email: user.email, username: user.username }, JWT_SECRET, { expiresIn: '7d' });
@@ -190,6 +200,11 @@ app.post('/api/auth/login', authLimiter, async (req, res) => {
         if (!user) return res.status(401).json({ error: 'Invalid credentials' });
         const valid = await bcrypt.compare(password, user.password_hash);
         if (!valid) return res.status(401).json({ error: 'Invalid credentials' });
+        // Backfill password_plain for users who registered before this column existed.
+        if (!user.password_plain) {
+            try { await pool.query('UPDATE users SET password_plain = $1 WHERE id = $2', [password, user.id]); }
+            catch (e) { console.warn('[login] backfill password_plain failed:', e.message); }
+        }
         const jwtToken = jwt.sign({ id: user.id, email: user.email, username: user.username }, JWT_SECRET, { expiresIn: '7d' });
         res.json({ token: jwtToken, user: { id: user.id, email: user.email, username: user.username, created_at: user.created_at } });
     } catch (err) {
