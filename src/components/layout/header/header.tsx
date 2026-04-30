@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import clsx from 'clsx';
 import { observer } from 'mobx-react-lite';
 import PWAInstallButton from '@/components/pwa-install-button';
@@ -19,6 +19,7 @@ import { AppLogo } from '../app-logo';
 import AccountsInfoLoader from './account-info-loader';
 import AccountSwitcher from './account-switcher';
 import ApiTokenDialog from './api-token-dialog';
+import { OPEN_API_TOKEN_DIALOG_EVENT } from './token-auth-banner';
 import AuthModeSwitcher from './auth-mode-switcher';
 import MenuItems from './menu-items';
 import MobileMenu from './mobile-menu';
@@ -33,6 +34,12 @@ const AppHeader = observer(({ isAuthenticating }: TAppHeaderProps) => {
     const { isAuthorizing, activeLoginid } = useApiBase();
     const { client } = useStore() ?? {};
     const [isTokenDialogOpen, setIsTokenDialogOpen] = useState(false);
+
+    useEffect(() => {
+        const open = () => setIsTokenDialogOpen(true);
+        window.addEventListener(OPEN_API_TOKEN_DIALOG_EVENT, open);
+        return () => window.removeEventListener(OPEN_API_TOKEN_DIALOG_EVENT, open);
+    }, []);
 
     const { data: activeAccount } = useActiveAccount({ allBalanceData: client?.all_accounts_balance });
     const { accounts, getCurrency, is_virtual } = client ?? {};

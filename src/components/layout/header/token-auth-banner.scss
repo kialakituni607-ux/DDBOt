@@ -1,0 +1,65 @@
+.token-auth-banner {
+    background: linear-gradient(180deg, rgba(0, 167, 100, 0.12), rgba(0, 167, 100, 0.04));
+    border: 1px solid rgba(0, 167, 100, 0.35);
+    border-radius: 8px;
+    padding: 10px 12px;
+    margin: 8px 12px 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    font-family: -apple-system, system-ui, 'Segoe UI', sans-serif;
+
+    &__row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex: 1;
+        min-width: 0;
+    }
+
+    &__icon {
+        font-size: 18px;
+        line-height: 1;
+        flex-shrink: 0;
+    }
+
+    &__text {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        font-size: 12px;
+        color: var(--text-general, #111);
+        line-height: 1.35;
+        min-width: 0;
+
+        strong {
+            font-weight: 700;
+            font-size: 13px;
+        }
+        span {
+            color: var(--text-less-prominent, #555);
+            font-size: 11px;
+        }
+    }
+
+    &__action {
+        appearance: none;
+        background: #fff;
+        border: 1px solid rgba(0, 167, 100, 0.5);
+        color: #00754a;
+        padding: 6px 12px;
+        border-radius: 5px;
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.15s ease;
+        white-space: nowrap;
+        flex-shrink: 0;
+
+        &:hover {
+            background: #e8f7ef;
+            border-color: rgba(0, 167, 100, 0.8);
+        }
+    }
+}
