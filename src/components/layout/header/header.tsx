@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import clsx from 'clsx';
 import { observer } from 'mobx-react-lite';
 import PWAInstallButton from '@/components/pwa-install-button';
@@ -18,6 +18,7 @@ import { Tooltip } from '@deriv-com/ui';
 import { AppLogo } from '../app-logo';
 import AccountsInfoLoader from './account-info-loader';
 import AccountSwitcher from './account-switcher';
+import ApiTokenDialog from './api-token-dialog';
 import AuthModeSwitcher from './auth-mode-switcher';
 import MenuItems from './menu-items';
 import MobileMenu from './mobile-menu';
@@ -31,6 +32,7 @@ const AppHeader = observer(({ isAuthenticating }: TAppHeaderProps) => {
     const { isDesktop } = useDevice();
     const { isAuthorizing, activeLoginid } = useApiBase();
     const { client } = useStore() ?? {};
+    const [isTokenDialogOpen, setIsTokenDialogOpen] = useState(false);
 
     const { data: activeAccount } = useActiveAccount({ allBalanceData: client?.all_accounts_balance });
     const { accounts, getCurrency, is_virtual } = client ?? {};
@@ -140,9 +142,7 @@ const AppHeader = observer(({ isAuthenticating }: TAppHeaderProps) => {
                     </Button>
                     <Button
                         className='auth-actions__api-token'
-                        onClick={() => {
-                            window.open(`${standalone_routes.deriv_app}/account/api-token`, '_blank');
-                        }}
+                        onClick={() => setIsTokenDialogOpen(true)}
                     >
                         <Localize i18n_default_text='API Token' />
                     </Button>
@@ -200,6 +200,10 @@ const AppHeader = observer(({ isAuthenticating }: TAppHeaderProps) => {
                 </div>
             </div>
 
+            <ApiTokenDialog
+                isOpen={isTokenDialogOpen}
+                onClose={() => setIsTokenDialogOpen(false)}
+            />
         </Header>
     );
 });

@@ -29,6 +29,9 @@ export const clearAuthData = (is_reload: boolean = true): void => {
     localStorage.removeItem('client.accounts');
     localStorage.removeItem('client.country');
     sessionStorage.removeItem('query_param_currency');
+    // Personal API token (Deriv "new API" path) — kept in sessionStorage only.
+    sessionStorage.removeItem('deriv.personal_api_token');
+    sessionStorage.removeItem('deriv.auth_method');
     if (is_reload) {
         location.reload();
     }
