@@ -36,17 +36,8 @@
  */
 
 import Cookies from 'js-cookie';
-import { getAppId, TRADEMASTERS_APP_ID } from '@/components/shared/utils/config/config';
+import { getAppId } from '@/components/shared/utils/config/config';
 import { requestOidcAuthentication, OAuth2Logout } from '@deriv-com/auth-client';
-
-/**
- * The redirect URI registered in the Deriv app dashboard for each app_id.
- * Deriv requires the redirect_uri in the request to exactly match this value —
- * scheme, domain, path, and trailing slash all must match.
- */
-const REGISTERED_REDIRECT_URIS: Record<number, string> = {
-    [TRADEMASTERS_APP_ID]: 'https://trademasters.site/',
-};
 
 export type AuthMode = 'legacy' | 'oidc' | 'auto';
 
@@ -181,20 +172,19 @@ const generateOAuthState = (extra: Record<string, string | undefined> = {}): str
 };
 
 /**
- * Build the legacy OAuth URL using the pattern observed from working
- * Deriv-integrated platforms:
+ * Build the legacy OAuth URL using the pattern requested by the project
+ * owner:
  *
  *   ?app_id=<id>&brand=deriv&redirect=home&state=<nonce>
  *
  * Using `redirect=home` tells Deriv's login portal to redirect to the URL
  * registered in the app's Deriv dashboard after authentication, rather than
- * reading `redirect_uri` from the query string. Deriv's new
- * `home.deriv.com/dashboard/login` portal ignores `redirect_uri` for
- * non-OIDC apps, which is why the old approach failed.
+ * reading `redirect_uri` from the query string. This is the format that
+ * works reliably with Deriv's `home.deriv.com/dashboard/login` portal for
+ * non-OIDC apps.
  */
 export const buildLegacyAuthorizeURL = (opts: LoginOptions = {}): string => {
-    const app_id_num = Number(getAppId());
-    const app_id = String(app_id_num);
+    const app_id = String(Number(getAppId()));
 
     // Pick the right OAuth host for the user's region.
     const host = window.location.hostname;
@@ -204,16 +194,8 @@ export const buildLegacyAuthorizeURL = (opts: LoginOptions = {}): string => {
 
     const url = new URL(`https://${oauth_host}/oauth2/authorize`);
     url.searchParams.set('app_id', app_id);
-    url.searchParams.set('l', 'EN');
     url.searchParams.set('brand', 'deriv');
-
-    // Per Deriv support: send `redirect_uri` (NOT `redirect=home`), and the
-    // value MUST exactly match the URL saved on the Deriv app dashboard
-    // (scheme, domain, path, trailing slash). For our app the registered URL
-    // is `https://trademasters.site/`.
-    const redirect_uri =
-        opts.redirectUri || REGISTERED_REDIRECT_URIS[app_id_num] || `${window.location.origin}/`;
-    url.searchParams.set('redirect_uri', redirect_uri);
+    url.searchParams.set('redirect', 'home');
 
     // Pack affiliate token + (optional) currency hint into the OAuth `state`.
     // Per Deriv support: never put affiliate/UTM data as top-level query params

@@ -6,7 +6,7 @@ import { standalone_routes } from '@/components/shared';
 import Button from '@/components/shared_ui/button';
 import useActiveAccount from '@/hooks/api/account/useActiveAccount';
 import { useOauth2 } from '@/hooks/auth/useOauth2';
-import { generateOAuthURL } from '@/components/shared';
+import { loginWithFallback } from '@/utils/auth-utils';
 import { useFirebaseCountriesConfig } from '@/hooks/firebase/useFirebaseCountriesConfig';
 import { useApiBase } from '@/hooks/useApiBase';
 import { useStore } from '@/hooks/useStore';
@@ -139,10 +139,10 @@ const AppHeader = observer(({ isAuthenticating }: TAppHeaderProps) => {
                     <Button
                         className='auth-actions__login'
                         onClick={() => {
-                            // Always use the configured Trademasters OAuth URL
-                            // so login goes through the project owner's app on
-                            // oauth.deriv.com.
-                            window.location.replace(generateOAuthURL());
+                            // Try the new Deriv OIDC flow first, fall back to
+                            // the legacy oauth.deriv.com URL automatically if
+                            // OIDC is not available for this app.
+                            loginWithFallback();
                         }}
                     >
                         <Localize i18n_default_text='Log in' />
