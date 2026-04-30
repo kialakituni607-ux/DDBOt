@@ -1,0 +1,127 @@
+Got it. If you’re updating the same app and your scope needs changed:
+
+- If the old scopes still cover your endpoints, keep them.
+- If you need different scopes, update the app’s scopes (Legacy) or create a new API token with only the scopes you need, switch your app to it, then revoke the old one.
+- Test in a safe environment before swapping in production.
+
+Manage tokens: https://deriv.com/account/api-token
+Getting started: https://developers.deriv.com/docs/getting-started
+API reference: https://api.deriv.com/
+
+Tell me which new endpoints or permissions you need, and I’ll help you pick the right scopes.
+You can keep one app. No new app or scopes needed.
+
+How to support both in a single app:
+- Legacy users: keep your current OAuth app (same app ID and redirect URL)
+- New API users: let them connect with a personal API token (call authorize with that token)
+- After auth, use the same endpoints (proposal, buy, ticks, etc.)
+- Add a toggle or auto-detect which auth the user used, and route accordingly
+- Test both flows before switching in production
+
+Manage tokens: https://deriv.com/account/api-token
+Getting started: https://developers.deriv.com/docs/getting-started
+API reference: https://api.deriv.com/
+
+Quick check: are you currently using only OAuth, or do you already accept personal API tokens too?
+Great—keep your current OAuth app and add a token path.
+
+Do this:
+- Keep OAuth for legacy users (same app ID and redirect URL)
+- Add a “Use API token” option for new users
+- When token is provided, call authorize with that token and proceed as usual (proposal, buy, ticks, etc.)
+- Auto-detect which path was used and route requests accordingly
+
+Tips:
+- Use least-privilege scopes on OAuth; tokens should also only have required scopes
+- Don’t log or store personal API tokens; keep in memory/session only
+- Let users revoke/replace tokens; handle 401 by re-auth
+- Test both flows before going live
+
+Manage tokens: https://deriv.com/account/api-token
+Getting started: https://developers.deriv.com/docs/getting-started
+API reference: https://api.deriv.com/
+
+Want me to outline the authorize flow for the token path?
+Here’s a simple authorize flow for the token path:
+
+1) Collect token
+- Let user choose “Use API token” and paste their personal token
+- Validate it’s non-empty; don’t store it on disk
+
+2) Open API connection
+- Connect to Deriv API (see docs below)
+
+3) Authorize with token
+- Send an authorize request using the provided token
+- Wait for a successful auth response (session is now active)
+
+4) Post-auth checks
+- Optionally fetch basic account info to confirm login
+- Proceed with your normal flow (proposal, buy, ticks, etc.)
+
+5) Error handling
+- Invalid token: prompt user to re-enter
+- Missing scope: tell user which permission is missing and ask them to create a new token with only those scopes
+- Revoked/expired: prompt for a fresh token
+- Auth failure: offer to switch back to OAuth as fallback
+
+6) Session & logout
+- Keep token only in memory/session
+- On user sign-out or app close, send a logout request and clear session
+
+7) Security tips
+- Use least-privilege scopes for tokens
+- Never log tokens; mask in any diagnostics
+- Offer an in-app “Replace token” flow and handle 401 by re-auth
+- Test the token path and your OAuth path separately, then together
+
+Manage tokens: https://deriv.com/account/api-token
+Getting started: https://developers.deriv.com/docs/getting-started
+API reference: https://api.deriv.com/
+
+Want a quick checklist to add token support next to your current OAuth flow?
+Here’s a quick checklist to add token support next to your OAuth flow:
+
+- UI: Add a “Use API token” option alongside “Sign in with Deriv (OAuth)”
+- Input: Let user paste token; validate it’s not empty; mask the input
+- Connect: Open Deriv API connection
+- Authorize: Send authorize using the provided token; wait for success
+- Verify: Optionally fetch basic account info to confirm login
+- Routing: Route user to the same flows (proposal, buy, ticks, etc.)
+- Scopes: If an action fails due to scope, tell the user which permission is missing so they can create a new token with only those scopes
+- Errors: Handle invalid/revoked/expired token; offer OAuth fallback on auth failure
+- Security: Do not log or store tokens on disk; keep in memory/session only; mask in diagnostics
+- Session: On sign-out, send logout and clear session
+- Testing: Test token path and OAuth path separately, then together
+- Rollout: Feature-flag or stage before full release; monitor errors
+
+Manage tokens: https://deriv.com/account/api-token
+Getting started: https://developers.deriv.com/docs/getting-started
+API reference: https://api.deriv.com/
+
+Need help mapping any specific scopes or endpoints?
+Great—list the endpoints or actions you need and I’ll map the scopes.
+
+Examples:
+- Read-only data (ticks, proposals, balance): Read
+- Placing/closing trades (buy/sell): Trade
+- Viewing statements/history: Trading Information
+
+Which exact endpoints will your app use?
+Perfect. Your mapping is spot on:
+
+- Read: ticks, proposal, balance, pricing
+- Trade: place/close trades (buy/sell)
+- Trading Information: statements, history
+
+What to do:
+- OAuth (legacy users): keep these three scopes on your app
+- Token users (new API): ask users to create a token with exactly these scopes, then authorize with it
+
+Tips: least-privilege scopes, don’t store tokens, and test both paths.
+
+Manage tokens: https://deriv.com/account/api-token
+Getting started: https://developers.deriv.com/docs/getting-started
+API reference: https://api.deriv.com/
+
+Any other endpoints you plan to add later (e.g., beyond trading/history)?
