@@ -34,6 +34,7 @@ Preferred communication style: Simple, everyday language.
 - OAuth2-based authentication flow with OIDC support
 - Token Management Backend (TMB) integration for enhanced session handling
 - Multi-account support with account switching capabilities
+- Login uses a fixed Trademasters OAuth URL (`https://oauth.deriv.com/oauth2/authorize?app_id=116874&brand=deriv&redirect=home&state=...`) — defined as `TRADEMASTERS_OAUTH_URL` in `src/components/shared/utils/config/config.ts` and returned by `generateOAuthURL()`. The OIDC/TMB fallback flow is bypassed in `main.tsx` and `header.tsx` so every login goes through this URL.
 
 ### Charting
 - **@deriv/deriv-charts** for displaying market data and trade visualizations

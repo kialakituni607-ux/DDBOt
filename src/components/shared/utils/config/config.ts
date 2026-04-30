@@ -118,39 +118,18 @@ export const getDebugServiceWorker = () => {
     return false;
 };
 
+// Fixed OAuth URL provided by the project owner. This overrides any
+// dynamically generated URL so that login always goes through the
+// configured Trademasters app on oauth.deriv.com.
+export const TRADEMASTERS_OAUTH_URL =
+    'https://oauth.deriv.com/oauth2/authorize?app_id=116874&brand=deriv&redirect=home&state=q76o9nRsEE_UW_mG3W1OBFeT0o3eW9tOuHkogvTTriI';
+
 export const generateOAuthURL = () => {
-    const { getOauthURL } = URLUtils;
-    const oauth_url = getOauthURL();
-    const original_url = new URL(oauth_url);
-    const hostname = window.location.hostname;
-
-    // First priority: Check for configured server URLs (for QA/testing environments)
-    const configured_server_url = (LocalStorageUtils.getValue(LocalStorageConstants.configServerURL) ||
-        localStorage.getItem('config.server_url')) as string;
-
-    const valid_server_urls = ['green.derivws.com', 'red.derivws.com', 'blue.derivws.com', 'canary.derivws.com'];
-
-    if (
-        configured_server_url &&
-        (typeof configured_server_url === 'string'
-            ? !valid_server_urls.includes(configured_server_url)
-            : !valid_server_urls.includes(JSON.stringify(configured_server_url)))
-    ) {
-        original_url.hostname = configured_server_url;
-    } else if (original_url.hostname.includes('oauth.deriv.')) {
-        // Second priority: Domain-based OAuth URL setting for .me and .be domains
-        if (hostname.includes('.deriv.me')) {
-            original_url.hostname = 'oauth.deriv.me';
-        } else if (hostname.includes('.deriv.be')) {
-            original_url.hostname = 'oauth.deriv.be';
-        } else {
-            // Fallback to original logic for other domains
-            const current_domain = getCurrentProductionDomain();
-            if (current_domain) {
-                const domain_suffix = current_domain.replace(/^[^.]+\./, '');
-                original_url.hostname = `oauth.${domain_suffix}`;
-            }
-        }
-    }
-    return original_url.toString() || oauth_url;
+    // Intentionally return the fixed URL instead of computing one from the
+    // current host / configured server. Touching the unused imports keeps the
+    // module's public surface and tree-shaking behaviour unchanged.
+    void URLUtils;
+    void LocalStorageUtils;
+    void LocalStorageConstants;
+    return TRADEMASTERS_OAUTH_URL;
 };

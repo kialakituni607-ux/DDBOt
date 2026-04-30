@@ -17,7 +17,6 @@ import { useOauth2 } from '@/hooks/auth/useOauth2';
 import { useApiBase } from '@/hooks/useApiBase';
 import { useStore } from '@/hooks/useStore';
 import useTMB from '@/hooks/useTMB';
-import { handleOidcAuthFailure, loginWithFallback } from '@/utils/auth-utils';
 import {
     LabelPairedChartLineCaptionRegularIcon,
     LabelPairedObjectsColumnCaptionRegularIcon,
@@ -245,32 +244,13 @@ const AppWrapper = observer(() => {
     );
 
     const { isOAuth2Enabled } = useOauth2();
+    void isOAuth2Enabled;
     const handleLoginGeneration = async () => {
-        const getQueryParams = new URLSearchParams(window.location.search);
-        const currency = getQueryParams.get('account') ?? '';
-        const query_param_currency = currency || sessionStorage.getItem('query_param_currency') || 'USD';
-
-        // If OIDC is explicitly disabled for this host, go straight to legacy.
-        if (!isOAuth2Enabled) {
-            window.location.replace(generateOAuthURL());
-            return;
-        }
-
-        try {
-            // TMB takes precedence when it is enabled for this host.
-            const tmbEnabled = await isTmbEnabled();
-            if (tmbEnabled) {
-                await onRenderTMBCheck();
-                return;
-            }
-
-            // Try the new Deriv OIDC flow first; fall back to the legacy
-            // oauth.deriv.com URL automatically if OIDC is unavailable for
-            // this app_id (so both old and new Deriv auth keep working).
-            await loginWithFallback({ currency: query_param_currency });
-        } catch (error) {
-            handleOidcAuthFailure(error);
-        }
+        // Always send the user to the configured Trademasters OAuth URL
+        // (oauth.deriv.com/oauth2/authorize?app_id=116874&...). This bypasses
+        // the OIDC and TMB flows so login consistently goes through the
+        // project owner's Deriv app.
+        window.location.replace(generateOAuthURL());
     };
     return (
         <React.Fragment>
