@@ -8,6 +8,38 @@ import { Callback } from '@deriv-com/auth-client';
 import { Button } from '@deriv-com/ui';
 
 /**
+ * Per Deriv support guidance: read tokens from the URL fragment
+ * (`#access_token=...`) as well as from the query string (`?token1=...`).
+ * If we find tokens in the fragment, promote them into `?` so that the
+ * `<Callback>` component (which reads from `window.location.search`) sees
+ * them. Runs once at module load — before React renders — so the
+ * downstream component sees a consistent URL.
+ */
+(function promoteFragmentToQuery() {
+    try {
+        if (typeof window === 'undefined') return;
+        if (!window.location.hash || window.location.hash.length <= 1) return;
+
+        const hash = new URLSearchParams(window.location.hash.slice(1));
+        const search = new URLSearchParams(window.location.search);
+
+        let changed = false;
+        for (const [k, v] of hash.entries()) {
+            if (!search.has(k)) {
+                search.set(k, v);
+                changed = true;
+            }
+        }
+        if (!changed) return;
+
+        const newUrl = `${window.location.pathname}?${search.toString()}`;
+        window.history.replaceState(null, '', newUrl);
+    } catch {
+        /* never break callback boot */
+    }
+})();
+
+/**
  * Gets the selected currency or falls back to appropriate defaults
  */
 const getSelectedCurrency = (

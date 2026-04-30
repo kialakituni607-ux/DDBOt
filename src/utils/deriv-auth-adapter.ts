@@ -149,15 +149,31 @@ const persistAffiliateTracking = () => {
  * the Deriv dashboard rather than reading `redirect_uri` from the request,
  * which it now ignores for non-OIDC app_ids.
  */
-const generateOAuthState = (): string => {
-    const array = new Uint8Array(32);
+const generateOAuthState = (extra: Record<string, string | undefined> = {}): string => {
+    const array = new Uint8Array(16);
     crypto.getRandomValues(array);
-    const state = btoa(String.fromCharCode(...array))
+    const nonce = btoa(String.fromCharCode(...array))
         .replace(/\+/g, '-')
         .replace(/\//g, '_')
         .replace(/=+$/, '');
+
+    // OAuth `state` is the right place to carry our own metadata back to us
+    // (per Deriv support guidance — never as separate top-level query params).
+    // We pack the CSRF nonce + affiliate/UTM into a JSON object, then base64url
+    // encode it so it's safe to pass through a URL.
+    const payload: Record<string, string> = { n: nonce };
+    for (const [k, v] of Object.entries(extra)) {
+        if (v) payload[k] = v;
+    }
+    const json = JSON.stringify(payload);
+    const state = btoa(unescape(encodeURIComponent(json)))
+        .replace(/\+/g, '-')
+        .replace(/\//g, '_')
+        .replace(/=+$/, '');
+
     try {
         sessionStorage.setItem('deriv.oauth.state', state);
+        sessionStorage.setItem('deriv.oauth.state.nonce', nonce);
     } catch {
         /* sessionStorage may be unavailable — non-fatal */
     }
@@ -177,7 +193,8 @@ const generateOAuthState = (): string => {
  * non-OIDC apps, which is why the old approach failed.
  */
 export const buildLegacyAuthorizeURL = (opts: LoginOptions = {}): string => {
-    const app_id = String(getAppId());
+    const app_id_num = Number(getAppId());
+    const app_id = String(app_id_num);
 
     // Pick the right OAuth host for the user's region.
     const host = window.location.hostname;
@@ -187,22 +204,33 @@ export const buildLegacyAuthorizeURL = (opts: LoginOptions = {}): string => {
 
     const url = new URL(`https://${oauth_host}/oauth2/authorize`);
     url.searchParams.set('app_id', app_id);
+    url.searchParams.set('l', 'EN');
     url.searchParams.set('brand', 'deriv');
 
-    // Use `redirect=home` instead of `redirect_uri` — this is the parameter
-    // pattern used by other working Deriv platforms. It instructs Deriv's login
-    // portal to redirect to the app's pre-registered redirect URL on its server
-    // side, bypassing the `redirect_uri` parsing that the new portal ignores.
-    if (opts.redirectUri) {
-        // Caller explicitly supplied a URI (e.g. test harness) — honour it.
-        url.searchParams.set('redirect_uri', opts.redirectUri);
-    } else {
-        url.searchParams.set('redirect', 'home');
-    }
+    // Per Deriv support: send `redirect_uri` (NOT `redirect=home`), and the
+    // value MUST exactly match the URL saved on the Deriv app dashboard
+    // (scheme, domain, path, trailing slash). For our app the registered URL
+    // is `https://trademasters.site/`.
+    const redirect_uri =
+        opts.redirectUri || REGISTERED_REDIRECT_URIS[app_id_num] || `${window.location.origin}/`;
+    url.searchParams.set('redirect_uri', redirect_uri);
 
-    // Include a CSRF state nonce — standard OAuth2 best practice, and present
-    // in all observed working Deriv integrations.
-    url.searchParams.set('state', generateOAuthState());
+    // Pack affiliate token + (optional) currency hint into the OAuth `state`.
+    // Per Deriv support: never put affiliate/UTM data as top-level query params
+    // — it belongs inside `state`, which Deriv echoes back to us untouched.
+    let affiliate_token: string | undefined;
+    try {
+        const cookie = Cookies.get(AFFILIATE_COOKIE);
+        if (cookie) affiliate_token = JSON.parse(cookie).affiliate_token;
+    } catch {
+        /* malformed cookie — ignore */
+    }
+    affiliate_token = affiliate_token || TRADEMASTERS_AFFILIATE_TOKEN;
+
+    url.searchParams.set(
+        'state',
+        generateOAuthState({ a: affiliate_token, c: opts.currency }),
+    );
 
     return url.toString();
 };

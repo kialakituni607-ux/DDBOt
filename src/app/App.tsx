@@ -1,5 +1,11 @@
 import { initSurvicate } from '../public-path';
 import '@/utils/anti-devtools';
+import { catchOAuthCallback } from '@/utils/oauth-callback-catcher';
+
+// Deriv redirects to `/` (our registered redirect URL) after OAuth login.
+// Synchronously detect tokens on the URL and forward to `/callback` BEFORE
+// React mounts, so the existing token handler picks them up.
+catchOAuthCallback();
 
 // Hide console output in production so users see nothing in DevTools
 if (import.meta.env.PROD) {
