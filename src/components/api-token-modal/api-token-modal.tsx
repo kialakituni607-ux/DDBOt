@@ -23,11 +23,11 @@ const ApiTokenModal = ({ onClose }: Props) => {
             const api = new DerivAPIBasic({ connection: ws });
 
             const resp: any = await api.authorize(trimmed);
-            try { api.disconnect(); } catch { /* ignore */ }
 
             if (resp?.error) {
                 setError(resp.error.message || 'Authorization failed. Check your token has Read & Trade permissions.');
                 setLoading(false);
+                try { api.disconnect(); } catch { /* ignore */ }
                 return;
             }
 
@@ -38,8 +38,22 @@ const ApiTokenModal = ({ onClose }: Props) => {
                     'Make sure the token has Read and Trade permissions enabled.'
                 );
                 setLoading(false);
+                try { api.disconnect(); } catch { /* ignore */ }
                 return;
             }
+
+            // Fetch real balance for the authorized account
+            let realBalance = auth.balance ?? 0;
+            let realCurrency = auth.currency || 'USD';
+            try {
+                const balResp: any = await api.balance({ balance: 1, account: 'current' });
+                if (balResp?.balance?.balance !== undefined) {
+                    realBalance = balResp.balance.balance;
+                    realCurrency = balResp.balance.currency || realCurrency;
+                }
+            } catch { /* ignore, use auth.balance */ }
+
+            try { api.disconnect(); } catch { /* ignore */ }
 
             const accounts: any[] = auth.account_list || [];
 
@@ -47,36 +61,50 @@ const ApiTokenModal = ({ onClose }: Props) => {
             const real = accounts.find((a: any) => !a.is_virtual) || accounts[0];
             const activeLoginid = real?.loginid || auth.loginid;
 
-            // accountsList: { [loginid]: token }  — read by V2GetActiveClientId
+            // accountsList: { [loginid]: token } — each account uses its OWN token from account_list
             const accountsList: Record<string, string> = {};
-            // clientAccounts: { [loginid]: { loginid, token, currency } } — read by hydrateFromLocalStorage
-            const clientAccounts: Record<string, { loginid: string; token: string; currency: string }> = {};
+            // clientAccounts: full details per loginid
+            const clientAccounts: Record<string, { loginid: string; token: string; currency: string; balance?: string }> = {};
 
             accounts.forEach((acc: any) => {
-                accountsList[acc.loginid] = trimmed;
+                // Deriv returns each account's real token in acc.token
+                const accToken = acc.token || trimmed;
+                accountsList[acc.loginid] = accToken;
                 clientAccounts[acc.loginid] = {
                     loginid: acc.loginid,
-                    token: trimmed,
+                    token: accToken,
                     currency: acc.currency || 'USD',
+                    // balance only known for the active account
+                    balance: acc.loginid === (real?.loginid || auth.loginid)
+                        ? String(realBalance)
+                        : undefined,
                 };
             });
 
-            // Fallback: if account_list was empty, store just the authorized account
+            // Fallback: if account_list was empty
             if (accounts.length === 0) {
                 accountsList[auth.loginid] = trimmed;
                 clientAccounts[auth.loginid] = {
                     loginid: auth.loginid,
                     token: trimmed,
-                    currency: auth.currency || 'USD',
+                    currency: realCurrency,
+                    balance: String(realBalance),
                 };
             }
 
-            localStorage.setItem('authToken', trimmed);
+            // Store in the format the Deriv Bot store reads on startup
+            localStorage.setItem('authToken', real?.token || trimmed);
             localStorage.setItem('active_loginid', activeLoginid);
             localStorage.setItem('accountsList', JSON.stringify(accountsList));
             localStorage.setItem('clientAccounts', JSON.stringify(clientAccounts));
             localStorage.setItem('client_account_details', JSON.stringify(accounts));
             localStorage.setItem('client.country', auth.country || '');
+
+            // Store balance info so the header shows the real balance immediately
+            localStorage.setItem(
+                `balance_${activeLoginid}`,
+                JSON.stringify({ balance: realBalance, currency: realCurrency })
+            );
 
             window.location.reload();
         } catch (e: any) {
@@ -131,8 +159,8 @@ const ApiTokenModal = ({ onClose }: Props) => {
                 </div>
 
                 <p className='atm__footer'>
-                    Your token is kept only for this browser tab and never stored on our servers.
-                    Sign out (or close the tab) to clear it.
+                    Your token is kept only in this browser and never stored on our servers.
+                    Sign out (or clear browser data) to remove it.
                 </p>
             </div>
         </div>
