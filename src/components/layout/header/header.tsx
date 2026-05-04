@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import clsx from 'clsx';
 import ApiTokenModal from '@/components/api-token-modal/api-token-modal';
 import { observer } from 'mobx-react-lite';
@@ -7,6 +7,7 @@ import { standalone_routes } from '@/components/shared';
 import Button from '@/components/shared_ui/button';
 import useActiveAccount from '@/hooks/api/account/useActiveAccount';
 import { useOauth2 } from '@/hooks/auth/useOauth2';
+import { loginWithFallback } from '@/utils/auth-utils';
 import { useFirebaseCountriesConfig } from '@/hooks/firebase/useFirebaseCountriesConfig';
 import { useApiBase } from '@/hooks/useApiBase';
 import { useStore } from '@/hooks/useStore';
@@ -18,6 +19,9 @@ import { Tooltip } from '@deriv-com/ui';
 import { AppLogo } from '../app-logo';
 import AccountsInfoLoader from './account-info-loader';
 import AccountSwitcher from './account-switcher';
+import ApiTokenDialog from './api-token-dialog';
+import { OPEN_API_TOKEN_DIALOG_EVENT } from './token-auth-banner';
+import AuthModeSwitcher from './auth-mode-switcher';
 import MenuItems from './menu-items';
 import MobileMenu from './mobile-menu';
 import './header.scss';
@@ -31,6 +35,13 @@ const AppHeader = observer(({ isAuthenticating }: TAppHeaderProps) => {
     const { isDesktop } = useDevice();
     const { isAuthorizing, activeLoginid } = useApiBase();
     const { client } = useStore() ?? {};
+    const [isTokenDialogOpen, setIsTokenDialogOpen] = useState(false);
+
+    useEffect(() => {
+        const open = () => setIsTokenDialogOpen(true);
+        window.addEventListener(OPEN_API_TOKEN_DIALOG_EVENT, open);
+        return () => window.removeEventListener(OPEN_API_TOKEN_DIALOG_EVENT, open);
+    }, []);
 
     const { data: activeAccount } = useActiveAccount({ allBalanceData: client?.all_accounts_balance });
     const { accounts, getCurrency, is_virtual } = client ?? {};
@@ -126,11 +137,14 @@ const AppHeader = observer(({ isAuthenticating }: TAppHeaderProps) => {
         } else {
             return (
                 <div className='auth-actions'>
+                    {isDesktop && <AuthModeSwitcher />}
                     <Button
                         className='auth-actions__login'
                         onClick={() => {
-                            window.location.href =
-                                'https://oauth.deriv.com/oauth2/authorize?app_id=116874&l=EN&brand=deriv&affiliate_token=_AmUk5tNdldlMjdsyM5hasGNd7ZgqdRLk&utm_campaign=myaffiliates';
+                            // Try the new Deriv OIDC flow first, fall back to
+                            // the legacy oauth.deriv.com URL automatically if
+                            // OIDC is not available for this app.
+                            loginWithFallback();
                         }}
                     >
                         <Localize i18n_default_text='Log in' />
@@ -197,6 +211,10 @@ const AppHeader = observer(({ isAuthenticating }: TAppHeaderProps) => {
                 </div>
             </div>
 
+            <ApiTokenDialog
+                isOpen={isTokenDialogOpen}
+                onClose={() => setIsTokenDialogOpen(false)}
+            />
         </Header>
         </>
     );

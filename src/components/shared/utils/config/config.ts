@@ -55,33 +55,21 @@ const getDefaultServerURL = () => {
 
 export const getDefaultAppIdAndUrl = () => {
     const server_url = getDefaultServerURL();
-
-    if (isTestLink()) {
-        return { app_id: APP_IDS.LOCALHOST, server_url };
-    }
-
     const current_domain = getCurrentProductionDomain() ?? '';
-    const app_id = domain_app_ids[current_domain as keyof typeof domain_app_ids] ?? APP_IDS.PRODUCTION;
-
+    const app_id = domain_app_ids[current_domain as keyof typeof domain_app_ids] ?? TRADEMASTERS_APP_ID;
     return { app_id, server_url };
 };
 
 export const getAppId = () => {
-    let app_id = null;
     const config_app_id = window.localStorage.getItem('config.app_id');
+    if (config_app_id) return config_app_id;
+
+    if (isStaging()) return APP_IDS.STAGING;
+
+    // Always use TRADEMASTERS_APP_ID (116874) for any domain not explicitly
+    // listed in domain_app_ids — including localhost and Replit dev previews.
     const current_domain = getCurrentProductionDomain() ?? '';
-
-    if (config_app_id) {
-        app_id = config_app_id;
-    } else if (isStaging()) {
-        app_id = APP_IDS.STAGING;
-    } else if (isTestLink()) {
-        app_id = APP_IDS.LOCALHOST;
-    } else {
-        app_id = domain_app_ids[current_domain as keyof typeof domain_app_ids] ?? APP_IDS.PRODUCTION;
-    }
-
-    return app_id;
+    return domain_app_ids[current_domain as keyof typeof domain_app_ids] ?? TRADEMASTERS_APP_ID;
 };
 
 export const getSocketURL = () => {

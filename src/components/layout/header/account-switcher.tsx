@@ -14,6 +14,7 @@ import { localize } from '@deriv-com/translations';
 import { AccountSwitcher as UIAccountSwitcher, Loader, useDevice } from '@deriv-com/ui';
 import DemoAccounts from './common/demo-accounts';
 import RealAccounts from './common/real-accounts';
+import TokenAuthBanner from './token-auth-banner';
 import { TAccountSwitcher, TAccountSwitcherProps, TModifiedAccount } from './common/types';
 import { LOW_RISK_COUNTRIES } from './utils';
 import './account-switcher.scss';
@@ -56,6 +57,7 @@ const RenderAccountItems = ({
     if (is_virtual) {
         return (
             <>
+                <TokenAuthBanner />
                 <DemoAccounts
                     modifiedVRTCRAccountList={modifiedVRTCRAccountList as TModifiedAccount[]}
                     switchAccount={switchAccount}
@@ -69,19 +71,22 @@ const RenderAccountItems = ({
         );
     } else {
         return (
-            <RealAccounts
-                modifiedCRAccountList={modifiedCRAccountList as TModifiedAccount[]}
-                modifiedMFAccountList={modifiedMFAccountList as TModifiedAccount[]}
-                switchAccount={switchAccount}
-                isVirtual={is_virtual}
-                tabs_labels={tabs_labels}
-                is_low_risk_country={is_low_risk_country}
-                oAuthLogout={oAuthLogout}
-                loginid={activeLoginId}
-                is_logging_out={client.is_logging_out}
-                upgradeable_landing_companies={client?.landing_companies?.all_company ?? null}
-                residence={residence}
-            />
+            <>
+                <TokenAuthBanner />
+                <RealAccounts
+                    modifiedCRAccountList={modifiedCRAccountList as TModifiedAccount[]}
+                    modifiedMFAccountList={modifiedMFAccountList as TModifiedAccount[]}
+                    switchAccount={switchAccount}
+                    isVirtual={is_virtual}
+                    tabs_labels={tabs_labels}
+                    is_low_risk_country={is_low_risk_country}
+                    oAuthLogout={oAuthLogout}
+                    loginid={activeLoginId}
+                    is_logging_out={client.is_logging_out}
+                    upgradeable_landing_companies={client?.landing_companies?.all_company ?? null}
+                    residence={residence}
+                />
+            </>
         );
     }
 };

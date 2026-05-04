@@ -21,6 +21,10 @@
     {
       "source": "/bots/(.*)",
       "destination": "/api/blocked"
+    },
+    {
+      "source": "/((?!static|assets|js|favicon|manifest|sw\\.js|offline\\.html).*)",
+      "destination": "/index.html"
     }
   ]
 }

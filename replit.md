@@ -34,6 +34,7 @@ Preferred communication style: Simple, everyday language.
 - OAuth2-based authentication flow with OIDC support
 - Token Management Backend (TMB) integration for enhanced session handling
 - Multi-account support with account switching capabilities
+- Legacy OAuth URL format (built by `buildLegacyAuthorizeURL` in `src/utils/deriv-auth-adapter.ts`) uses `?app_id=<id>&brand=deriv&redirect=home&state=<nonce>` instead of `redirect_uri=...`, so Deriv's login portal redirects to the URL registered in the Deriv app dashboard after authentication.
 
 ### Charting
 - **@deriv/deriv-charts** for displaying market data and trade visualizations

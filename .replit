@@ -31,7 +31,7 @@ outputType = "webview"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "npx rsbuild dev"
+args = "node_modules/.bin/rsbuild dev"
 waitForPort = 5000
 
 [[workflows.workflow]]
