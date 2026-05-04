@@ -37,6 +37,7 @@ import './main.scss';
 const ChartWrapper = lazy(() => import('../chart/chart-wrapper'));
 const Tutorial = lazy(() => import('../tutorials'));
 const FreeBots = lazy(() => import('../free-bots'));
+const CopyTrading = lazy(() => import('../copy-trading'));
 const AnalysisTool = lazy(() => import('../analysis-tool'));
 const SmartAnalyser = lazy(() => import('../smart-analyser'));
 const EntryScanner = lazy(() => import('../entry-scanner'));
@@ -72,7 +73,7 @@ const AppWrapper = observer(() => {
     const { clear } = summary_card;
     const { DASHBOARD, BOT_BUILDER } = DBOT_TABS;
     const init_render = React.useRef(true);
-    const hash = ['dashboard', 'bot_builder', 'chart', 'tutorial', 'entry_scanner', 'free_bots', 'analysis_tool', 'smart_analyser', 'antipoverty_ai'];
+    const hash = ['dashboard', 'bot_builder', 'chart', 'tutorial', 'entry_scanner', 'free_bots', 'copy_trading', 'analysis_tool', 'smart_analyser', 'antipoverty_ai'];
     const { isDesktop } = useDevice();
     const location = useLocation();
     const navigate = useNavigate();
@@ -411,6 +412,29 @@ const AppWrapper = observer(() => {
                                         }
                                     >
                                         <FreeBots />
+                                    </Suspense>
+                                </div>
+                            </div>
+                            <div
+                                label={
+                                    <>
+                                        <LabelPairedObjectsColumnCaptionRegularIcon
+                                            height='24px'
+                                            width='24px'
+                                            fill='var(--text-general)'
+                                        />
+                                        <Localize i18n_default_text='Copy Trading' />
+                                    </>
+                                }
+                                id='id-copy-trading'
+                            >
+                                <div className='copy-trading-wrapper'>
+                                    <Suspense
+                                        fallback={
+                                            <ChunkLoader message={localize('Please wait, loading Copy Trading...')} />
+                                        }
+                                    >
+                                        <CopyTrading />
                                     </Suspense>
                                 </div>
                             </div>

@@ -97,6 +97,12 @@ export const MenuItems: MenuItemsConfig[] = [
     },
     {
         as: 'a',
+        href: standalone_routes.copy_trading,
+        icon: <AnalyticsLogo iconSize='xs' />,
+        label: localize('Copy Trading'),
+    },
+    {
+        as: 'a',
         href: standalone_routes.analysis_tool,
         icon: <AnalyticsLogo iconSize='xs' />,
         label: localize('Analysis Tool'),

@@ -1,0 +1,285 @@
+.ct {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    padding: 1.6rem 1.6rem 4rem;
+    background: #fff;
+    min-height: 100%;
+    max-width: 900px;
+    margin: 0 auto;
+    width: 100%;
+
+    @media (max-width: 600px) {
+        padding: 1rem 0.8rem 3rem;
+    }
+
+    /* ── Top card: Start Demo to Real + Tutorial ── */
+    &__top-card {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        background: #fff;
+        border: 1px solid #e8e8e8;
+        border-radius: 0.6rem;
+        padding: 1.2rem 1.6rem;
+        margin-bottom: 0;
+    }
+
+    &__start-btn {
+        background: #27ae60;
+        color: #fff;
+        border: none;
+        border-radius: 0.4rem;
+        padding: 0.75rem 1.4rem;
+        font-size: 1.05rem;
+        font-weight: 700;
+        cursor: pointer;
+        transition: background 0.2s;
+
+        &:hover { background: #219a52; }
+        &:disabled { opacity: 0.6; cursor: not-allowed; }
+    }
+
+    &__tutorial-btn {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.2rem;
+        text-decoration: none;
+        color: #e74c3c;
+        font-size: 0.85rem;
+        font-weight: 600;
+    }
+
+    &__yt-icon {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 3.2rem;
+        height: 2.4rem;
+        background: #e74c3c;
+        border-radius: 0.35rem;
+        color: #fff;
+        font-size: 1.1rem;
+    }
+
+    &__tutorial-label {
+        color: #666;
+        font-size: 0.8rem;
+    }
+
+    /* ── Master account dark bar ── */
+    &__master-bar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        background: #1a2a5e;
+        color: #fff;
+        border-radius: 0;
+        padding: 1rem 1.6rem;
+        font-size: 1.1rem;
+        font-weight: 700;
+        letter-spacing: 0.05em;
+    }
+
+    &__master-id {
+        font-size: 1.1rem;
+        font-weight: 800;
+        letter-spacing: 0.1em;
+    }
+
+    &__master-stars {
+        color: #f1c40f;
+        font-size: 1.3rem;
+        letter-spacing: 0.1em;
+    }
+
+    /* ── Status message ── */
+    &__status {
+        background: #f8f9ff;
+        border-left: 3px solid #aaa;
+        padding: 0.75rem 1.2rem;
+        font-size: 1rem;
+        color: #555;
+        margin: 0.8rem 0;
+        border-radius: 0 0.4rem 0.4rem 0;
+
+        &--live {
+            border-left-color: #27ae60;
+            background: #f0fff4;
+            color: #1a6b3a;
+        }
+    }
+
+    /* ── Section separator ── */
+    &__section-label {
+        font-size: 1rem;
+        color: #999;
+        padding: 1rem 0 0.6rem;
+        border-top: 1px solid #eee;
+        margin-top: 0.4rem;
+    }
+
+    /* ── Add card ── */
+    &__add-card {
+        border: 1px solid #e8e8e8;
+        border-radius: 0.6rem;
+        padding: 1.4rem 1.6rem;
+        background: #fff;
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    &__input-row {
+        display: flex;
+        gap: 0.6rem;
+        align-items: center;
+
+        @media (max-width: 500px) {
+            flex-wrap: wrap;
+        }
+    }
+
+    &__input {
+        flex: 1;
+        padding: 0.85rem 1rem;
+        border: 1.5px solid #ddd;
+        border-radius: 0.4rem;
+        font-size: 1rem;
+        outline: none;
+        color: #1a1a2e;
+
+        &:focus { border-color: #2A2E9B; }
+        &:disabled { background: #f5f5f5; }
+
+        &::placeholder { color: #bbb; }
+    }
+
+    &__btn {
+        padding: 0.85rem 1.4rem;
+        border: none;
+        border-radius: 0.4rem;
+        font-size: 1rem;
+        font-weight: 700;
+        cursor: pointer;
+        white-space: nowrap;
+        transition: background 0.2s;
+
+        &:disabled { opacity: 0.55; cursor: not-allowed; }
+
+        &--add {
+            background: #27ae60;
+            color: #fff;
+            &:hover:not(:disabled) { background: #219a52; }
+        }
+
+        &--sync {
+            background: #27ae60;
+            color: #fff;
+            &:hover:not(:disabled) { background: #219a52; }
+        }
+    }
+
+    &__add-error {
+        color: #c0392b;
+        font-size: 0.95rem;
+        background: #fff0f0;
+        border: 1px solid #fbb;
+        border-radius: 0.4rem;
+        padding: 0.7rem 1rem;
+    }
+
+    &__add-footer {
+        display: flex;
+        align-items: center;
+        gap: 1.2rem;
+    }
+
+    &__start-copy-btn {
+        background: #27ae60;
+        color: #fff;
+        border: none;
+        border-radius: 0.4rem;
+        padding: 0.85rem 1.8rem;
+        font-size: 1.05rem;
+        font-weight: 700;
+        cursor: pointer;
+        transition: background 0.2s;
+
+        &:hover:not(:disabled) { background: #219a52; }
+        &:disabled { opacity: 0.55; cursor: not-allowed; }
+    }
+
+    &__yt-small {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 2.8rem;
+        height: 2rem;
+        background: #e74c3c;
+        border-radius: 0.3rem;
+        color: #fff;
+        text-decoration: none;
+        font-size: 1rem;
+
+        &:hover { background: #c0392b; }
+    }
+
+    /* ── Clients list card ── */
+    &__clients-card {
+        border: 1px solid #e8e8e8;
+        border-radius: 0.6rem;
+        padding: 1.4rem 1.6rem;
+        background: #fff;
+        margin-top: 1rem;
+        min-height: 8rem;
+    }
+
+    &__clients-count {
+        font-size: 1rem;
+        color: #27ae60;
+        font-weight: 600;
+        margin-bottom: 1rem;
+
+        strong { color: #27ae60; }
+    }
+
+    &__clients-empty {
+        color: #aaa;
+        font-size: 0.95rem;
+    }
+
+    &__clients-list {
+        display: flex;
+        flex-direction: column;
+        gap: 0.6rem;
+    }
+
+    &__client {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        background: #f8f9ff;
+        border-radius: 0.4rem;
+        padding: 0.8rem 1.2rem;
+        font-size: 1rem;
+        font-weight: 600;
+
+        &--error { background: #fff5f5; }
+
+        &-id    { flex: 1; color: #1a2a5e; letter-spacing: 0.06em; }
+        &-currency { color: #888; font-size: 0.9rem; min-width: 3.5rem; }
+        &-balance { color: #27ae60; font-weight: 700; min-width: 6rem; text-align: right; }
+
+        &-dot {
+            width: 0.8rem;
+            height: 0.8rem;
+            border-radius: 50%;
+            flex-shrink: 0;
+
+            &--connected { background: #27ae60; }
+            &--error     { background: #e74c3c; }
+        }
+    }
+}
