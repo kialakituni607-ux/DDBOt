@@ -149,7 +149,7 @@ class APIBase {
             const cachedClientAccountsRaw = localStorage.getItem('clientAccounts') || '{}';
             const cachedClientAccounts = JSON.parse(cachedClientAccountsRaw) as Record<
                 string,
-                { loginid: string; token: string; currency: string }
+                { loginid: string; token: string; currency: string; balance?: string }
             >;
             const entries = Object.values(cachedClientAccounts);
             if (!cachedActiveLoginid || entries.length === 0) return false;
@@ -168,6 +168,22 @@ class APIBase {
                 loginid: cachedActiveLoginid,
                 account_list: cached_account_list,
             } as unknown as TAuthData);
+
+            // Pre-seed balance from cached data so the header shows the real
+            // balance immediately without waiting for the WS subscription.
+            const cachedBalanceAccounts: Record<string, { balance: number; currency: string }> = {};
+            entries.forEach(info => {
+                if (info.balance !== undefined && info.currency) {
+                    cachedBalanceAccounts[info.loginid] = {
+                        balance: parseFloat(info.balance) || 0,
+                        currency: info.currency,
+                    };
+                }
+            });
+            if (Object.keys(cachedBalanceAccounts).length > 0) {
+                globalObserver.emit('balance.update', { accounts: cachedBalanceAccounts });
+            }
+
             return true;
         } catch (e) {
             console.error('[api-base] hydrateFromLocalStorage failed:', e);
@@ -247,6 +263,27 @@ class APIBase {
             this.is_authorized = true;
             localStorage.setItem('client_account_details', JSON.stringify(authorize?.account_list));
             localStorage.setItem('client.country', authorize?.country);
+
+            // Immediately emit the balance from the authorize response so the
+            // header shows the real balance before the balance subscription fires.
+            if (authorize?.loginid && authorize?.balance !== undefined && authorize?.currency) {
+                globalObserver.emit('balance.update', {
+                    accounts: {
+                        [authorize.loginid]: {
+                            balance: authorize.balance,
+                            currency: authorize.currency,
+                        },
+                    },
+                });
+                // Also update clientAccounts cache with the fresh balance.
+                try {
+                    const clientAccounts = JSON.parse(localStorage.getItem('clientAccounts') || '{}');
+                    if (clientAccounts[authorize.loginid]) {
+                        clientAccounts[authorize.loginid].balance = String(authorize.balance);
+                        localStorage.setItem('clientAccounts', JSON.stringify(clientAccounts));
+                    }
+                } catch { /* ignore */ }
+            }
 
             if (this.has_active_symbols) {
                 this.toggleRunButton(false);

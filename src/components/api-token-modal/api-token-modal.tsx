@@ -42,69 +42,59 @@ const ApiTokenModal = ({ onClose }: Props) => {
                 return;
             }
 
-            // Fetch real balance for the authorized account
-            let realBalance = auth.balance ?? 0;
-            let realCurrency = auth.currency || 'USD';
+            // The loginid Deriv authorized us as — this is the account the token belongs to
+            const authorizedLoginid = auth.loginid;
+            const authorizedBalance = auth.balance ?? 0;
+            const authorizedCurrency = auth.currency || 'USD';
+
+            // Try to get a more precise balance from the balance endpoint
+            let realBalance = authorizedBalance;
             try {
-                const balResp: any = await api.balance({ balance: 1, account: 'current' });
-                if (balResp?.balance?.balance !== undefined) {
+                const balResp: any = await api.balance({ balance: 1, account: 'all' });
+                if (balResp?.balance?.accounts?.[authorizedLoginid]?.balance !== undefined) {
+                    realBalance = balResp.balance.accounts[authorizedLoginid].balance;
+                } else if (balResp?.balance?.balance !== undefined) {
                     realBalance = balResp.balance.balance;
-                    realCurrency = balResp.balance.currency || realCurrency;
                 }
-            } catch { /* ignore, use auth.balance */ }
+            } catch { /* use auth.balance fallback */ }
 
             try { api.disconnect(); } catch { /* ignore */ }
 
             const accounts: any[] = auth.account_list || [];
 
-            // Prefer real (non-virtual) account as the active one
-            const real = accounts.find((a: any) => !a.is_virtual) || accounts[0];
-            const activeLoginid = real?.loginid || auth.loginid;
-
-            // accountsList: { [loginid]: token } — each account uses its OWN token from account_list
+            // accountsList: { [loginid]: token } — all accounts map to the pasted token
+            // (Deriv API tokens are account-specific; the authorize response doesn't expose
+            //  per-account tokens, so the same token is used for all linked accounts)
             const accountsList: Record<string, string> = {};
-            // clientAccounts: full details per loginid
             const clientAccounts: Record<string, { loginid: string; token: string; currency: string; balance?: string }> = {};
 
+            // Always include the authorized account first
+            accountsList[authorizedLoginid] = trimmed;
+            clientAccounts[authorizedLoginid] = {
+                loginid: authorizedLoginid,
+                token: trimmed,
+                currency: authorizedCurrency,
+                balance: String(realBalance),
+            };
+
+            // Include all other linked accounts from account_list
             accounts.forEach((acc: any) => {
-                // Deriv returns each account's real token in acc.token
-                const accToken = acc.token || trimmed;
-                accountsList[acc.loginid] = accToken;
+                if (acc.loginid === authorizedLoginid) return; // already added
+                accountsList[acc.loginid] = trimmed;
                 clientAccounts[acc.loginid] = {
                     loginid: acc.loginid,
-                    token: accToken,
+                    token: trimmed,
                     currency: acc.currency || 'USD',
-                    // balance only known for the active account
-                    balance: acc.loginid === (real?.loginid || auth.loginid)
-                        ? String(realBalance)
-                        : undefined,
                 };
             });
 
-            // Fallback: if account_list was empty
-            if (accounts.length === 0) {
-                accountsList[auth.loginid] = trimmed;
-                clientAccounts[auth.loginid] = {
-                    loginid: auth.loginid,
-                    token: trimmed,
-                    currency: realCurrency,
-                    balance: String(realBalance),
-                };
-            }
-
-            // Store in the format the Deriv Bot store reads on startup
-            localStorage.setItem('authToken', real?.token || trimmed);
-            localStorage.setItem('active_loginid', activeLoginid);
+            // active_loginid = the account Deriv actually authorized (matches the token)
+            localStorage.setItem('authToken', trimmed);
+            localStorage.setItem('active_loginid', authorizedLoginid);
             localStorage.setItem('accountsList', JSON.stringify(accountsList));
             localStorage.setItem('clientAccounts', JSON.stringify(clientAccounts));
             localStorage.setItem('client_account_details', JSON.stringify(accounts));
             localStorage.setItem('client.country', auth.country || '');
-
-            // Store balance info so the header shows the real balance immediately
-            localStorage.setItem(
-                `balance_${activeLoginid}`,
-                JSON.stringify({ balance: realBalance, currency: realCurrency })
-            );
 
             window.location.reload();
         } catch (e: any) {
@@ -121,12 +111,12 @@ const ApiTokenModal = ({ onClose }: Props) => {
                 <h2 className='atm__title'>Sign in with API token</h2>
 
                 <p className='atm__desc'>
-                    Don't have a token?{' '}
+                    Create a token at{' '}
                     <a href='https://app.deriv.com/account/api-token' target='_blank' rel='noreferrer' className='atm__link'>
-                        Create one on Deriv
+                        app.deriv.com → API Token
                     </a>{' '}
-                    with at least <strong>Read</strong> and <strong>Trade</strong> permissions (add{' '}
-                    <strong>Trading information</strong> for statements/history).
+                    while logged into your <strong>real account</strong> with{' '}
+                    <strong>Read</strong> and <strong>Trade</strong> permissions.
                 </p>
 
                 <label className='atm__label'>API TOKEN</label>
@@ -159,8 +149,7 @@ const ApiTokenModal = ({ onClose }: Props) => {
                 </div>
 
                 <p className='atm__footer'>
-                    Your token is kept only in this browser and never stored on our servers.
-                    Sign out (or clear browser data) to remove it.
+                    Your token is stored only in this browser and never sent to our servers.
                 </p>
             </div>
         </div>
