@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useCopyTrading } from '@/context/copy-trading-context';
 import './copy-trading.scss';
 
@@ -7,16 +7,21 @@ function maskLoginid(id: string) {
     return id.slice(0, 2) + '*'.repeat(Math.max(id.length - 2, 3));
 }
 
+function fmtTime(d: Date) {
+    return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+}
+
 const CopyTrading: React.FC = () => {
     const masterLoginid = localStorage.getItem('active_loginid') || '';
 
     const {
-        clients, running, statusMsg, addingClient, addError,
-        addClient, removeClient, toggleSelect, removeSelected,
+        clients, running, statusMsg, addingClient, addError, tradeLog,
+        clearLog, addClient, removeClient, toggleSelect, removeSelected,
         syncClients, startCopyTrading, stopCopyTrading, clearAddError,
     } = useCopyTrading();
 
     const [clientInput, setClientInput] = useState('');
+    const logEndRef = useRef<HTMLDivElement>(null);
 
     const handleAdd = async () => {
         const trimmed = clientInput.trim();
@@ -27,6 +32,11 @@ const CopyTrading: React.FC = () => {
     };
 
     const hasSelected = clients.some(c => c.selected);
+
+    // Auto-scroll log to top (newest entry) when new entries arrive
+    useEffect(() => {
+        logEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }, [tradeLog.length]);
 
     return (
         <div className='ct'>
@@ -53,7 +63,11 @@ const CopyTrading: React.FC = () => {
             {/* ── Master account bar ───────────────────────── */}
             {masterLoginid && (
                 <div className='ct__master-bar'>
-                    <span className='ct__master-id'>{maskLoginid(masterLoginid)}</span>
+                    <div className='ct__master-left'>
+                        {running && <span className='ct__live-pulse' />}
+                        <span className='ct__master-id'>{maskLoginid(masterLoginid)}</span>
+                        {running && <span className='ct__live-badge'>LIVE</span>}
+                    </div>
                     <span className='ct__master-stars'>★★★★★</span>
                 </div>
             )}
@@ -105,14 +119,7 @@ const CopyTrading: React.FC = () => {
                     >
                         {running ? '⏹ Stop Copy Trading' : '▶ Start Copy Trading'}
                     </button>
-                    <a
-                        className='ct__yt-small'
-                        href='https://www.youtube.com/'
-                        target='_blank'
-                        rel='noreferrer'
-                    >
-                        ▶
-                    </a>
+                    <a className='ct__yt-small' href='https://www.youtube.com/' target='_blank' rel='noreferrer'>▶</a>
                 </div>
             </div>
 
@@ -138,7 +145,6 @@ const CopyTrading: React.FC = () => {
                                 key={c.loginid}
                                 className={`ct__client ct__client--${c.status}${c.selected ? ' ct__client--selected' : ''}`}
                             >
-                                {/* Checkbox */}
                                 {!running && (
                                     <input
                                         type='checkbox'
@@ -147,19 +153,12 @@ const CopyTrading: React.FC = () => {
                                         onChange={() => toggleSelect(c.loginid)}
                                     />
                                 )}
-
                                 <span className='ct__client-id'>{maskLoginid(c.loginid)}</span>
                                 <span className='ct__client-currency'>{c.currency}</span>
                                 <span className='ct__client-balance'>{c.balance}</span>
                                 <span className={`ct__client-dot ct__client-dot--${c.status}`} title={c.status} />
-
-                                {/* Individual remove button */}
                                 {!running && (
-                                    <button
-                                        className='ct__client-remove'
-                                        onClick={() => removeClient(c.loginid)}
-                                        title='Remove'
-                                    >
+                                    <button className='ct__client-remove' onClick={() => removeClient(c.loginid)} title='Remove'>
                                         ✕
                                     </button>
                                 )}
@@ -167,6 +166,61 @@ const CopyTrading: React.FC = () => {
                         ))}
                     </div>
                 )}
+            </div>
+
+            {/* ── Live Trade Log ──────────────────────────── */}
+            <div className='ct__log-card'>
+                <div className='ct__log-header'>
+                    <span className='ct__log-title'>
+                        Live Trade Log
+                        {tradeLog.length > 0 && (
+                            <span className='ct__log-count'>{tradeLog.length}</span>
+                        )}
+                    </span>
+                    {tradeLog.length > 0 && (
+                        <button className='ct__log-clear' onClick={clearLog}>Clear</button>
+                    )}
+                </div>
+
+                <div className='ct__log-body'>
+                    {tradeLog.length === 0 ? (
+                        <div className='ct__log-empty'>
+                            {running
+                                ? 'Waiting for master to place a trade…'
+                                : 'No trades recorded yet. Start copy trading to see live activity here.'}
+                        </div>
+                    ) : (
+                        <>
+                            {tradeLog.map(entry => (
+                                <div key={entry.id} className={`ct__log-entry ct__log-entry--${entry.type}`}>
+                                    <span className='ct__log-time'>{fmtTime(entry.timestamp)}</span>
+                                    <span className={`ct__log-badge ct__log-badge--${entry.type}`}>
+                                        {entry.type === 'success' && '✓ Copied'}
+                                        {entry.type === 'error'   && '✗ Failed'}
+                                        {entry.type === 'master'  && '⬆ Master'}
+                                        {entry.type === 'info'    && 'ℹ Info'}
+                                    </span>
+                                    <span className='ct__log-body-text'>
+                                        {entry.clientLoginid && (
+                                            <span className='ct__log-client'>{maskLoginid(entry.clientLoginid)}</span>
+                                        )}
+                                        {entry.contractType && entry.symbol && (
+                                            <span className='ct__log-trade'>
+                                                {entry.contractType} · {entry.symbol}
+                                                {entry.stake !== undefined && ` · ${entry.stake} ${entry.currency || 'USD'}`}
+                                            </span>
+                                        )}
+                                        {entry.contractId && (
+                                            <span className='ct__log-contract'>#{entry.contractId}</span>
+                                        )}
+                                        <span className='ct__log-msg'>{entry.message}</span>
+                                    </span>
+                                </div>
+                            ))}
+                            <div ref={logEndRef} />
+                        </>
+                    )}
+                </div>
             </div>
         </div>
     );

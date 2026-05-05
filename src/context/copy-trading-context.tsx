@@ -13,12 +13,27 @@ export type ClientRecord = {
     selected: boolean;
 };
 
+export type TradeLogEntry = {
+    id: string;
+    timestamp: Date;
+    type: 'info' | 'success' | 'error' | 'master';
+    clientLoginid?: string;
+    message: string;
+    contractId?: number;
+    contractType?: string;
+    symbol?: string;
+    stake?: number;
+    currency?: string;
+};
+
 type CopyTradingCtx = {
     clients: ClientRecord[];
     running: boolean;
     statusMsg: string;
     addingClient: boolean;
     addError: string;
+    tradeLog: TradeLogEntry[];
+    clearLog: () => void;
     addClient: (token: string) => Promise<void>;
     removeClient: (loginid: string) => void;
     toggleSelect: (loginid: string) => void;
@@ -50,17 +65,26 @@ async function authorizeToken(token: string): Promise<{ loginid: string; currenc
     }
 }
 
+let logIdCounter = 0;
+function mkId() { return String(++logIdCounter); }
+
 export const CopyTradingProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const [clients, setClients] = useState<ClientRecord[]>([]);
     const [running, setRunning] = useState(false);
     const [statusMsg, setStatusMsg] = useState('');
     const [addingClient, setAddingClient] = useState(false);
     const [addError, setAddError] = useState('');
+    const [tradeLog, setTradeLog] = useState<TradeLogEntry[]>([]);
 
     const masterWsRef = useRef<WebSocket | null>(null);
     const clientApisRef = useRef<{ loginid: string; api: any }[]>([]);
     const runningRef = useRef(false);
 
+    const pushLog = useCallback((entry: Omit<TradeLogEntry, 'id' | 'timestamp'>) => {
+        setTradeLog(prev => [{ ...entry, id: mkId(), timestamp: new Date() }, ...prev].slice(0, 200));
+    }, []);
+
+    const clearLog = useCallback(() => setTradeLog([]), []);
     const clearAddError = useCallback(() => setAddError(''), []);
 
     const addClient = useCallback(async (token: string) => {
@@ -118,7 +142,8 @@ export const CopyTradingProvider: React.FC<{ children: React.ReactNode }> = ({ c
         runningRef.current = false;
         setRunning(false);
         setStatusMsg('Copy trading stopped.');
-    }, []);
+        pushLog({ type: 'info', message: 'Session stopped manually.' });
+    }, [pushLog]);
 
     const startCopyTrading = useCallback(() => {
         const masterToken = localStorage.getItem('authToken') || '';
@@ -146,7 +171,10 @@ export const CopyTradingProvider: React.FC<{ children: React.ReactNode }> = ({ c
         clientApisRef.current = clientConns;
 
         Promise.all(clientConns.map(c => c.api.authorize(c.token).catch(() => null)))
-            .then(() => setStatusMsg('Clients connected. Listening for master trades…'));
+            .then(() => {
+                setStatusMsg('Clients connected. Listening for master trades…');
+                pushLog({ type: 'info', message: `Session started — ${clientConns.length} client(s) ready to copy.` });
+            });
 
         let authorizeDone = false;
         let lastContractId: number | null = null;
@@ -162,7 +190,9 @@ export const CopyTradingProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
                 if (msg.msg_type === 'authorize' && !authorizeDone) {
                     authorizeDone = true;
-                    setStatusMsg(`Master connected (${msg.authorize?.loginid}). Listening for trades…`);
+                    const masterId = msg.authorize?.loginid;
+                    setStatusMsg(`Master connected (${masterId}). Listening for trades…`);
+                    pushLog({ type: 'master', message: `Master account ${masterId} connected and watching for trades.` });
                     masterWs.send(JSON.stringify({ transaction: 1, subscribe: 1 }));
                     return;
                 }
@@ -173,7 +203,11 @@ export const CopyTradingProvider: React.FC<{ children: React.ReactNode }> = ({ c
                     if (txn.contract_id === lastContractId) return;
                     lastContractId = txn.contract_id;
 
-                    setStatusMsg(`Master bought contract ${txn.contract_id} — replicating on ${clientConns.length} client(s)…`);
+                    pushLog({
+                        type: 'master',
+                        message: `Master opened trade — contract #${txn.contract_id}`,
+                        contractId: txn.contract_id,
+                    });
 
                     masterWs.send(JSON.stringify({
                         proposal_open_contract: 1,
@@ -185,7 +219,9 @@ export const CopyTradingProvider: React.FC<{ children: React.ReactNode }> = ({ c
                 if (msg.msg_type === 'proposal_open_contract') {
                     const poc = msg.proposal_open_contract;
                     if (!poc) return;
-                    const { contract_type, underlying, duration, duration_unit, buy_price } = poc;
+                    const { contract_type, underlying, duration, duration_unit, buy_price, currency } = poc;
+
+                    setStatusMsg(`Replicating trade on ${clientConns.length} client(s)…`);
 
                     for (const { loginid, api } of clientApisRef.current) {
                         try {
@@ -199,15 +235,57 @@ export const CopyTradingProvider: React.FC<{ children: React.ReactNode }> = ({ c
                                 duration_unit: duration_unit || 't',
                                 symbol: underlying,
                             });
-                            if (propResp?.error) { console.warn(`[CT] Proposal error for ${loginid}:`, propResp.error.message); continue; }
-                            const buyResp: any = await api.buy({ buy: propResp.proposal.id, price: buy_price || 1 });
+
+                            if (propResp?.error) {
+                                pushLog({
+                                    type: 'error',
+                                    clientLoginid: loginid,
+                                    message: `Failed to get proposal: ${propResp.error.message}`,
+                                    contractType: contract_type,
+                                    symbol: underlying,
+                                    stake: buy_price,
+                                    currency,
+                                });
+                                continue;
+                            }
+
+                            const buyResp: any = await api.buy({
+                                buy: propResp.proposal.id,
+                                price: buy_price || 1,
+                            });
+
                             if (buyResp?.error) {
-                                console.warn(`[CT] Buy error for ${loginid}:`, buyResp.error.message);
+                                pushLog({
+                                    type: 'error',
+                                    clientLoginid: loginid,
+                                    message: `Buy failed: ${buyResp.error.message}`,
+                                    contractType: contract_type,
+                                    symbol: underlying,
+                                    stake: buy_price,
+                                    currency,
+                                });
                             } else {
-                                setStatusMsg(`Trade replicated on ${loginid} (contract ${buyResp?.buy?.contract_id})`);
+                                const newContractId = buyResp?.buy?.contract_id;
+                                pushLog({
+                                    type: 'success',
+                                    clientLoginid: loginid,
+                                    message: `Trade copied successfully`,
+                                    contractId: newContractId,
+                                    contractType: contract_type,
+                                    symbol: underlying,
+                                    stake: buy_price,
+                                    currency,
+                                });
+                                setStatusMsg(`Trade copied on ${loginid} — contract #${newContractId}`);
                             }
                         } catch (e: any) {
-                            console.warn(`[CT] Replication failed for ${loginid}:`, e?.message);
+                            pushLog({
+                                type: 'error',
+                                clientLoginid: loginid,
+                                message: `Error: ${e?.message || 'Unknown error'}`,
+                                contractType: contract_type,
+                                symbol: underlying,
+                            });
                         }
                     }
                 }
@@ -218,19 +296,23 @@ export const CopyTradingProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
         masterWs.onerror = () => {
             setStatusMsg('Master connection error. Please try again.');
+            pushLog({ type: 'error', message: 'Master WebSocket connection error.' });
             runningRef.current = false;
             setRunning(false);
         };
 
         masterWs.onclose = () => {
-            if (runningRef.current) setStatusMsg('Master connection closed unexpectedly.');
+            if (runningRef.current) {
+                setStatusMsg('Master connection closed unexpectedly.');
+                pushLog({ type: 'error', message: 'Master connection closed unexpectedly.' });
+            }
         };
-    }, [clients]);
+    }, [clients, pushLog]);
 
     return (
         <CopyTradingContext.Provider value={{
-            clients, running, statusMsg, addingClient, addError,
-            addClient, removeClient, toggleSelect, removeSelected,
+            clients, running, statusMsg, addingClient, addError, tradeLog,
+            clearLog, addClient, removeClient, toggleSelect, removeSelected,
             syncClients, startCopyTrading, stopCopyTrading, clearAddError,
         }}>
             {children}
