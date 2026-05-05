@@ -40,6 +40,7 @@ import Endpoint from '@/pages/endpoint';
 import { TAuthData } from '@/types/api-types';
 import { initializeI18n, localize, TranslationProvider } from '@deriv-com/translations';
 import CoreStoreProvider from './CoreStoreProvider';
+import { CopyTradingProvider } from '@/context/copy-trading-context';
 import './app-root.scss';
 
 const Layout = lazy(() => import('../components/layout'));
@@ -74,7 +75,9 @@ const router = createBrowserRouter(
                         <StoreProvider>
                             <RoutePromptDialog />
                             <CoreStoreProvider>
-                                <Layout />
+                                <CopyTradingProvider>
+                                    <Layout />
+                                </CopyTradingProvider>
                             </CoreStoreProvider>
                         </StoreProvider>
                     </TranslationProvider>
