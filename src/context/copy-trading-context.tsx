@@ -248,8 +248,8 @@ export const CopyTradingProvider: React.FC<{ children: React.ReactNode }> = ({ c
         }, 25000);
 
         let authorizeDone = false;
-        // Buffer for poc responses keyed by contract_id
-        const pendingPoc: Record<number, any> = {};
+        // Track contracts we've already started replicating (by contract_id)
+        const replicatedIds = new Set<number>();
 
         masterWs.onopen = () => {
             masterWs.send(JSON.stringify({ authorize: masterToken }));
@@ -260,7 +260,7 @@ export const CopyTradingProvider: React.FC<{ children: React.ReactNode }> = ({ c
             try {
                 const msg = JSON.parse(evt.data);
 
-                if (msg.msg_type === 'ping') return; // ignore ping responses
+                if (msg.msg_type === 'ping') return;
 
                 if (msg.msg_type === 'authorize' && !authorizeDone) {
                     authorizeDone = true;
@@ -271,35 +271,37 @@ export const CopyTradingProvider: React.FC<{ children: React.ReactNode }> = ({ c
                     } else {
                         pushLog({ type: 'info', message: `Master reconnected as ${masterId}.` });
                     }
-                    masterWs.send(JSON.stringify({ transaction: 1, subscribe: 1 }));
-                    return;
-                }
-
-                if (msg.msg_type === 'transaction') {
-                    const txn = msg.transaction;
-                    if (txn?.action !== 'buy') return;
-                    if (txn.contract_id === lastContractIdRef.current) return;
-                    lastContractIdRef.current = txn.contract_id;
-
-                    pushLog({
-                        type: 'master',
-                        message: `Master opened trade — contract #${txn.contract_id}`,
-                        contractId: txn.contract_id,
-                    });
-
-                    // Request trade details — keep WS alive while waiting
-                    masterWs.send(JSON.stringify({
-                        proposal_open_contract: 1,
-                        contract_id: txn.contract_id,
-                    }));
+                    // Subscribe to open contracts — Deriv pushes full details
+                    // (including barrier) the moment each contract is opened.
+                    // This avoids the race condition of fetching poc after the
+                    // transaction event (contract may have already expired by then).
+                    masterWs.send(JSON.stringify({ proposal_open_contract: 1, subscribe: 1 }));
                     return;
                 }
 
                 if (msg.msg_type === 'proposal_open_contract') {
                     const poc = msg.proposal_open_contract;
-                    if (!poc || !poc.contract_id) return;
-                    if (pendingPoc[poc.contract_id]) return; // already processing
-                    pendingPoc[poc.contract_id] = poc;
+                    if (!poc?.contract_id) return;
+
+                    // Only act on newly opened contracts
+                    if (poc.status !== 'open') return;
+                    if (replicatedIds.has(poc.contract_id)) return;
+
+                    // Guard: skip contracts that were already open before this session
+                    // by checking against the session-start contract id watermark
+                    if (lastContractIdRef.current !== null && poc.contract_id <= lastContractIdRef.current) return;
+
+                    replicatedIds.add(poc.contract_id);
+                    lastContractIdRef.current = poc.contract_id;
+
+                    pushLog({
+                        type: 'master',
+                        message: `Master opened trade — contract #${poc.contract_id}`,
+                        contractId: poc.contract_id,
+                        contractType: poc.contract_type,
+                        symbol: poc.underlying,
+                    });
+
                     await replicateTrade(poc);
                     return;
                 }
