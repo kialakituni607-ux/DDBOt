@@ -150,11 +150,27 @@ export const CopyTradingProvider: React.FC<{ children: React.ReactNode }> = ({ c
         pushLog({ type: 'info', message: 'Session stopped manually.' });
     }, [pushLog]);
 
+    // DerivAPIBasic rejects with { error: { code, message } } — not a JS Error instance.
+    const extractErrMsg = (e: any): string =>
+        e?.error?.message || e?.message || (typeof e === 'string' ? e : JSON.stringify(e)) || 'Unknown error';
+
     const replicateTrade = useCallback(async (poc: any) => {
         const { contract_type, underlying, duration, duration_unit, buy_price, currency } = poc;
         setStatusMsg(`Replicating trade on ${clientConnsRef.current.length} client(s)…`);
 
-        for (const { loginid, api } of clientConnsRef.current) {
+        for (const { loginid, api, ws } of clientConnsRef.current) {
+            // Re-authorize if the client WS dropped
+            if (ws.readyState !== WebSocket.OPEN) {
+                pushLog({
+                    type: 'error',
+                    clientLoginid: loginid,
+                    message: 'Client connection lost — could not copy this trade.',
+                    contractType: contract_type,
+                    symbol: underlying,
+                });
+                continue;
+            }
+
             try {
                 const propResp: any = await api.proposal({
                     proposal: 1,
@@ -167,55 +183,35 @@ export const CopyTradingProvider: React.FC<{ children: React.ReactNode }> = ({ c
                     symbol: underlying,
                 });
 
-                if (propResp?.error) {
-                    pushLog({
-                        type: 'error',
-                        clientLoginid: loginid,
-                        message: `Proposal failed: ${propResp.error.message}`,
-                        contractType: contract_type,
-                        symbol: underlying,
-                        stake: buy_price,
-                        currency,
-                    });
-                    continue;
-                }
-
                 const buyResp: any = await api.buy({
                     buy: propResp.proposal.id,
                     price: buy_price || 1,
                 });
 
-                if (buyResp?.error) {
-                    pushLog({
-                        type: 'error',
-                        clientLoginid: loginid,
-                        message: `Buy failed: ${buyResp.error.message}`,
-                        contractType: contract_type,
-                        symbol: underlying,
-                        stake: buy_price,
-                        currency,
-                    });
-                } else {
-                    const newContractId = buyResp?.buy?.contract_id;
-                    pushLog({
-                        type: 'success',
-                        clientLoginid: loginid,
-                        message: 'Trade copied successfully',
-                        contractId: newContractId,
-                        contractType: contract_type,
-                        symbol: underlying,
-                        stake: buy_price,
-                        currency,
-                    });
-                    setStatusMsg(`Trade copied on ${loginid} — contract #${newContractId}`);
-                }
+                const newContractId = buyResp?.buy?.contract_id;
+                pushLog({
+                    type: 'success',
+                    clientLoginid: loginid,
+                    message: 'Trade copied successfully',
+                    contractId: newContractId,
+                    contractType: contract_type,
+                    symbol: underlying,
+                    stake: buy_price,
+                    currency,
+                });
+                setStatusMsg(`Trade copied on ${loginid} — contract #${newContractId}`);
             } catch (e: any) {
+                // DerivAPIBasic throws { error: { code, message } } on API errors
+                const errMsg = extractErrMsg(e);
+                const errCode = e?.error?.code || '';
                 pushLog({
                     type: 'error',
                     clientLoginid: loginid,
-                    message: `Error: ${e?.message || 'Unknown error'}`,
+                    message: errCode ? `[${errCode}] ${errMsg}` : errMsg,
                     contractType: contract_type,
                     symbol: underlying,
+                    stake: buy_price,
+                    currency,
                 });
             }
         }
@@ -349,17 +345,26 @@ export const CopyTradingProvider: React.FC<{ children: React.ReactNode }> = ({ c
         setRunning(true);
         setStatusMsg('Connecting to master account…');
 
-        // Establish and store client connections
+        // Establish and store client connections (include raw ws for readyState checks)
         const clientConns = clients.map(c => {
             const cWs = new WebSocket(WS_URL);
             const cApi = new DerivAPIBasic({ connection: cWs });
-            return { loginid: c.loginid, token: c.token, api: cApi };
+            // Keep client connections alive with pings every 25s
+            const pingInterval = setInterval(() => {
+                if (cWs.readyState === WebSocket.OPEN) {
+                    cWs.send(JSON.stringify({ ping: 1 }));
+                }
+            }, 25000);
+            cWs.addEventListener('close', () => clearInterval(pingInterval));
+            return { loginid: c.loginid, token: c.token, api: cApi, ws: cWs };
         });
         clientApisRef.current = clientConns;
         clientConnsRef.current = clientConns;
 
         // Authorize all clients first, then start master
-        Promise.all(clientConns.map(c => c.api.authorize(c.token).catch(() => null)))
+        Promise.all(clientConns.map(c => c.api.authorize(c.token).catch((e: any) => {
+            pushLog({ type: 'error', clientLoginid: c.loginid, message: `Client auth failed: ${e?.error?.message || e?.message || 'Unknown error'}` });
+        })))
             .then(() => {
                 setStatusMsg('Clients connected. Connecting master…');
                 pushLog({ type: 'info', message: `Session started — ${clientConns.length} client(s) ready to copy.` });
