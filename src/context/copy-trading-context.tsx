@@ -172,7 +172,8 @@ export const CopyTradingProvider: React.FC<{ children: React.ReactNode }> = ({ c
             }
 
             try {
-                const propResp: any = await api.proposal({
+                // Build proposal params — forward barrier for digit/touch/range contracts
+                const propParams: Record<string, any> = {
                     proposal: 1,
                     amount: buy_price || 1,
                     basis: 'stake',
@@ -181,7 +182,17 @@ export const CopyTradingProvider: React.FC<{ children: React.ReactNode }> = ({ c
                     duration: duration || 1,
                     duration_unit: duration_unit || 't',
                     symbol: underlying,
-                });
+                };
+                // Digit contracts (DIGITDIFF, DIGITOVER, DIGITUNDER, DIGITMATCH)
+                // and touch/range contracts require barrier
+                if (poc.barrier !== undefined && poc.barrier !== null) {
+                    propParams.barrier = poc.barrier;
+                }
+                if (poc.barrier2 !== undefined && poc.barrier2 !== null) {
+                    propParams.barrier2 = poc.barrier2;
+                }
+
+                const propResp: any = await api.proposal(propParams);
 
                 const buyResp: any = await api.buy({
                     buy: propResp.proposal.id,
