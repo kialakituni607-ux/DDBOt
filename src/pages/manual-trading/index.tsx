@@ -156,7 +156,6 @@ const ManualTrading: React.FC = () => {
     // Proposal / buy
     const [payout, setPayout]     = useState<number | null>(null);
     const [propId, setPropId]     = useState<string | null>(null);
-    const [propSubId, setPropSubId] = useState<string | null>(null);
     const [buying, setBuying]     = useState(false);
     const [buyErr, setBuyErr]     = useState('');
 
@@ -168,9 +167,12 @@ const ManualTrading: React.FC = () => {
     // Positions
     const [positions, setPositions] = useState<Position[]>([]);
 
-    const wsRef    = useRef<WebSocket | null>(null);
-    const tickSub  = useRef<string | null>(null);
-    const chartRef = useRef<HTMLDivElement>(null);
+    const wsRef       = useRef<WebSocket | null>(null);
+    const tickSub     = useRef<string | null>(null);
+    const propSubRef  = useRef<string | null>(null);   // ref avoids stale-closure on forget
+    const askPriceRef = useRef<number>(1);             // ask_price from latest proposal
+    const chartRef    = useRef<HTMLDivElement>(null);
+    const tabsRef     = useRef<HTMLDivElement>(null);
     const [chartW, setChartW] = useState(800);
     const [chartH, setChartH] = useState(300);
 
@@ -246,9 +248,11 @@ const ManualTrading: React.FC = () => {
                 if (msg.error) { setPayout(null); setPropId(null); return; }
                 const p = msg.proposal;
                 if (!p) return;
+                // ask_price is what Deriv requires as the buy `price` param
+                askPriceRef.current = parseFloat(p.ask_price ?? p.display_value ?? p.payout ?? stake) || 1;
                 setPayout(parseFloat(p.payout || p.display_value || '0'));
                 setPropId(p.id);
-                if (msg.subscription?.id) setPropSubId(msg.subscription.id);
+                if (msg.subscription?.id) propSubRef.current = msg.subscription.id;
             }
 
             if (msg.msg_type === 'buy') {
@@ -341,10 +345,14 @@ const ManualTrading: React.FC = () => {
         return `${g?.label} · ${side.toUpperCase()}`;
     };
 
-    // Subscribe proposal on param changes
+    // Subscribe proposal on param changes (uses ref to avoid stale closures)
     useEffect(() => {
         if (!authed) return;
-        if (propSubId) { sendWs({ forget: propSubId }); setPropSubId(null); }
+        // Forget previous subscription immediately using the ref value
+        if (propSubRef.current) {
+            sendWs({ forget: propSubRef.current });
+            propSubRef.current = null;
+        }
         setPropId(null); setPayout(null);
 
         const t = setTimeout(() => {
@@ -374,7 +382,8 @@ const ManualTrading: React.FC = () => {
     const handleBuy = () => {
         if (!propId || buying) return;
         setBuying(true); setBuyErr('');
-        sendWs({ buy: propId, price: parseFloat(stake) || 1 });
+        // Must send ask_price (not raw stake) — Deriv rejects if price doesn't match
+        sendWs({ buy: propId, price: askPriceRef.current });
     };
 
     const needsDigit = group === 'OVER_UNDER' || group === 'MATCH_DIFFER';
@@ -395,19 +404,27 @@ const ManualTrading: React.FC = () => {
         return [{ v: 'm', l: 'Mins' }, { v: 'h', l: 'Hours' }, { v: 'd', l: 'Days' }];
     };
 
+    const scrollTabs = (dir: 'left' | 'right') => {
+        if (tabsRef.current) tabsRef.current.scrollBy({ left: dir === 'left' ? -160 : 160, behavior: 'smooth' });
+    };
+
     return (
         <div className='manual-trading'>
-            {/* Contract type tabs */}
-            <div className='manual-trading__ct-tabs'>
-                {CONTRACT_GROUPS.map(cg => (
-                    <div
-                        key={cg.id}
-                        className={`manual-trading__ct-tab${group === cg.id ? ' manual-trading__ct-tab--active' : ''}`}
-                        onClick={() => setGroup(cg.id)}
-                    >
-                        {cg.label}
-                    </div>
-                ))}
+            {/* Contract type tabs with scroll arrows */}
+            <div className='manual-trading__ct-bar'>
+                <button className='manual-trading__ct-arrow' onClick={() => scrollTabs('left')}>‹</button>
+                <div className='manual-trading__ct-tabs' ref={tabsRef}>
+                    {CONTRACT_GROUPS.map(cg => (
+                        <div
+                            key={cg.id}
+                            className={`manual-trading__ct-tab${group === cg.id ? ' manual-trading__ct-tab--active' : ''}`}
+                            onClick={() => setGroup(cg.id)}
+                        >
+                            {cg.label}
+                        </div>
+                    ))}
+                </div>
+                <button className='manual-trading__ct-arrow' onClick={() => scrollTabs('right')}>›</button>
             </div>
 
             {/* Market bar */}

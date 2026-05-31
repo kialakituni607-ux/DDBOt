@@ -9,15 +9,36 @@
     overflow: hidden;
 
     // ── Contract-type top tab bar ──────────────────────────────────────────
-    &__ct-tabs {
+    &__ct-bar {
         display: flex;
         align-items: center;
         background: #131313;
         border-bottom: 1px solid #222;
-        padding: 0 8px;
-        overflow-x: auto;
         flex-shrink: 0;
+    }
+
+    &__ct-arrow {
+        flex-shrink: 0;
+        background: transparent;
+        border: none;
+        color: #555;
+        font-size: 22px;
+        line-height: 1;
+        padding: 0 10px;
+        cursor: pointer;
+        transition: color 0.15s;
+        user-select: none;
+        height: 42px;
+        &:hover { color: #ccc; }
+    }
+
+    &__ct-tabs {
+        display: flex;
+        align-items: center;
+        flex: 1;
+        overflow-x: auto;
         scrollbar-width: none;
+        scroll-behavior: smooth;
         &::-webkit-scrollbar { display: none; }
     }
 
@@ -159,8 +180,9 @@
 
     // ── Trading panel ──────────────────────────────────────────────────────
     &__panel {
-        width: 280px;
-        min-width: 240px;
+        width: 32%;
+        min-width: 300px;
+        max-width: 420px;
         background: #111;
         border-left: 1px solid #222;
         display: flex;
