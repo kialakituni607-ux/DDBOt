@@ -36,6 +36,7 @@ import './main.scss';
 const ChartWrapper = lazy(() => import('../chart/chart-wrapper'));
 const Tutorial = lazy(() => import('../tutorials'));
 const FreeBots = lazy(() => import('../free-bots'));
+const ManualTrading = lazy(() => import('../manual-trading'));
 const CopyTrading = lazy(() => import('../copy-trading'));
 const AnalysisTool = lazy(() => import('../analysis-tool'));
 const SmartAnalyser = lazy(() => import('../smart-analyser'));
@@ -72,7 +73,7 @@ const AppWrapper = observer(() => {
     const { clear } = summary_card;
     const { DASHBOARD, BOT_BUILDER } = DBOT_TABS;
     const init_render = React.useRef(true);
-    const hash = ['dashboard', 'bot_builder', 'chart', 'tutorial', 'entry_scanner', 'free_bots', 'copy_trading', 'analysis_tool', 'smart_analyser', 'antipoverty_ai'];
+    const hash = ['dashboard', 'bot_builder', 'chart', 'tutorial', 'entry_scanner', 'free_bots', 'manual_trading', 'copy_trading', 'analysis_tool', 'smart_analyser', 'antipoverty_ai'];
     const { isDesktop } = useDevice();
     const location = useLocation();
     const navigate = useNavigate();
@@ -402,6 +403,29 @@ const AppWrapper = observer(() => {
                                         }
                                     >
                                         <FreeBots />
+                                    </Suspense>
+                                </div>
+                            </div>
+                            <div
+                                label={
+                                    <>
+                                        <LabelPairedChartLineCaptionRegularIcon
+                                            height='24px'
+                                            width='24px'
+                                            fill='var(--text-general)'
+                                        />
+                                        <Localize i18n_default_text='Manual Trading' />
+                                    </>
+                                }
+                                id='id-manual-trading'
+                            >
+                                <div style={{ height: '100%', overflow: 'hidden' }}>
+                                    <Suspense
+                                        fallback={
+                                            <ChunkLoader message={localize('Please wait, loading Manual Trading...')} />
+                                        }
+                                    >
+                                        <ManualTrading />
                                     </Suspense>
                                 </div>
                             </div>

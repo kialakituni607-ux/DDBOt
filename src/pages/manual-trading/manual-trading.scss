@@ -1,0 +1,451 @@
+.manual-trading {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    background: #0e0e0e;
+    color: #fff;
+    font-family: 'IBM Plex Sans', sans-serif;
+    overflow: hidden;
+
+    &__contract-tabs {
+        display: flex;
+        align-items: center;
+        background: #1a1a1a;
+        border-bottom: 1px solid #2a2a2a;
+        padding: 0 16px;
+        overflow-x: auto;
+        scrollbar-width: none;
+        flex-shrink: 0;
+
+        &::-webkit-scrollbar { display: none; }
+    }
+
+    &__contract-tab {
+        padding: 12px 18px;
+        font-size: 13px;
+        font-weight: 500;
+        color: #888;
+        cursor: pointer;
+        white-space: nowrap;
+        border-bottom: 2px solid transparent;
+        transition: color 0.2s, border-color 0.2s;
+
+        &:hover { color: #ccc; }
+
+        &--active {
+            color: #fff;
+            border-bottom-color: #85e044;
+        }
+    }
+
+    &__body {
+        display: flex;
+        flex: 1;
+        overflow: hidden;
+        min-height: 0;
+    }
+
+    &__left {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        min-width: 0;
+    }
+
+    &__market-bar {
+        display: flex;
+        align-items: center;
+        padding: 10px 16px;
+        background: #1a1a1a;
+        border-bottom: 1px solid #2a2a2a;
+        gap: 12px;
+        flex-shrink: 0;
+    }
+
+    &__market-select {
+        background: #252525;
+        border: 1px solid #333;
+        border-radius: 6px;
+        color: #fff;
+        font-size: 13px;
+        padding: 7px 12px;
+        cursor: pointer;
+        outline: none;
+        min-width: 220px;
+
+        option { background: #1a1a1a; }
+    }
+
+    &__market-price {
+        font-size: 18px;
+        font-weight: 700;
+        color: #fff;
+        font-family: 'IBM Plex Mono', monospace;
+    }
+
+    &__market-change {
+        font-size: 12px;
+        &--up { color: #4caf50; }
+        &--down { color: #f44336; }
+        &--flat { color: #888; }
+    }
+
+    &__live-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: #4caf50;
+        animation: pulse-green 1.5s infinite;
+        margin-left: auto;
+    }
+
+    &__chart-area {
+        flex: 1;
+        background: #111;
+        position: relative;
+        overflow: hidden;
+        min-height: 0;
+    }
+
+    &__chart-svg {
+        width: 100%;
+        height: 100%;
+    }
+
+    &__no-data {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #555;
+        font-size: 14px;
+    }
+
+    &__digit-bar {
+        background: #1a1a1a;
+        border-top: 1px solid #2a2a2a;
+        padding: 10px 16px;
+        display: flex;
+        gap: 6px;
+        overflow-x: auto;
+        scrollbar-width: none;
+        flex-shrink: 0;
+
+        &::-webkit-scrollbar { display: none; }
+    }
+
+    &__digit-stat {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 3px;
+        min-width: 44px;
+        padding: 6px 4px;
+        border-radius: 6px;
+        background: #222;
+        cursor: pointer;
+        transition: background 0.15s;
+
+        &:hover { background: #2d2d2d; }
+
+        &--selected {
+            background: #1a3a1a;
+            outline: 1px solid #85e044;
+        }
+    }
+
+    &__digit-num {
+        font-size: 16px;
+        font-weight: 700;
+        color: #fff;
+    }
+
+    &__digit-pct {
+        font-size: 10px;
+        color: #aaa;
+    }
+
+    &__right {
+        width: 300px;
+        min-width: 260px;
+        background: #141414;
+        border-left: 1px solid #2a2a2a;
+        display: flex;
+        flex-direction: column;
+        overflow-y: auto;
+        flex-shrink: 0;
+    }
+
+    &__panel {
+        padding: 16px;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+    }
+
+    &__toggle-row {
+        display: flex;
+        background: #222;
+        border-radius: 8px;
+        padding: 3px;
+        gap: 3px;
+    }
+
+    &__toggle-btn {
+        flex: 1;
+        padding: 9px;
+        border: none;
+        border-radius: 6px;
+        background: transparent;
+        color: #888;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.15s;
+
+        &--active {
+            background: #fff;
+            color: #000;
+        }
+    }
+
+    &__label {
+        font-size: 11px;
+        font-weight: 600;
+        color: #666;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    &__digit-picker {
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        gap: 6px;
+    }
+
+    &__digit-pick-btn {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 2px;
+        padding: 8px 4px;
+        border: 1px solid #333;
+        border-radius: 8px;
+        background: #1e1e1e;
+        color: #fff;
+        cursor: pointer;
+        transition: all 0.15s;
+
+        &:hover { background: #2a2a2a; border-color: #555; }
+
+        &--selected {
+            background: #162e16;
+            border-color: #85e044;
+        }
+    }
+
+    &__digit-pick-num {
+        font-size: 15px;
+        font-weight: 700;
+    }
+
+    &__digit-pick-pct {
+        font-size: 10px;
+        color: #888;
+    }
+
+    &__input-group {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+    }
+
+    &__duration-row {
+        display: flex;
+        gap: 6px;
+    }
+
+    &__duration-input {
+        flex: 1;
+        background: #1e1e1e;
+        border: 1px solid #333;
+        border-radius: 8px;
+        color: #fff;
+        font-size: 15px;
+        font-weight: 600;
+        padding: 10px 12px;
+        outline: none;
+        width: 0;
+
+        &:focus { border-color: #555; }
+    }
+
+    &__duration-unit {
+        background: #252525;
+        border: 1px solid #333;
+        border-radius: 8px;
+        color: #fff;
+        font-size: 13px;
+        padding: 10px 10px;
+        cursor: pointer;
+        outline: none;
+
+        option { background: #1a1a1a; }
+    }
+
+    &__stake-row {
+        display: flex;
+        align-items: center;
+        background: #1e1e1e;
+        border: 1px solid #333;
+        border-radius: 8px;
+        overflow: hidden;
+
+        &:focus-within { border-color: #555; }
+    }
+
+    &__stake-input {
+        flex: 1;
+        background: transparent;
+        border: none;
+        color: #fff;
+        font-size: 15px;
+        font-weight: 600;
+        padding: 10px 12px;
+        outline: none;
+        width: 0;
+    }
+
+    &__stake-currency {
+        padding: 0 12px;
+        color: #666;
+        font-size: 13px;
+        font-weight: 600;
+    }
+
+    &__buy-btn {
+        background: #85e044;
+        border: none;
+        border-radius: 10px;
+        color: #000;
+        font-size: 18px;
+        font-weight: 700;
+        padding: 14px;
+        cursor: pointer;
+        text-align: center;
+        transition: background 0.15s;
+
+        &:hover { background: #9ef058; }
+        &:disabled { background: #444; color: #777; cursor: not-allowed; }
+
+        span {
+            display: block;
+            font-size: 11px;
+            font-weight: 500;
+            color: rgba(0,0,0,0.65);
+            margin-top: 2px;
+        }
+    }
+
+    &__sell-btn {
+        background: #e04444;
+        border: none;
+        border-radius: 10px;
+        color: #fff;
+        font-size: 18px;
+        font-weight: 700;
+        padding: 14px;
+        cursor: pointer;
+        text-align: center;
+        transition: background 0.15s;
+
+        &:hover { background: #f05858; }
+        &:disabled { background: #444; color: #777; cursor: not-allowed; }
+
+        span {
+            display: block;
+            font-size: 11px;
+            font-weight: 500;
+            color: rgba(255,255,255,0.6);
+            margin-top: 2px;
+        }
+    }
+
+    &__positions {
+        margin-top: 8px;
+        border-top: 1px solid #2a2a2a;
+        padding: 12px 16px;
+    }
+
+    &__positions-title {
+        font-size: 12px;
+        font-weight: 600;
+        color: #666;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 10px;
+    }
+
+    &__position-card {
+        background: #1e1e1e;
+        border-radius: 8px;
+        padding: 10px 12px;
+        margin-bottom: 8px;
+        border-left: 3px solid #555;
+        font-size: 12px;
+
+        &--won { border-left-color: #4caf50; }
+        &--lost { border-left-color: #f44336; }
+        &--open { border-left-color: #ffa500; }
+    }
+
+    &__position-top {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 4px;
+    }
+
+    &__position-type {
+        font-weight: 600;
+        color: #ccc;
+    }
+
+    &__position-pl {
+        font-weight: 700;
+        &--pos { color: #4caf50; }
+        &--neg { color: #f44336; }
+        &--open { color: #ffa500; }
+    }
+
+    &__position-details {
+        color: #666;
+        font-size: 11px;
+    }
+
+    &__error-msg {
+        background: #2a1a1a;
+        border: 1px solid #f44336;
+        border-radius: 8px;
+        color: #f88;
+        font-size: 12px;
+        padding: 10px 12px;
+    }
+
+    &__no-auth {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 12px;
+        color: #666;
+        font-size: 14px;
+    }
+}
+
+@keyframes pulse-green {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+}
