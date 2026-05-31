@@ -419,7 +419,7 @@ const AppWrapper = observer(() => {
                                 }
                                 id='id-manual-trading'
                             >
-                                <div style={{ height: '100%', overflow: 'hidden' }}>
+                                <div className='manual-trading-wrapper'>
                                     <Suspense
                                         fallback={
                                             <ChunkLoader message={localize('Please wait, loading Manual Trading...')} />

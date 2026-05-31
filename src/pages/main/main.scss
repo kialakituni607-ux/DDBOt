@@ -728,6 +728,17 @@
     }
 }
 
+.manual-trading-wrapper {
+    width: 100%;
+    height: calc(100vh - 14rem);
+    overflow: hidden;
+    background: #0e0e0e;
+
+    @include mobile-or-tablet-screen {
+        height: calc(100vh - 6rem);
+    }
+}
+
 .main .dc-tabs__list {
     justify-content: flex-start !important;
 }
