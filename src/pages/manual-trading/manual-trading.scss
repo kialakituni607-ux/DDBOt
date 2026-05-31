@@ -256,12 +256,11 @@
         font-size: 13px;
     }
 
-    // ── Digit bar — 2 rows of 5 ────────────────────────────────────────────
+    // ── Digit bar — single compact row of 10 ─────────────────────────────
     &__digit-bar {
-        display: grid;
-        grid-template-columns: repeat(5, 1fr);
-        gap: 4px;
-        padding: 8px 10px;
+        display: flex;
+        gap: 3px;
+        padding: 5px 8px;
         background: #141414;
         border-top: 1px solid #222;
         flex-shrink: 0;
@@ -271,26 +270,28 @@
         display: flex;
         flex-direction: column;
         align-items: center;
-        gap: 2px;
-        padding: 7px 4px;
-        border-radius: 7px;
+        gap: 1px;
+        flex: 1;
+        padding: 5px 2px;
+        border-radius: 5px;
         background: #1e1e1e;
         cursor: pointer;
         transition: background 0.12s;
         border: 1px solid transparent;
         user-select: none;
+        min-width: 0;
         &:hover { background: #2a2a2a; }
         &--sel {
             background: #122212;
             border-color: #85e044;
         }
-        &--max { border-color: rgba(76, 175, 80, 0.45); }
-        &--min { border-color: rgba(244, 67, 54, 0.35); }
+        &--max { border-color: rgba(76, 175, 80, 0.5); }
+        &--min { border-color: rgba(244, 67, 54, 0.4); }
     }
 
-    &__digit-num  { font-size: 15px; font-weight: 700; color: #fff; }
+    &__digit-num  { font-size: 13px; font-weight: 700; color: #fff; }
     &__digit-pct  {
-        font-size: 10px;
+        font-size: 9px;
         color: #888;
         .manual-trading__digit-cell--max & { color: #4caf50; }
         .manual-trading__digit-cell--min & { color: #f44336; }
