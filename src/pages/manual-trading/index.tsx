@@ -402,10 +402,9 @@ const ManualTrading: React.FC = () => {
         sendWs({ buy: propId, price: askPriceRef.current });
     };
 
-    const needsDigit       = group === 'OVER_UNDER' || group === 'MATCH_DIFFER';
+    const needsDigit        = group === 'OVER_UNDER' || group === 'MATCH_DIFFER';
     const needsPriceBarrier = group === 'TOUCH' || group === 'TURBO' || group === 'VANILLA';
-    const showDuration     = !['ACCUMULATOR', 'MULTIPLIER'].includes(group);
-    const showDigitBar     = ['OVER_UNDER', 'MATCH_DIFFER', 'EVEN_ODD', 'RISE_FALL'].includes(group);
+    const showDuration      = !['ACCUMULATOR', 'MULTIPLIER'].includes(group);
 
     const dir = lastPrice !== null && prevPrice !== null
         ? lastPrice > prevPrice ? 'up' : lastPrice < prevPrice ? 'down' : 'flat' : 'flat';
@@ -426,11 +425,6 @@ const ManualTrading: React.FC = () => {
     const digitClass = (i: number) => {
         if (pcts[i] === maxPct) return ' manual-trading__digit-btn--max';
         if (pcts[i] === minPct) return ' manual-trading__digit-btn--min';
-        return '';
-    };
-    const digitRowClass = (i: number) => {
-        if (pcts[i] === maxPct) return ' manual-trading__digit-cell--max';
-        if (pcts[i] === minPct) return ' manual-trading__digit-cell--min';
         return '';
     };
 
@@ -518,21 +512,6 @@ const ManualTrading: React.FC = () => {
                         }
                     </div>
 
-                    {/* Digit bar — 2 rows of 5 */}
-                    {showDigitBar && (
-                        <div className='manual-trading__digit-bar'>
-                            {Array.from({ length: 10 }, (_, d) => (
-                                <div
-                                    key={d}
-                                    className={`manual-trading__digit-cell${needsDigit && barrier === d ? ' manual-trading__digit-cell--sel' : ''}${digitRowClass(d)}`}
-                                    onClick={() => needsDigit && setBarrier(d)}
-                                >
-                                    <span className='manual-trading__digit-num'>{d}</span>
-                                    <span className='manual-trading__digit-pct'>{pcts[d]}%</span>
-                                </div>
-                            ))}
-                        </div>
-                    )}
                 </div>
 
                 {/* Trading panel */}
