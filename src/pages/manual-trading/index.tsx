@@ -17,13 +17,17 @@ const CONTRACT_GROUPS = [
     { id: 'VANILLA',      label: 'Vanillas' },
 ];
 
-// Markets per group
-const DIGIT_MARKETS = [
+// ── All valid Deriv Volatility Indices ─────────────────────────────────────
+const ALL_VOLATILITY_MARKETS = [
     { symbol: '1HZ100V', label: 'Volatility 100 (1s) Index' },
     { symbol: '1HZ75V',  label: 'Volatility 75 (1s) Index' },
     { symbol: '1HZ50V',  label: 'Volatility 50 (1s) Index' },
     { symbol: '1HZ25V',  label: 'Volatility 25 (1s) Index' },
     { symbol: '1HZ10V',  label: 'Volatility 10 (1s) Index' },
+    { symbol: '1HZ150V', label: 'Volatility 150 (1s) Index' },
+    { symbol: '1HZ200V', label: 'Volatility 200 (1s) Index' },
+    { symbol: '1HZ250V', label: 'Volatility 250 (1s) Index' },
+    { symbol: '1HZ300V', label: 'Volatility 300 (1s) Index' },
     { symbol: 'R_100',   label: 'Volatility 100 Index' },
     { symbol: 'R_75',    label: 'Volatility 75 Index' },
     { symbol: 'R_50',    label: 'Volatility 50 Index' },
@@ -40,10 +44,11 @@ const ACCU_MARKETS = [
 ];
 
 const TURBO_MARKETS = [
-    { symbol: 'STPRNG',  label: 'Volatility 100 (1s) Index' },
     { symbol: '1HZ100V', label: 'Volatility 100 (1s) Index' },
     { symbol: '1HZ75V',  label: 'Volatility 75 (1s) Index' },
     { symbol: '1HZ50V',  label: 'Volatility 50 (1s) Index' },
+    { symbol: '1HZ25V',  label: 'Volatility 25 (1s) Index' },
+    { symbol: 'R_100',   label: 'Volatility 100 Index' },
 ];
 
 const VANILLA_MARKETS = [
@@ -69,7 +74,7 @@ function marketsForGroup(group: string) {
     if (group === 'TURBO') return TURBO_MARKETS;
     if (group === 'VANILLA') return VANILLA_MARKETS;
     if (group === 'MULTIPLIER') return MULT_MARKETS;
-    return DIGIT_MARKETS;
+    return ALL_VOLATILITY_MARKETS;
 }
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -101,11 +106,8 @@ const LiveChart: React.FC<{ ticks: Tick[]; w: number; h: number }> = ({ ticks, w
     const min = Math.min(...prices);
     const max = Math.max(...prices);
     const range = max - min || 1;
-    const px = 6;
-    const py = 16;
-    const cw = w - px * 2;
-    const ch = h - py * 2;
-
+    const px = 6; const py = 16;
+    const cw = w - px * 2; const ch = h - py * 2;
     const pts = prices.map((p, i) => {
         const x = px + (i / (prices.length - 1)) * cw;
         const y = py + (1 - (p - min) / range) * ch;
@@ -115,7 +117,6 @@ const LiveChart: React.FC<{ ticks: Tick[]; w: number; h: number }> = ({ ticks, w
     const area = path + `L${px + cw},${py + ch}L${px},${py + ch}Z`;
     const lx = px + cw;
     const ly = py + (1 - (prices[prices.length - 1] - min) / range) * ch;
-
     return (
         <svg width={w} height={h} style={{ display: 'block', width: '100%', height: '100%' }}>
             <defs>
@@ -143,40 +144,45 @@ const ManualTrading: React.FC = () => {
     const markets = marketsForGroup(group);
     const [symbol, setSymbol]     = useState(markets[0].symbol);
 
-    // Trading state — common
-    const [side, setSide]         = useState<string>('call'); // varies per group
-    const [barrier, setBarrier]   = useState(5);            // digit 0-9
-    const [barrierPrice, setBarrierPrice] = useState('');   // price-level barrier
-    const [duration, setDuration] = useState(5);
+    // Trading state
+    const [side, setSide]         = useState<string>('call');
+    const [barrier, setBarrier]   = useState(5);
+    const [barrierPrice, setBarrierPrice] = useState('');
+    const [durationStr, setDurationStr]   = useState('5');   // string so user can clear field
     const [durUnit, setDurUnit]   = useState('t');
     const [stake, setStake]       = useState('1');
-    const [growthRate, setGrowthRate] = useState(0.03);      // accumulators
-    const [multiplier, setMultiplier] = useState(10);        // multipliers
+    const [growthRate, setGrowthRate] = useState(0.03);
+    const [multiplier, setMultiplier] = useState(10);
 
     // Proposal / buy
     const [payout, setPayout]     = useState<number | null>(null);
     const [propId, setPropId]     = useState<string | null>(null);
     const [buying, setBuying]     = useState(false);
     const [buyErr, setBuyErr]     = useState('');
+    const [resubNeeded, setResubNeeded] = useState(false);
 
     // Ticks + chart
     const [ticks, setTicks]       = useState<Tick[]>([]);
     const [lastPrice, setLastPrice] = useState<number | null>(null);
     const [prevPrice, setPrevPrice] = useState<number | null>(null);
 
-    // Positions
-    const [positions, setPositions] = useState<Position[]>([]);
+    // Positions panel
+    const [positions, setPositions]         = useState<Position[]>([]);
+    const [positionsVisible, setPosVisible] = useState(false);
 
     const wsRef       = useRef<WebSocket | null>(null);
     const tickSub     = useRef<string | null>(null);
-    const propSubRef  = useRef<string | null>(null);   // ref avoids stale-closure on forget
-    const askPriceRef = useRef<number>(1);             // ask_price from latest proposal
+    const propSubRef  = useRef<string | null>(null);
+    const askPriceRef = useRef<number>(1);
     const chartRef    = useRef<HTMLDivElement>(null);
     const tabsRef     = useRef<HTMLDivElement>(null);
     const [chartW, setChartW] = useState(800);
     const [chartH, setChartH] = useState(300);
 
-    const pcts = digitPcts(ticks.slice(-500));
+    const duration = parseInt(durationStr) || 1;
+    const pcts     = digitPcts(ticks.slice(-500));
+    const minPct   = Math.min(...pcts);
+    const maxPct   = Math.max(...pcts);
 
     // Resize chart
     useEffect(() => {
@@ -189,7 +195,7 @@ const ManualTrading: React.FC = () => {
         return () => ro.disconnect();
     }, []);
 
-    // Load token from localStorage
+    // Load token
     useEffect(() => {
         try {
             const raw = localStorage.getItem('client.accounts');
@@ -248,8 +254,7 @@ const ManualTrading: React.FC = () => {
                 if (msg.error) { setPayout(null); setPropId(null); return; }
                 const p = msg.proposal;
                 if (!p) return;
-                // ask_price is what Deriv requires as the buy `price` param
-                askPriceRef.current = parseFloat(p.ask_price ?? p.display_value ?? p.payout ?? stake) || 1;
+                askPriceRef.current = parseFloat(p.ask_price ?? p.display_value ?? p.payout ?? '1') || 1;
                 setPayout(parseFloat(p.payout || p.display_value || '0'));
                 setPropId(p.id);
                 if (msg.subscription?.id) propSubRef.current = msg.subscription.id;
@@ -261,9 +266,20 @@ const ManualTrading: React.FC = () => {
                 const b = msg.buy;
                 if (!b) return;
                 setBuyErr('');
-                const pos: Position = { id: b.contract_id, label: buildLabel(), stake: parseFloat(stake) || 1, status: 'open' };
-                setPositions(prev => [pos, ...prev.slice(0, 11)]);
+                setPositions(prev => {
+                    const label = b.shortcode || 'Trade';
+                    const pos: Position = { id: b.contract_id, label, stake: b.buy_price || 0, status: 'open' };
+                    return [pos, ...prev.slice(0, 19)];
+                });
+                setPosVisible(true);
                 ws.send(JSON.stringify({ proposal_open_contract: 1, contract_id: b.contract_id, subscribe: 1 }));
+                // Forget consumed proposal sub and flag for re-subscribe
+                if (propSubRef.current) {
+                    ws.send(JSON.stringify({ forget: propSubRef.current }));
+                    propSubRef.current = null;
+                }
+                setPropId(null); setPayout(null);
+                setResubNeeded(true);
             }
 
             if (msg.msg_type === 'proposal_open_contract') {
@@ -297,77 +313,71 @@ const ManualTrading: React.FC = () => {
     const buildProposal = useCallback((): Record<string, any> | null => {
         const amount = parseFloat(stake);
         if (!amount || amount <= 0) return null;
+        const dur = parseInt(durationStr) || 1;
 
         const base = { proposal: 1, subscribe: 1, amount, basis: 'stake', currency: 'USD', symbol };
 
-        if (group === 'RISE_FALL') {
-            return { ...base, contract_type: side === 'call' ? 'CALL' : 'PUT', duration: Math.max(1, duration), duration_unit: 't' };
-        }
-        if (group === 'HIGHER_LOWER') {
-            return { ...base, contract_type: side === 'call' ? 'CALL' : 'PUT', duration: Math.max(1, duration), duration_unit: durUnit };
-        }
+        if (group === 'RISE_FALL')
+            return { ...base, contract_type: side === 'call' ? 'CALL' : 'PUT', duration: Math.max(1, dur), duration_unit: 't' };
+        if (group === 'HIGHER_LOWER')
+            return { ...base, contract_type: side === 'call' ? 'CALL' : 'PUT', duration: Math.max(1, dur), duration_unit: durUnit };
         if (group === 'TOUCH') {
-            const ct = side === 'touch' ? 'ONETOUCH' : 'NOTOUCH';
             const bp = parseFloat(barrierPrice);
             if (!bp) return null;
-            return { ...base, contract_type: ct, duration: Math.max(1, duration), duration_unit: durUnit, barrier: bp };
+            return { ...base, contract_type: side === 'touch' ? 'ONETOUCH' : 'NOTOUCH', duration: Math.max(1, dur), duration_unit: durUnit, barrier: bp };
         }
-        if (group === 'ACCUMULATOR') {
+        if (group === 'ACCUMULATOR')
             return { ...base, contract_type: 'ACCU', growth_rate: growthRate };
-        }
-        if (group === 'EVEN_ODD') {
-            return { ...base, contract_type: side === 'even' ? 'DIGITEVEN' : 'DIGITODD', duration: Math.max(1, duration), duration_unit: 't' };
-        }
-        if (group === 'MATCH_DIFFER') {
-            return { ...base, contract_type: side === 'match' ? 'DIGITMATCH' : 'DIGITDIFF', duration: Math.max(1, duration), duration_unit: 't', barrier };
-        }
-        if (group === 'OVER_UNDER') {
-            return { ...base, contract_type: side === 'over' ? 'DIGITOVER' : 'DIGITUNDER', duration: Math.max(1, duration), duration_unit: 't', barrier };
-        }
-        if (group === 'MULTIPLIER') {
+        if (group === 'EVEN_ODD')
+            return { ...base, contract_type: side === 'even' ? 'DIGITEVEN' : 'DIGITODD', duration: Math.max(1, dur), duration_unit: 't' };
+        if (group === 'MATCH_DIFFER')
+            return { ...base, contract_type: side === 'match' ? 'DIGITMATCH' : 'DIGITDIFF', duration: Math.max(1, dur), duration_unit: 't', barrier };
+        if (group === 'OVER_UNDER')
+            return { ...base, contract_type: side === 'over' ? 'DIGITOVER' : 'DIGITUNDER', duration: Math.max(1, dur), duration_unit: 't', barrier };
+        if (group === 'MULTIPLIER')
             return { ...base, contract_type: side === 'up' ? 'MULTUP' : 'MULTDOWN', multiplier };
-        }
         if (group === 'TURBO') {
             const bp = parseFloat(barrierPrice);
             if (!bp) return null;
-            return { ...base, contract_type: side === 'long' ? 'TURBOSLONG' : 'TURBOSSHORT', duration: Math.max(1, duration), duration_unit: durUnit, barrier: bp };
+            return { ...base, contract_type: side === 'long' ? 'TURBOSLONG' : 'TURBOSSHORT', duration: Math.max(1, dur), duration_unit: durUnit, barrier: bp };
         }
         if (group === 'VANILLA') {
             const bp = parseFloat(barrierPrice);
             if (!bp) return null;
-            return { ...base, contract_type: side === 'call' ? 'VANILLALONGCALL' : 'VANILLALONGPUT', duration: Math.max(1, duration), duration_unit: durUnit, barrier: bp };
+            return { ...base, contract_type: side === 'call' ? 'VANILLALONGCALL' : 'VANILLALONGPUT', duration: Math.max(1, dur), duration_unit: durUnit, barrier: bp };
         }
         return null;
-    }, [group, side, barrier, barrierPrice, duration, durUnit, stake, symbol, growthRate, multiplier]);
+    }, [group, side, barrier, barrierPrice, durationStr, durUnit, stake, symbol, growthRate, multiplier]);
 
-    const buildLabel = () => {
-        const g = CONTRACT_GROUPS.find(x => x.id === group);
-        return `${g?.label} · ${side.toUpperCase()}`;
-    };
-
-    // Subscribe proposal on param changes (uses ref to avoid stale closures)
+    // Subscribe proposal on param changes
     useEffect(() => {
         if (!authed) return;
-        // Forget previous subscription immediately using the ref value
-        if (propSubRef.current) {
-            sendWs({ forget: propSubRef.current });
-            propSubRef.current = null;
-        }
+        if (propSubRef.current) { sendWs({ forget: propSubRef.current }); propSubRef.current = null; }
         setPropId(null); setPayout(null);
-
         const t = setTimeout(() => {
             const params = buildProposal();
             if (params) sendWs(params);
         }, 400);
         return () => clearTimeout(t);
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [authed, group, side, barrier, barrierPrice, duration, durUnit, stake, symbol, growthRate, multiplier]);
+    }, [authed, group, side, barrier, barrierPrice, durationStr, durUnit, stake, symbol, growthRate, multiplier]);
+
+    // Re-subscribe after buy without page refresh
+    useEffect(() => {
+        if (!resubNeeded || !authed) return;
+        setResubNeeded(false);
+        const t = setTimeout(() => {
+            const params = buildProposal();
+            if (params) sendWs(params);
+        }, 300);
+        return () => clearTimeout(t);
+    }, [resubNeeded, authed, buildProposal, sendWs]);
 
     // Reset side / symbol when group changes
     useEffect(() => {
         const m = marketsForGroup(group);
         setSymbol(m[0].symbol);
-        if (group === 'RISE_FALL' || group === 'HIGHER_LOWER' || group === 'TOUCH') setSide('call');
+        if (['RISE_FALL', 'HIGHER_LOWER', 'TOUCH'].includes(group)) setSide('call');
         else if (group === 'EVEN_ODD') setSide('even');
         else if (group === 'MATCH_DIFFER') setSide('differ');
         else if (group === 'OVER_UNDER') setSide('over');
@@ -379,23 +389,27 @@ const ManualTrading: React.FC = () => {
         setBarrier(5);
     }, [group]);
 
+    // Scroll active tab into view
+    useEffect(() => {
+        if (!tabsRef.current) return;
+        const active = tabsRef.current.querySelector('.manual-trading__ct-tab--active') as HTMLElement | null;
+        if (active) active.scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'smooth' });
+    }, [group]);
+
     const handleBuy = () => {
         if (!propId || buying) return;
         setBuying(true); setBuyErr('');
-        // Must send ask_price (not raw stake) — Deriv rejects if price doesn't match
         sendWs({ buy: propId, price: askPriceRef.current });
     };
 
-    const needsDigit = group === 'OVER_UNDER' || group === 'MATCH_DIFFER';
+    const needsDigit       = group === 'OVER_UNDER' || group === 'MATCH_DIFFER';
     const needsPriceBarrier = group === 'TOUCH' || group === 'TURBO' || group === 'VANILLA';
-    const showDuration = !['ACCUMULATOR', 'MULTIPLIER'].includes(group);
-    const showDigitBar = ['OVER_UNDER', 'MATCH_DIFFER', 'EVEN_ODD', 'RISE_FALL'].includes(group);
+    const showDuration     = !['ACCUMULATOR', 'MULTIPLIER'].includes(group);
+    const showDigitBar     = ['OVER_UNDER', 'MATCH_DIFFER', 'EVEN_ODD', 'RISE_FALL'].includes(group);
 
     const dir = lastPrice !== null && prevPrice !== null
-        ? lastPrice > prevPrice ? 'up' : lastPrice < prevPrice ? 'down' : 'flat'
-        : 'flat';
+        ? lastPrice > prevPrice ? 'up' : lastPrice < prevPrice ? 'down' : 'flat' : 'flat';
 
-    // Duration unit options per group
     const durUnits = () => {
         if (['RISE_FALL', 'EVEN_ODD', 'MATCH_DIFFER', 'OVER_UNDER'].includes(group))
             return [{ v: 't', l: 'Ticks' }];
@@ -404,13 +418,25 @@ const ManualTrading: React.FC = () => {
         return [{ v: 'm', l: 'Mins' }, { v: 'h', l: 'Hours' }, { v: 'd', l: 'Days' }];
     };
 
-    const scrollTabs = (dir: 'left' | 'right') => {
-        if (tabsRef.current) tabsRef.current.scrollBy({ left: dir === 'left' ? -160 : 160, behavior: 'smooth' });
+    const scrollTabs = (d: 'left' | 'right') => {
+        if (tabsRef.current) tabsRef.current.scrollBy({ left: d === 'left' ? -200 : 200, behavior: 'smooth' });
+    };
+
+    // Digit pct color: lowest = red, highest = green
+    const digitClass = (i: number) => {
+        if (pcts[i] === maxPct) return ' manual-trading__digit-btn--max';
+        if (pcts[i] === minPct) return ' manual-trading__digit-btn--min';
+        return '';
+    };
+    const digitRowClass = (i: number) => {
+        if (pcts[i] === maxPct) return ' manual-trading__digit-cell--max';
+        if (pcts[i] === minPct) return ' manual-trading__digit-cell--min';
+        return '';
     };
 
     return (
         <div className='manual-trading'>
-            {/* Contract type tabs with scroll arrows */}
+            {/* Contract type tabs */}
             <div className='manual-trading__ct-bar'>
                 <button className='manual-trading__ct-arrow' onClick={() => scrollTabs('left')}>‹</button>
                 <div className='manual-trading__ct-tabs' ref={tabsRef}>
@@ -445,10 +471,44 @@ const ManualTrading: React.FC = () => {
                     </>
                 )}
                 {authed && <div className='manual-trading__live-pip' />}
+                {positions.length > 0 && (
+                    <button className='manual-trading__pos-toggle' onClick={() => setPosVisible(v => !v)}>
+                        {positionsVisible ? '✕ Positions' : `📋 Positions (${positions.length})`}
+                    </button>
+                )}
             </div>
 
             {/* Body */}
             <div className='manual-trading__body'>
+                {/* Floating positions panel (left overlay) */}
+                {positionsVisible && positions.length > 0 && (
+                    <div className='manual-trading__pos-panel'>
+                        <div className='manual-trading__pos-panel-head'>
+                            <span>Open Positions</span>
+                            <button onClick={() => setPosVisible(false)}>✕</button>
+                        </div>
+                        <div className='manual-trading__pos-list'>
+                            {positions.map(p => {
+                                const isOpen = p.status === 'open';
+                                const isWon  = p.status === 'won';
+                                return (
+                                    <div key={p.id} className={`manual-trading__pos-item manual-trading__pos-item--${p.status}`}>
+                                        <div className='manual-trading__pos-item-top'>
+                                            <span className='manual-trading__pos-item-label'>{p.label}</span>
+                                            <span className={`manual-trading__pos-item-pl manual-trading__pos-item-pl--${isOpen ? 'open' : isWon ? 'pos' : 'neg'}`}>
+                                                {isOpen ? '● Live' : `${isWon ? '+' : ''}${p.profit?.toFixed(2)} USD`}
+                                            </span>
+                                        </div>
+                                        <div className='manual-trading__pos-item-sub'>
+                                            {isOpen ? 'In progress…' : isWon ? 'Won ✓' : 'Lost ✗'} · Stake {p.stake.toFixed(2)} USD
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+                )}
+
                 {/* Chart column */}
                 <div className='manual-trading__chart-col'>
                     <div className='manual-trading__chart-area' ref={chartRef}>
@@ -458,13 +518,13 @@ const ManualTrading: React.FC = () => {
                         }
                     </div>
 
-                    {/* Digit stats bar — shown for digit-relevant groups */}
+                    {/* Digit bar — 2 rows of 5 */}
                     {showDigitBar && (
-                        <div className='manual-trading__digit-row'>
+                        <div className='manual-trading__digit-bar'>
                             {Array.from({ length: 10 }, (_, d) => (
                                 <div
                                     key={d}
-                                    className={`manual-trading__digit-cell${needsDigit && barrier === d ? ' manual-trading__digit-cell--sel' : ''}`}
+                                    className={`manual-trading__digit-cell${needsDigit && barrier === d ? ' manual-trading__digit-cell--sel' : ''}${digitRowClass(d)}`}
                                     onClick={() => needsDigit && setBarrier(d)}
                                 >
                                     <span className='manual-trading__digit-num'>{d}</span>
@@ -487,7 +547,7 @@ const ManualTrading: React.FC = () => {
 
                     {authed && (
                         <>
-                            {/* ── Side toggle ── */}
+                            {/* Side toggle */}
                             {group === 'RISE_FALL' && (
                                 <div>
                                     <span className='manual-trading__label'>Direction</span>
@@ -570,7 +630,26 @@ const ManualTrading: React.FC = () => {
                                 </div>
                             )}
 
-                            {/* ── Accumulators: growth rate ── */}
+                            {/* Digit picker in panel (0–9, 5×2 grid) */}
+                            {needsDigit && (
+                                <div className='manual-trading__input-wrap'>
+                                    <span className='manual-trading__label'>Last digit prediction</span>
+                                    <div className='manual-trading__digit-grid'>
+                                        {Array.from({ length: 10 }, (_, d) => (
+                                            <button
+                                                key={d}
+                                                className={`manual-trading__digit-btn${barrier === d ? ' manual-trading__digit-btn--sel' : ''}${digitClass(d)}`}
+                                                onClick={() => setBarrier(d)}
+                                            >
+                                                <span className='manual-trading__digit-btn-num'>{d}</span>
+                                                <span className='manual-trading__digit-btn-pct'>{pcts[d]}%</span>
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Accumulators: growth rate */}
                             {group === 'ACCUMULATOR' && (
                                 <div className='manual-trading__input-wrap'>
                                     <span className='manual-trading__label'>Growth Rate</span>
@@ -588,7 +667,7 @@ const ManualTrading: React.FC = () => {
                                 </div>
                             )}
 
-                            {/* ── Multipliers: multiplier value ── */}
+                            {/* Multipliers */}
                             {group === 'MULTIPLIER' && (
                                 <div className='manual-trading__input-wrap'>
                                     <span className='manual-trading__label'>Multiplier</span>
@@ -606,42 +685,21 @@ const ManualTrading: React.FC = () => {
                                 </div>
                             )}
 
-                            {/* ── Digit picker (panel) ── */}
-                            {needsDigit && (
-                                <div className='manual-trading__input-wrap'>
-                                    <span className='manual-trading__label'>Last digit prediction</span>
-                                    <div className='manual-trading__digit-grid'>
-                                        {Array.from({ length: 10 }, (_, d) => (
-                                            <button
-                                                key={d}
-                                                className={`manual-trading__digit-btn${barrier === d ? ' manual-trading__digit-btn--sel' : ''}`}
-                                                onClick={() => setBarrier(d)}
-                                            >
-                                                <span className='manual-trading__digit-btn-num'>{d}</span>
-                                                <span className='manual-trading__digit-btn-pct'>{pcts[d]}%</span>
-                                            </button>
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
-
-                            {/* ── Price barrier (Touch, Turbo, Vanilla) ── */}
+                            {/* Price barrier */}
                             {needsPriceBarrier && (
                                 <div className='manual-trading__input-wrap'>
                                     <span className='manual-trading__label'>Barrier {lastPrice ? `(current: ${lastPrice.toFixed(2)})` : ''}</span>
-                                    <div className='manual-trading__row'>
-                                        <input
-                                            type='number'
-                                            className='manual-trading__input'
-                                            placeholder={lastPrice ? lastPrice.toFixed(2) : '0.00'}
-                                            value={barrierPrice}
-                                            onChange={e => setBarrierPrice(e.target.value)}
-                                        />
-                                    </div>
+                                    <input
+                                        type='number'
+                                        className='manual-trading__input'
+                                        placeholder={lastPrice ? lastPrice.toFixed(2) : '0.00'}
+                                        value={barrierPrice}
+                                        onChange={e => setBarrierPrice(e.target.value)}
+                                    />
                                 </div>
                             )}
 
-                            {/* ── Duration ── */}
+                            {/* Duration */}
                             {showDuration && (
                                 <div className='manual-trading__input-wrap'>
                                     <span className='manual-trading__label'>Duration</span>
@@ -649,9 +707,10 @@ const ManualTrading: React.FC = () => {
                                         <input
                                             type='number'
                                             className='manual-trading__input'
-                                            value={duration}
+                                            placeholder='1'
+                                            value={durationStr}
                                             min={1}
-                                            onChange={e => setDuration(Math.max(1, parseInt(e.target.value) || 1))}
+                                            onChange={e => setDurationStr(e.target.value)}
                                         />
                                         <select
                                             className='manual-trading__select'
@@ -664,13 +723,14 @@ const ManualTrading: React.FC = () => {
                                 </div>
                             )}
 
-                            {/* ── Stake ── */}
+                            {/* Stake */}
                             <div className='manual-trading__input-wrap'>
                                 <span className='manual-trading__label'>Stake</span>
                                 <div className='manual-trading__row'>
                                     <input
                                         type='number'
                                         className='manual-trading__input'
+                                        placeholder='1'
                                         value={stake}
                                         min={0.35}
                                         step={0.01}
@@ -680,7 +740,7 @@ const ManualTrading: React.FC = () => {
                                 </div>
                             </div>
 
-                            {/* ── Buy button ── */}
+                            {/* Buy button */}
                             <button
                                 className='manual-trading__buy'
                                 onClick={handleBuy}
@@ -691,27 +751,6 @@ const ManualTrading: React.FC = () => {
                             </button>
 
                             {buyErr && <div className='manual-trading__error'>{buyErr}</div>}
-
-                            {/* ── Positions ── */}
-                            {positions.length > 0 && (
-                                <>
-                                    <div className='manual-trading__separator' />
-                                    <div className='manual-trading__positions'>
-                                        <span className='manual-trading__pos-title'>Recent Positions</span>
-                                        {positions.map(p => (
-                                            <div key={p.id} className={`manual-trading__pos-card manual-trading__pos-card--${p.status}`}>
-                                                <div className='manual-trading__pos-row'>
-                                                    <span className='manual-trading__pos-type'>{p.label}</span>
-                                                    <span className={`manual-trading__pos-pl manual-trading__pos-pl--${p.status === 'open' ? 'open' : p.profit && p.profit > 0 ? 'pos' : 'neg'}`}>
-                                                        {p.status === 'open' ? '●  Open' : `${p.profit && p.profit > 0 ? '+' : ''}${p.profit?.toFixed(2)} USD`}
-                                                    </span>
-                                                </div>
-                                                <div className='manual-trading__pos-sub'>Stake {p.stake.toFixed(2)} USD · #{p.id}</div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </>
-                            )}
                         </>
                     )}
                 </div>

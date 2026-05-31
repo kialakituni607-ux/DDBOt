@@ -22,9 +22,9 @@
         background: transparent;
         border: none;
         color: #555;
-        font-size: 22px;
+        font-size: 24px;
         line-height: 1;
-        padding: 0 10px;
+        padding: 0 12px;
         cursor: pointer;
         transition: color 0.15s;
         user-select: none;
@@ -36,6 +36,7 @@
         display: flex;
         align-items: center;
         flex: 1;
+        min-width: 0;
         overflow-x: auto;
         scrollbar-width: none;
         scroll-behavior: smooth;
@@ -43,7 +44,7 @@
     }
 
     &__ct-tab {
-        padding: 11px 16px;
+        padding: 11px 18px;
         font-size: 13px;
         font-weight: 500;
         color: #777;
@@ -52,6 +53,7 @@
         border-bottom: 2px solid transparent;
         transition: color 0.15s, border-color 0.15s;
         user-select: none;
+        flex-shrink: 0;
         &:hover { color: #bbb; }
         &--active {
             color: #fff;
@@ -63,11 +65,13 @@
     &__market-bar {
         display: flex;
         align-items: center;
-        padding: 8px 14px;
+        padding: 7px 14px;
         background: #141414;
         border-bottom: 1px solid #222;
         gap: 12px;
         flex-shrink: 0;
+        flex-wrap: nowrap;
+        overflow: hidden;
     }
 
     &__market-select {
@@ -79,31 +83,50 @@
         padding: 6px 10px;
         cursor: pointer;
         outline: none;
-        min-width: 200px;
+        min-width: 180px;
+        max-width: 260px;
         option { background: #1a1a1a; }
     }
 
     &__price {
-        font-size: 18px;
+        font-size: 17px;
         font-weight: 700;
         font-family: 'IBM Plex Mono', monospace;
         color: #fff;
+        flex-shrink: 0;
     }
 
     &__price-dir {
         font-size: 12px;
+        flex-shrink: 0;
         &--up   { color: #4caf50; }
         &--down { color: #f44336; }
         &--flat { color: #666; }
     }
 
     &__live-pip {
-        margin-left: auto;
         width: 8px;
         height: 8px;
         border-radius: 50%;
         background: #4caf50;
         animation: mt-pulse 1.5s infinite;
+        flex-shrink: 0;
+    }
+
+    &__pos-toggle {
+        margin-left: auto;
+        flex-shrink: 0;
+        background: #1e1e1e;
+        border: 1px solid #333;
+        border-radius: 6px;
+        color: #ccc;
+        font-size: 12px;
+        font-weight: 600;
+        padding: 5px 11px;
+        cursor: pointer;
+        white-space: nowrap;
+        transition: background 0.15s;
+        &:hover { background: #2a2a2a; }
     }
 
     // ── Main body ──────────────────────────────────────────────────────────
@@ -112,6 +135,97 @@
         flex: 1;
         overflow: hidden;
         min-height: 0;
+        position: relative;
+    }
+
+    // ── Floating positions panel ───────────────────────────────────────────
+    &__pos-panel {
+        position: absolute;
+        left: 12px;
+        top: 12px;
+        width: 260px;
+        max-height: calc(100% - 24px);
+        background: #161616;
+        border: 1px solid #2a2a2a;
+        border-radius: 10px;
+        box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+        display: flex;
+        flex-direction: column;
+        z-index: 20;
+        overflow: hidden;
+    }
+
+    &__pos-panel-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 11px 14px;
+        border-bottom: 1px solid #222;
+        font-size: 13px;
+        font-weight: 700;
+        color: #ccc;
+        flex-shrink: 0;
+
+        button {
+            background: transparent;
+            border: none;
+            color: #555;
+            font-size: 16px;
+            cursor: pointer;
+            padding: 0;
+            line-height: 1;
+            &:hover { color: #ccc; }
+        }
+    }
+
+    &__pos-list {
+        overflow-y: auto;
+        flex: 1;
+        padding: 8px;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+    }
+
+    &__pos-item {
+        background: #1d1d1d;
+        border-radius: 8px;
+        padding: 10px 12px;
+        border-left: 3px solid #333;
+
+        &--open { border-left-color: #ffa500; }
+        &--won  { border-left-color: #4caf50; }
+        &--lost { border-left-color: #f44336; }
+    }
+
+    &__pos-item-top {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 8px;
+    }
+
+    &__pos-item-label {
+        font-size: 11px;
+        font-weight: 600;
+        color: #ccc;
+        word-break: break-all;
+        flex: 1;
+    }
+
+    &__pos-item-pl {
+        font-size: 13px;
+        font-weight: 700;
+        white-space: nowrap;
+        &--open { color: #ffa500; }
+        &--pos  { color: #4caf50; }
+        &--neg  { color: #f44336; }
+    }
+
+    &__pos-item-sub {
+        font-size: 10px;
+        color: #555;
+        margin-top: 3px;
     }
 
     // ── Chart column ───────────────────────────────────────────────────────
@@ -129,7 +243,6 @@
         position: relative;
         overflow: hidden;
         min-height: 0;
-
         svg { display: block; }
     }
 
@@ -143,16 +256,15 @@
         font-size: 13px;
     }
 
-    &__digit-row {
-        display: flex;
+    // ── Digit bar — 2 rows of 5 ────────────────────────────────────────────
+    &__digit-bar {
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
         gap: 4px;
         padding: 8px 10px;
         background: #141414;
         border-top: 1px solid #222;
-        overflow-x: auto;
         flex-shrink: 0;
-        scrollbar-width: none;
-        &::-webkit-scrollbar { display: none; }
     }
 
     &__digit-cell {
@@ -160,9 +272,8 @@
         flex-direction: column;
         align-items: center;
         gap: 2px;
-        min-width: 46px;
-        padding: 6px 4px;
-        border-radius: 6px;
+        padding: 7px 4px;
+        border-radius: 7px;
         background: #1e1e1e;
         cursor: pointer;
         transition: background 0.12s;
@@ -173,16 +284,23 @@
             background: #122212;
             border-color: #85e044;
         }
+        &--max { border-color: rgba(76, 175, 80, 0.45); }
+        &--min { border-color: rgba(244, 67, 54, 0.35); }
     }
 
     &__digit-num  { font-size: 15px; font-weight: 700; color: #fff; }
-    &__digit-pct  { font-size: 10px; color: #888; }
+    &__digit-pct  {
+        font-size: 10px;
+        color: #888;
+        .manual-trading__digit-cell--max & { color: #4caf50; }
+        .manual-trading__digit-cell--min & { color: #f44336; }
+    }
 
     // ── Trading panel ──────────────────────────────────────────────────────
     &__panel {
-        width: 32%;
-        min-width: 300px;
-        max-width: 420px;
+        width: 30%;
+        min-width: 290px;
+        max-width: 400px;
         background: #111;
         border-left: 1px solid #222;
         display: flex;
@@ -193,7 +311,7 @@
         gap: 14px;
     }
 
-    // ── Form widgets ────────────────────────────────────────────────────────
+    // ── Form widgets ─────────────────────────────────────────────────────
     &__label {
         font-size: 10px;
         font-weight: 600;
@@ -253,9 +371,6 @@
         outline: none;
         width: 0;
         &:focus { border-color: #444; }
-        &--suffix {
-            border-radius: 0 7px 7px 0;
-        }
     }
 
     &__suffix {
@@ -271,34 +386,6 @@
         font-weight: 600;
     }
 
-    &__suffix-left {
-        display: flex;
-        align-items: center;
-        padding: 0 10px;
-        background: #1a1a1a;
-        border: 1px solid #2c2c2c;
-        border-right: none;
-        border-radius: 7px 0 0 7px;
-        color: #555;
-        font-size: 12px;
-        font-weight: 600;
-    }
-
-    &__input-joined {
-        flex: 1;
-        background: #1a1a1a;
-        border: 1px solid #2c2c2c;
-        border-left: none;
-        border-radius: 0 7px 7px 0;
-        color: #fff;
-        font-size: 14px;
-        font-weight: 600;
-        padding: 9px 10px;
-        outline: none;
-        width: 0;
-        &:focus { border-color: #444; }
-    }
-
     &__select {
         background: #1c1c1c;
         border: 1px solid #2c2c2c;
@@ -311,7 +398,7 @@
         option { background: #1a1a1a; }
     }
 
-    // Digit picker grid (in panel)
+    // Digit picker grid in panel (5 × 2)
     &__digit-grid {
         display: grid;
         grid-template-columns: repeat(5, 1fr);
@@ -323,7 +410,7 @@
         flex-direction: column;
         align-items: center;
         gap: 2px;
-        padding: 7px 3px;
+        padding: 8px 3px;
         border: 1px solid #2c2c2c;
         border-radius: 7px;
         background: #1a1a1a;
@@ -334,14 +421,21 @@
         &:hover { background: #222; border-color: #444; }
         &--sel {
             background: #122212;
-            border-color: #85e044;
+            border-color: #85e044 !important;
         }
+        &--max { border-color: #4caf50; }
+        &--min { border-color: #f44336; }
     }
 
-    &__digit-btn-num  { font-size: 14px; font-weight: 700; }
-    &__digit-btn-pct  { font-size: 9px; color: #888; }
+    &__digit-btn-num { font-size: 14px; font-weight: 700; }
+    &__digit-btn-pct {
+        font-size: 9px;
+        color: #888;
+        .manual-trading__digit-btn--max & { color: #4caf50; }
+        .manual-trading__digit-btn--min & { color: #f44336; }
+    }
 
-    // Growth rate chips (Accumulators)
+    // Growth rate chips
     &__chips {
         display: flex;
         gap: 5px;
@@ -366,7 +460,6 @@
         }
     }
 
-    // Multiplier chips
     &__mult-chips {
         display: grid;
         grid-template-columns: repeat(4, 1fr);
@@ -408,42 +501,6 @@
         line-height: 1.4;
     }
 
-    // Position cards
-    &__positions { display: flex; flex-direction: column; gap: 6px; }
-    &__pos-title {
-        font-size: 10px;
-        font-weight: 700;
-        color: #444;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-    }
-
-    &__pos-card {
-        background: #171717;
-        border-radius: 7px;
-        padding: 9px 11px;
-        border-left: 3px solid #333;
-        &--open { border-left-color: #ffa500; }
-        &--won  { border-left-color: #4caf50; }
-        &--lost { border-left-color: #f44336; }
-    }
-
-    &__pos-row {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-    }
-
-    &__pos-type  { font-size: 12px; font-weight: 600; color: #ccc; }
-    &__pos-pl {
-        font-size: 12px;
-        font-weight: 700;
-        &--open { color: #ffa500; }
-        &--pos  { color: #4caf50; }
-        &--neg  { color: #f44336; }
-    }
-    &__pos-sub { font-size: 10px; color: #555; margin-top: 2px; }
-
     &__no-auth {
         display: flex;
         flex-direction: column;
@@ -453,12 +510,6 @@
         color: #444;
         font-size: 13px;
         height: 120px;
-    }
-
-    &__separator {
-        height: 1px;
-        background: #1e1e1e;
-        margin: 0 -14px;
     }
 }
 
