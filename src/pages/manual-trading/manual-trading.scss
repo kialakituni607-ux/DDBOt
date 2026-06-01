@@ -299,44 +299,46 @@
 
     // ── Trading panel ──────────────────────────────────────────────────────
     &__panel {
-        flex: 1;
-        min-width: 280px;
+        flex: 0 0 50%;
+        width: 50%;
+        min-width: 0;
         background: #111;
         border-left: 1px solid #222;
         display: flex;
         flex-direction: column;
         overflow-y: auto;
-        padding: 10px 12px;
-        gap: 8px;
+        overflow-x: hidden;
+        padding: 8px 10px;
+        gap: 6px;
     }
 
     // ── Form widgets ─────────────────────────────────────────────────────
     &__label {
-        font-size: 10px;
+        font-size: 9px;
         font-weight: 600;
         color: #555;
         text-transform: uppercase;
-        letter-spacing: 0.5px;
-        margin-bottom: 5px;
+        letter-spacing: 0.4px;
+        margin-bottom: 3px;
         display: block;
     }
 
     &__toggle {
         display: flex;
         background: #1c1c1c;
-        border-radius: 8px;
-        padding: 3px;
-        gap: 3px;
+        border-radius: 6px;
+        padding: 2px;
+        gap: 2px;
     }
 
     &__toggle-btn {
         flex: 1;
-        padding: 7px 6px;
+        padding: 5px 4px;
         border: none;
-        border-radius: 6px;
+        border-radius: 5px;
         background: transparent;
         color: #777;
-        font-size: 13px;
+        font-size: 12px;
         font-weight: 600;
         cursor: pointer;
         transition: all 0.15s;
@@ -350,58 +352,62 @@
     &__input-wrap {
         display: flex;
         flex-direction: column;
-        gap: 4px;
+        gap: 3px;
     }
 
     &__row {
         display: flex;
-        gap: 6px;
+        gap: 5px;
     }
 
     &__input {
         flex: 1;
         background: #1a1a1a;
         border: 1px solid #2c2c2c;
-        border-radius: 7px;
+        border-radius: 6px;
         color: #fff;
-        font-size: 13px;
+        font-size: 12px;
         font-weight: 600;
-        padding: 7px 10px;
+        padding: 6px 8px;
         outline: none;
         width: 0;
+        min-width: 0;
         &:focus { border-color: #444; }
     }
 
     &__suffix {
         display: flex;
         align-items: center;
-        padding: 0 9px;
+        padding: 0 7px;
         background: #1a1a1a;
         border: 1px solid #2c2c2c;
         border-left: none;
-        border-radius: 0 7px 7px 0;
+        border-radius: 0 6px 6px 0;
         color: #555;
-        font-size: 12px;
+        font-size: 11px;
         font-weight: 600;
+        flex-shrink: 0;
     }
 
     &__select {
         background: #1c1c1c;
         border: 1px solid #2c2c2c;
-        border-radius: 7px;
+        border-radius: 6px;
         color: #fff;
-        font-size: 13px;
-        padding: 7px 8px;
+        font-size: 12px;
+        padding: 6px 6px;
         cursor: pointer;
         outline: none;
+        flex-shrink: 0;
         option { background: #1a1a1a; }
     }
 
-    // Digit picker grid in panel (5 × 2)
+    // Digit picker grid in panel (5 × 2) — min-width:0 prevents overflow
     &__digit-grid {
         display: grid;
         grid-template-columns: repeat(5, 1fr);
-        gap: 4px;
+        gap: 3px;
+        width: 100%;
     }
 
     &__digit-btn {
@@ -409,14 +415,17 @@
         flex-direction: column;
         align-items: center;
         gap: 1px;
-        padding: 6px 2px;
+        padding: 5px 1px;
         border: 1px solid #2c2c2c;
-        border-radius: 6px;
+        border-radius: 5px;
         background: #1a1a1a;
         color: #fff;
         cursor: pointer;
-        font-size: 12px;
+        font-size: 11px;
         transition: all 0.12s;
+        min-width: 0;        // ← fixes grid overflow
+        overflow: hidden;
+        width: 100%;
         &:hover { background: #222; border-color: #444; }
         &--sel {
             background: #122212;
@@ -426,10 +435,11 @@
         &--min { border-color: #f44336; }
     }
 
-    &__digit-btn-num { font-size: 13px; font-weight: 700; }
+    &__digit-btn-num { font-size: 12px; font-weight: 700; line-height: 1; }
     &__digit-btn-pct {
-        font-size: 9px;
+        font-size: 8px;
         color: #888;
+        line-height: 1;
         .manual-trading__digit-btn--max & { color: #4caf50; }
         .manual-trading__digit-btn--min & { color: #f44336; }
     }
