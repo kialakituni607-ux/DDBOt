@@ -325,27 +325,27 @@
 
     &__toggle {
         display: flex;
-        background: #1c1c1c;
-        border-radius: 6px;
-        padding: 2px;
-        gap: 2px;
+        background: #1e1e1e;
+        border-radius: 20px;
+        padding: 3px;
+        gap: 3px;
     }
 
     &__toggle-btn {
         flex: 1;
-        padding: 5px 4px;
+        padding: 5px 10px;
         border: none;
-        border-radius: 5px;
+        border-radius: 18px;
         background: transparent;
-        color: #777;
+        color: #666;
         font-size: 12px;
         font-weight: 600;
         cursor: pointer;
         transition: all 0.15s;
         white-space: nowrap;
         &--on {
-            background: #fff;
-            color: #000;
+            background: #2e2e2e;
+            color: #fff;
         }
     }
 
@@ -406,7 +406,7 @@
     &__digit-grid {
         display: grid;
         grid-template-columns: repeat(5, 1fr);
-        gap: 3px;
+        gap: 4px;
         width: 100%;
     }
 
@@ -414,32 +414,38 @@
         display: flex;
         flex-direction: column;
         align-items: center;
-        gap: 1px;
-        padding: 5px 1px;
-        border: 1px solid #2c2c2c;
-        border-radius: 5px;
+        justify-content: center;
+        gap: 2px;
+        padding: 6px 2px;
+        border: 1px solid #2a2a2a;
+        border-radius: 10px;
         background: #1a1a1a;
         color: #fff;
         cursor: pointer;
-        font-size: 11px;
         transition: all 0.12s;
-        min-width: 0;        // ← fixes grid overflow
+        min-width: 0;
         overflow: hidden;
         width: 100%;
-        &:hover { background: #222; border-color: #444; }
+        &:hover { background: #242424; border-color: #444; }
         &--sel {
-            background: #122212;
-            border-color: #85e044 !important;
+            background: #152815;
+            border-color: #85e044;
+            color: #85e044;
         }
         &--max { border-color: #4caf50; }
         &--min { border-color: #f44336; }
     }
 
-    &__digit-btn-num { font-size: 12px; font-weight: 700; line-height: 1; }
+    &__digit-btn-num {
+        font-size: 14px;
+        font-weight: 700;
+        line-height: 1;
+    }
     &__digit-btn-pct {
         font-size: 8px;
-        color: #888;
+        color: #666;
         line-height: 1;
+        .manual-trading__digit-btn--sel & { color: #85e044; }
         .manual-trading__digit-btn--max & { color: #4caf50; }
         .manual-trading__digit-btn--min & { color: #f44336; }
     }
@@ -479,24 +485,25 @@
     &__buy {
         background: #85e044;
         border: none;
-        border-radius: 10px;
+        border-radius: 50px;
         color: #000;
-        font-size: 16px;
+        font-size: 15px;
         font-weight: 700;
-        padding: 11px;
+        padding: 10px 16px;
         cursor: pointer;
         transition: background 0.15s;
         text-align: center;
         flex-shrink: 0;
+        width: 100%;
         &:hover:not(:disabled) { background: #9ef058; }
-        &:disabled { background: #2a2a2a; color: #555; cursor: not-allowed; }
+        &:disabled { background: #2a2a2a; color: #555; cursor: not-allowed; border-radius: 50px; }
 
         small {
             display: block;
-            font-size: 11px;
+            font-size: 10px;
             font-weight: 400;
-            color: rgba(0,0,0,0.6);
-            margin-top: 1px;
+            color: rgba(0,0,0,0.55);
+            margin-top: 2px;
         }
     }
 
