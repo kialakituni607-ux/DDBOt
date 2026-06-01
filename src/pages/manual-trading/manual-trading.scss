@@ -3,17 +3,17 @@
     flex-direction: column;
     width: 100%;
     height: 100%;
-    background: #0e0e0e;
+    background: #0B1220;
     color: #fff;
-    font-family: 'IBM Plex Sans', sans-serif;
+    font-family: 'Inter', sans-serif;
     overflow: hidden;
 
     // ── Contract-type top tab bar ──────────────────────────────────────────
     &__ct-bar {
         display: flex;
         align-items: center;
-        background: #131313;
-        border-bottom: 1px solid #222;
+        background: #0F172A;
+        border-bottom: 1px solid #1E293B;
         flex-shrink: 0;
     }
 
@@ -66,8 +66,8 @@
         display: flex;
         align-items: center;
         padding: 7px 14px;
-        background: #141414;
-        border-bottom: 1px solid #222;
+        background: #111827;
+        border-bottom: 1px solid #1F2937;
         gap: 12px;
         flex-shrink: 0;
         flex-wrap: nowrap;
@@ -230,17 +230,17 @@
 
     // ── Chart column ───────────────────────────────────────────────────────
     &__chart-col {
-        flex: 0 0 50%;
-        max-width: 50%;
+        flex: 1;
+        min-width: 0;
         display: flex;
         flex-direction: column;
         overflow: hidden;
-        min-width: 0;
+        background: #111827;
     }
 
     &__chart-area {
-        flex: 0 0 200px;   // fixed compact height — frees up panel space
-        background: #0a0a0a;
+        flex: 1;
+        background: #111827;
         position: relative;
         overflow: hidden;
         svg { display: block; }
@@ -299,115 +299,112 @@
 
     // ── Trading panel ──────────────────────────────────────────────────────
     &__panel {
-        flex: 0 0 50%;
-        width: 50%;
+        flex: 0 0 390px;
+        width: 390px;
         min-width: 0;
-        background: #111;
-        border-left: 1px solid #222;
+        background: #111827;
+        border-left: 1px solid #1E293B;
         display: flex;
         flex-direction: column;
         overflow-y: auto;
         overflow-x: hidden;
-        padding: 8px 10px;
-        gap: 6px;
+        padding: 20px;
+        gap: 16px;
     }
 
     // ── Form widgets ─────────────────────────────────────────────────────
     &__label {
-        font-size: 9px;
-        font-weight: 600;
-        color: #555;
-        text-transform: uppercase;
-        letter-spacing: 0.4px;
-        margin-bottom: 3px;
+        font-size: 15px;
+        font-weight: 500;
+        color: #9CA3AF;
         display: block;
+        margin-bottom: 6px;
     }
 
     &__toggle {
         display: flex;
-        background: #1e1e1e;
-        border-radius: 20px;
-        padding: 3px;
-        gap: 3px;
+        align-items: center;
+        background: #1E293B;
+        border-radius: 29px;
+        padding: 4px;
+        gap: 4px;
+        height: 58px;
     }
 
     &__toggle-btn {
         flex: 1;
-        padding: 5px 10px;
+        height: 50px;
         border: none;
-        border-radius: 18px;
+        border-radius: 25px;
         background: transparent;
-        color: #666;
-        font-size: 12px;
+        color: #D1D5DB;
+        font-size: 16px;
         font-weight: 600;
         cursor: pointer;
         transition: all 0.15s;
         white-space: nowrap;
         &--on {
-            background: #2e2e2e;
-            color: #fff;
+            background: #374151;
+            color: #00D395;
         }
     }
 
+    // Card wrapper used by Duration, Stake, and digit-prediction sections
     &__input-wrap {
         display: flex;
         flex-direction: column;
-        gap: 3px;
+        background: #1E293B;
+        border-radius: 16px;
+        padding: 20px;
     }
 
     &__row {
         display: flex;
-        gap: 5px;
+        align-items: center;
+        gap: 8px;
     }
 
     &__input {
         flex: 1;
-        background: #1a1a1a;
-        border: 1px solid #2c2c2c;
-        border-radius: 6px;
+        background: transparent;
+        border: none;
         color: #fff;
-        font-size: 12px;
+        font-size: 20px;
         font-weight: 600;
-        padding: 6px 8px;
+        padding: 0;
         outline: none;
-        width: 0;
+        width: 100%;
         min-width: 0;
-        &:focus { border-color: #444; }
+        font-family: inherit;
     }
 
     &__suffix {
-        display: flex;
-        align-items: center;
-        padding: 0 7px;
-        background: #1a1a1a;
-        border: 1px solid #2c2c2c;
-        border-left: none;
-        border-radius: 0 6px 6px 0;
-        color: #555;
-        font-size: 11px;
+        color: #9CA3AF;
+        font-size: 20px;
         font-weight: 600;
         flex-shrink: 0;
     }
 
     &__select {
-        background: #1c1c1c;
-        border: 1px solid #2c2c2c;
-        border-radius: 6px;
+        background: transparent;
+        border: none;
         color: #fff;
-        font-size: 12px;
-        padding: 6px 6px;
+        font-size: 20px;
+        font-weight: 600;
         cursor: pointer;
         outline: none;
         flex-shrink: 0;
-        option { background: #1a1a1a; }
+        font-family: inherit;
+        option { background: #1E293B; }
     }
 
     // Digit picker grid in panel (5 × 2) — min-width:0 prevents overflow
     &__digit-grid {
         display: grid;
         grid-template-columns: repeat(5, 1fr);
-        gap: 4px;
+        gap: 10px;
         width: 100%;
+        margin-top: 12px;
     }
 
     &__digit-btn {
@@ -415,39 +412,39 @@
         flex-direction: column;
         align-items: center;
         justify-content: center;
-        gap: 2px;
-        padding: 6px 2px;
-        border: 1px solid #2a2a2a;
-        border-radius: 10px;
-        background: #1a1a1a;
+        gap: 4px;
+        aspect-ratio: 1;
+        border: none;
+        border-radius: 12px;
+        background: #000;
         color: #fff;
         cursor: pointer;
         transition: all 0.12s;
         min-width: 0;
         overflow: hidden;
         width: 100%;
-        &:hover { background: #242424; border-color: #444; }
+        padding: 0;
+        &:hover { background: #1a1a1a; }
         &--sel {
-            background: #152815;
-            border-color: #85e044;
-            color: #85e044;
+            background: #fff;
+            color: #000;
         }
-        &--max { border-color: #4caf50; }
-        &--min { border-color: #f44336; }
+        &--max { outline: 2px solid #00D395; outline-offset: -2px; }
+        &--min { outline: 2px solid #FF444F; outline-offset: -2px; }
     }
 
     &__digit-btn-num {
-        font-size: 14px;
-        font-weight: 700;
+        font-size: 28px;
+        font-weight: 600;
         line-height: 1;
     }
     &__digit-btn-pct {
-        font-size: 8px;
-        color: #666;
+        font-size: 14px;
+        color: #9CA3AF;
         line-height: 1;
-        .manual-trading__digit-btn--sel & { color: #85e044; }
-        .manual-trading__digit-btn--max & { color: #4caf50; }
-        .manual-trading__digit-btn--min & { color: #f44336; }
+        .manual-trading__digit-btn--sel & { color: #374151; }
+        .manual-trading__digit-btn--max & { color: #00D395; }
+        .manual-trading__digit-btn--min & { color: #FF444F; }
     }
 
     // Growth rate chips
@@ -483,27 +480,32 @@
 
     // Buy button
     &__buy {
-        background: #85e044;
+        background: #00C389;
         border: none;
-        border-radius: 50px;
-        color: #000;
-        font-size: 15px;
+        border-radius: 41px;
+        color: #fff;
+        font-size: 22px;
         font-weight: 700;
-        padding: 10px 16px;
+        height: 82px;
+        padding: 0 24px;
         cursor: pointer;
         transition: background 0.15s;
         text-align: center;
         flex-shrink: 0;
         width: 100%;
-        &:hover:not(:disabled) { background: #9ef058; }
-        &:disabled { background: #2a2a2a; color: #555; cursor: not-allowed; border-radius: 50px; }
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 2px;
+        &:hover:not(:disabled) { background: #00D395; }
+        &:disabled { background: #1E293B; color: #4B5563; cursor: not-allowed; }
 
         small {
             display: block;
-            font-size: 10px;
+            font-size: 16px;
             font-weight: 400;
-            color: rgba(0,0,0,0.55);
-            margin-top: 2px;
+            color: #D1FAE5;
         }
     }
 

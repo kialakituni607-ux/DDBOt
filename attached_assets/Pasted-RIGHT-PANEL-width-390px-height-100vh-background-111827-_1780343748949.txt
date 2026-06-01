@@ -1,0 +1,165 @@
+RIGHT PANEL
+width: 390px;
+height: 100vh;
+background: #111827;
+border-left: 1px solid #1E293B;
+padding: 20px;
+
+------------------------------------------------
+
+MATCHES / DIFFERS TOGGLE
+
+Container:
+width: 340px;
+height: 58px;
+background: #1E293B;
+border-radius: 29px;
+padding: 4px;
+
+Active tab:
+width: 166px;
+height: 50px;
+background: #374151;
+color: #00D395;
+border-radius: 25px;
+
+Inactive tab:
+background: transparent;
+color: #D1D5DB;
+
+Font:
+16px
+font-weight: 600
+
+------------------------------------------------
+
+LAST DIGIT PREDICTION CARD
+
+width: 340px;
+height: 245px;
+background: #1E293B;
+border-radius: 16px;
+padding: 20px;
+
+Title:
+color: #D1D5DB;
+font-size: 16px;
+
+------------------------------------------------
+
+DIGIT BOXES (0–9)
+
+width: 58px;
+height: 58px;
+background: #000000;
+border-radius: 12px;
+
+Digit text:
+font-size: 28px;
+font-weight: 600;
+color: #FFFFFF;
+
+Selected digit:
+background: #FFFFFF;
+color: #000000;
+
+Probability text:
+font-size: 14px;
+color: #9CA3AF;
+
+High probability:
+#00D395
+
+Low probability:
+#FF444F
+
+Grid:
+5 columns
+gap: 12px
+
+------------------------------------------------
+
+DURATION CARD
+
+width: 340px;
+height: 90px;
+background: #1E293B;
+border-radius: 16px;
+padding: 20px;
+
+Label:
+color: #9CA3AF;
+font-size: 15px;
+
+Value:
+color: #FFFFFF;
+font-size: 20px;
+font-weight: 600;
+
+------------------------------------------------
+
+STAKE CARD
+
+width: 340px;
+height: 90px;
+background: #1E293B;
+border-radius: 16px;
+padding: 20px;
+
+------------------------------------------------
+
+BUY BUTTON
+
+width: 370px;
+height: 82px;
+background: #00C389;
+border-radius: 41px;
+
+Text:
+color: #FFFFFF;
+font-size: 22px;
+font-weight: 700;
+
+Payout text:
+color: #D1FAE5;
+font-size: 16px;
+
+Hover:
+background: #00D395;
+
+------------------------------------------------
+
+MAIN BACKGROUND
+
+#0B1220
+
+CHART AREA
+
+#111827
+
+GRID LINES
+
+#1F2937
+
+WHITE CHART LINE
+
+#F8FAFC
+
+------------------------------------------------
+
+SIDEBAR
+
+width: 96px;
+background: #0F172A;
+
+Active icon:
+#FF444F
+
+Inactive icon:
+#D1D5DB
+
+------------------------------------------------
+
+FONT
+
+Inter, sans-serif
