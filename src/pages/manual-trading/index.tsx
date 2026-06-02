@@ -106,8 +106,13 @@ const LiveChart: React.FC<{ ticks: Tick[]; w: number; h: number }> = ({ ticks, w
     const min = Math.min(...prices);
     const max = Math.max(...prices);
     const range = max - min || 1;
-    const px = 6; const py = 16;
+    const px = 12; const py = 20;
     const cw = w - px * 2; const ch = h - py * 2;
+    // Grid lines
+    const gridLines = Array.from({ length: 6 }, (_, i) => {
+        const y = py + (i / 5) * ch;
+        return <line key={i} x1={px} y1={y} x2={px + cw} y2={y} stroke='rgba(255,255,255,0.06)' strokeWidth='1' />;
+    });
     const pts = prices.map((p, i) => {
         const x = px + (i / (prices.length - 1)) * cw;
         const y = py + (1 - (p - min) / range) * ch;
@@ -117,17 +122,22 @@ const LiveChart: React.FC<{ ticks: Tick[]; w: number; h: number }> = ({ ticks, w
     const area = path + `L${px + cw},${py + ch}L${px},${py + ch}Z`;
     const lx = px + cw;
     const ly = py + (1 - (prices[prices.length - 1] - min) / range) * ch;
+    const lastVal = prices[prices.length - 1].toFixed(2);
     return (
         <svg width={w} height={h} style={{ display: 'block', width: '100%', height: '100%' }}>
             <defs>
                 <linearGradient id='mtg' x1='0' y1='0' x2='0' y2='1'>
-                    <stop offset='0%' stopColor='#85e044' stopOpacity='0.25' />
-                    <stop offset='100%' stopColor='#85e044' stopOpacity='0' />
+                    <stop offset='0%' stopColor='#FFFFFF' stopOpacity='0.08' />
+                    <stop offset='100%' stopColor='#FFFFFF' stopOpacity='0' />
                 </linearGradient>
             </defs>
+            {gridLines}
             <path d={area} fill='url(#mtg)' />
-            <path d={path} fill='none' stroke='#85e044' strokeWidth='1.5' />
-            <circle cx={lx} cy={ly} r='4' fill='#85e044' />
+            <path d={path} fill='none' stroke='#FFFFFF' strokeWidth='1.5' />
+            <circle cx={lx} cy={ly} r='4' fill='#FFFFFF' />
+            {/* Price label */}
+            <rect x={lx + 8} y={ly - 10} width='60' height='20' rx='4' fill='#1A2438' />
+            <text x={lx + 38} y={ly + 5} textAnchor='middle' fill='#FFFFFF' fontSize='11' fontWeight='600'>{lastVal}</text>
         </svg>
     );
 };
@@ -474,13 +484,11 @@ const ManualTrading: React.FC = () => {
 
             {/* Body */}
             <div className='manual-trading__body'>
-                {/* Floating positions panel (left overlay) */}
-                {positionsVisible && positions.length > 0 && (
-                    <div className='manual-trading__pos-panel'>
-                        <div className='manual-trading__pos-panel-head'>
-                            <span>Open Positions</span>
-                            <button onClick={() => setPosVisible(false)}>✕</button>
-                        </div>
+                {/* Open Positions — fixed left column */}
+                <div className='manual-trading__pos-panel'>
+                    <div className='manual-trading__pos-panel-head'>
+                        <span>Open Positions</span>
+                    </div>
                         <div className='manual-trading__pos-list'>
                             {positions.map(p => {
                                 const isOpen = p.status === 'open';
@@ -500,8 +508,7 @@ const ManualTrading: React.FC = () => {
                                 );
                             })}
                         </div>
-                    </div>
-                )}
+                </div>
 
                 {/* Chart column */}
                 <div className='manual-trading__chart-col'>
@@ -611,7 +618,7 @@ const ManualTrading: React.FC = () => {
 
                             {/* Digit picker in panel (0–9, 5×2 grid) */}
                             {needsDigit && (
-                                <div className='manual-trading__input-wrap'>
+                                <div className='manual-trading__input-wrap manual-trading__input-wrap--digit'>
                                     <span className='manual-trading__label'>Last digit prediction</span>
                                     <div className='manual-trading__digit-grid'>
                                         {Array.from({ length: 10 }, (_, d) => (

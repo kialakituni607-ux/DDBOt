@@ -135,23 +135,17 @@
         flex: 1;
         overflow: hidden;
         min-height: 0;
-        position: relative;
     }
 
-    // ── Floating positions panel ───────────────────────────────────────────
+    // ── Open Positions — fixed left column ────────────────────────────────
     &__pos-panel {
-        position: absolute;
-        left: 12px;
-        top: 12px;
-        width: 260px;
-        max-height: calc(100% - 24px);
-        background: #161616;
-        border: 1px solid #2a2a2a;
-        border-radius: 10px;
-        box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+        flex: 0 0 400px;
+        width: 400px;
+        height: 100%;
+        background: #111827;
+        border-right: 1px solid #1E293B;
         display: flex;
         flex-direction: column;
-        z-index: 20;
         overflow: hidden;
     }
 
@@ -159,43 +153,43 @@
         display: flex;
         align-items: center;
         justify-content: space-between;
-        padding: 11px 14px;
-        border-bottom: 1px solid #222;
-        font-size: 13px;
+        padding: 20px 20px 14px;
+        border-bottom: 1px solid #1E293B;
+        font-size: 16px;
         font-weight: 700;
-        color: #ccc;
+        color: #F8FAFC;
         flex-shrink: 0;
 
         button {
             background: transparent;
             border: none;
-            color: #555;
-            font-size: 16px;
+            color: #4B5563;
+            font-size: 18px;
             cursor: pointer;
             padding: 0;
             line-height: 1;
-            &:hover { color: #ccc; }
+            &:hover { color: #9CA3AF; }
         }
     }
 
     &__pos-list {
         overflow-y: auto;
         flex: 1;
-        padding: 8px;
+        padding: 16px;
         display: flex;
         flex-direction: column;
-        gap: 6px;
+        gap: 10px;
     }
 
     &__pos-item {
-        background: #1d1d1d;
-        border-radius: 8px;
-        padding: 10px 12px;
-        border-left: 3px solid #333;
+        background: #1A2438;
+        border-radius: 12px;
+        padding: 14px 16px;
+        border-left: 3px solid #374151;
 
-        &--open { border-left-color: #ffa500; }
-        &--won  { border-left-color: #4caf50; }
-        &--lost { border-left-color: #f44336; }
+        &--open { border-left-color: #F59E0B; }
+        &--won  { border-left-color: #00D395; }
+        &--lost { border-left-color: #FF444F; }
     }
 
     &__pos-item-top {
@@ -206,26 +200,26 @@
     }
 
     &__pos-item-label {
-        font-size: 11px;
+        font-size: 13px;
         font-weight: 600;
-        color: #ccc;
+        color: #D1D5DB;
         word-break: break-all;
         flex: 1;
     }
 
     &__pos-item-pl {
-        font-size: 13px;
+        font-size: 15px;
         font-weight: 700;
         white-space: nowrap;
-        &--open { color: #ffa500; }
-        &--pos  { color: #4caf50; }
-        &--neg  { color: #f44336; }
+        &--open { color: #F59E0B; }
+        &--pos  { color: #00D395; }
+        &--neg  { color: #FF444F; }
     }
 
     &__pos-item-sub {
-        font-size: 10px;
-        color: #555;
-        margin-top: 3px;
+        font-size: 11px;
+        color: #6B7280;
+        margin-top: 4px;
     }
 
     // ── Chart column ───────────────────────────────────────────────────────
@@ -235,12 +229,13 @@
         display: flex;
         flex-direction: column;
         overflow: hidden;
-        background: #111827;
+        background: #131C2E;
     }
 
     &__chart-area {
-        flex: 1;
-        background: #111827;
+        flex: 0 0 780px;
+        height: 780px;
+        background: #131C2E;
         position: relative;
         overflow: hidden;
         svg { display: block; }
@@ -259,10 +254,10 @@
     // ── Digit bar — single compact row of 10 ─────────────────────────────
     &__digit-bar {
         display: flex;
-        gap: 3px;
-        padding: 5px 8px;
-        background: #141414;
-        border-top: 1px solid #222;
+        gap: 4px;
+        padding: 8px 12px;
+        background: #131C2E;
+        border-top: 1px solid #1F2937;
         flex-shrink: 0;
     }
 
@@ -270,37 +265,37 @@
         display: flex;
         flex-direction: column;
         align-items: center;
-        gap: 1px;
+        gap: 2px;
         flex: 1;
-        padding: 5px 2px;
-        border-radius: 5px;
-        background: #1e1e1e;
+        padding: 6px 2px;
+        border-radius: 8px;
+        background: #1A2438;
         cursor: pointer;
         transition: background 0.12s;
         border: 1px solid transparent;
         user-select: none;
         min-width: 0;
-        &:hover { background: #2a2a2a; }
+        &:hover { background: #243050; }
         &--sel {
-            background: #122212;
-            border-color: #85e044;
+            background: #1A2438;
+            border-color: #00D395;
         }
-        &--max { border-color: rgba(76, 175, 80, 0.5); }
-        &--min { border-color: rgba(244, 67, 54, 0.4); }
+        &--max { border-color: rgba(0, 211, 149, 0.4); }
+        &--min { border-color: rgba(255, 68, 79, 0.4); }
     }
 
-    &__digit-num  { font-size: 13px; font-weight: 700; color: #fff; }
+    &__digit-num  { font-size: 13px; font-weight: 700; color: #F8FAFC; }
     &__digit-pct  {
         font-size: 9px;
-        color: #888;
-        .manual-trading__digit-cell--max & { color: #4caf50; }
-        .manual-trading__digit-cell--min & { color: #f44336; }
+        color: #6B7280;
+        .manual-trading__digit-cell--max & { color: #00D395; }
+        .manual-trading__digit-cell--min & { color: #FF444F; }
     }
 
     // ── Trading panel ──────────────────────────────────────────────────────
     &__panel {
-        flex: 0 0 390px;
-        width: 390px;
+        flex: 0 0 320px;
+        width: 320px;
         min-width: 0;
         background: #111827;
         border-left: 1px solid #1E293B;
@@ -308,8 +303,8 @@
         flex-direction: column;
         overflow-y: auto;
         overflow-x: hidden;
-        padding: 20px;
-        gap: 16px;
+        padding: 16px;
+        gap: 12px;
     }
 
     // ── Form widgets ─────────────────────────────────────────────────────
@@ -353,9 +348,14 @@
     &__input-wrap {
         display: flex;
         flex-direction: column;
-        background: #1E293B;
+        background: #1A2438;
         border-radius: 16px;
-        padding: 20px;
+        padding: 16px;
+
+        // Digit prediction card — spec: 288×215px
+        &--digit {
+            height: 215px;
+        }
     }
 
     &__row {
