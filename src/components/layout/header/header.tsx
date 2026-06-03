@@ -7,7 +7,6 @@ import { standalone_routes } from '@/components/shared';
 import Button from '@/components/shared_ui/button';
 import useActiveAccount from '@/hooks/api/account/useActiveAccount';
 import { useOauth2 } from '@/hooks/auth/useOauth2';
-import { loginWithFallback } from '@/utils/auth-utils';
 import { useFirebaseCountriesConfig } from '@/hooks/firebase/useFirebaseCountriesConfig';
 import { useApiBase } from '@/hooks/useApiBase';
 import { useStore } from '@/hooks/useStore';
@@ -21,7 +20,7 @@ import AccountsInfoLoader from './account-info-loader';
 import AccountSwitcher from './account-switcher';
 import ApiTokenDialog from './api-token-dialog';
 import { OPEN_API_TOKEN_DIALOG_EVENT } from './token-auth-banner';
-import AuthModeSwitcher from './auth-mode-switcher';
+import LoginPicker from './login-picker';
 import MenuItems from './menu-items';
 import MobileMenu from './mobile-menu';
 import './header.scss';
@@ -137,18 +136,7 @@ const AppHeader = observer(({ isAuthenticating }: TAppHeaderProps) => {
         } else {
             return (
                 <div className='auth-actions'>
-                    {isDesktop && <AuthModeSwitcher />}
-                    <Button
-                        className='auth-actions__login'
-                        onClick={() => {
-                            // Try the new Deriv OIDC flow first, fall back to
-                            // the legacy oauth.deriv.com URL automatically if
-                            // OIDC is not available for this app.
-                            loginWithFallback();
-                        }}
-                    >
-                        <Localize i18n_default_text='Log in' />
-                    </Button>
+                    <LoginPicker />
                     <Button
                         className='auth-actions__api-token'
                         onClick={() => setShowApiTokenModal(true)}

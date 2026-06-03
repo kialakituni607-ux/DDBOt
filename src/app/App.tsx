@@ -47,6 +47,7 @@ const Layout = lazy(() => import('../components/layout'));
 const AppRoot = lazy(() => import('./app-root'));
 const FreeBots = lazy(() => import('../pages/free-bots'));
 const AnalysisTool = lazy(() => import('../pages/analysis-tool'));
+const PkceCallback = lazy(() => import('../pages/pkce-callback'));
 
 const { TRANSLATIONS_CDN_URL, R2_PROJECT_NAME, CROWDIN_BRANCH_NAME } = process.env;
 const i18nInstance = initializeI18n({
@@ -91,6 +92,7 @@ const router = createBrowserRouter(
             <Route path='auth-debug' element={<AuthDebugPage />} />
             <Route path='free-bots' element={<FreeBots />} />
             <Route path='analysis-tool' element={<AnalysisTool />} />
+            <Route path='pkce-callback' element={<PkceCallback />} />
         </Route>
     )
 );

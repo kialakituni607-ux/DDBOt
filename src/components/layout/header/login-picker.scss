@@ -1,0 +1,114 @@
+.login-picker {
+    position: relative;
+    display : inline-flex;
+
+    &__btn {
+        display    : inline-flex;
+        align-items: center;
+        gap        : 6px;
+        padding    : 8px 16px;
+        background : #00C389;
+        border     : none;
+        border-radius: 6px;
+        color      : #fff;
+        font-size  : 14px;
+        font-weight: 600;
+        cursor     : pointer;
+        font-family: inherit;
+        transition : background 0.15s;
+        white-space: nowrap;
+
+        &:hover { background: #00D395; }
+    }
+
+    &__arrow {
+        font-size: 8px;
+        opacity  : 0.7;
+    }
+
+    &__dropdown {
+        position  : absolute;
+        top       : calc(100% + 8px);
+        right     : 0;
+        min-width : 280px;
+        background: #1A2438;
+        border    : 1px solid #1E293B;
+        border-radius: 12px;
+        padding   : 8px;
+        box-shadow: 0 12px 40px rgba(0,0,0,0.6);
+        z-index   : 9999;
+        animation : lp-fade-in 0.12s ease;
+    }
+
+    @keyframes lp-fade-in {
+        from { opacity: 0; transform: translateY(-4px); }
+        to   { opacity: 1; transform: translateY(0); }
+    }
+
+    &__title {
+        font-size  : 11px;
+        font-weight: 600;
+        color      : #4B5563;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        padding    : 4px 8px 8px;
+        border-bottom: 1px solid #1E293B;
+        margin-bottom: 6px;
+    }
+
+    &__option {
+        display       : flex;
+        flex-direction: column;
+        align-items   : flex-start;
+        gap           : 3px;
+        width         : 100%;
+        padding       : 10px 12px;
+        border        : none;
+        border-radius : 8px;
+        background    : transparent;
+        cursor        : pointer;
+        text-align    : left;
+        transition    : background 0.12s;
+        font-family   : inherit;
+
+        &:hover { background: #243050; }
+
+        &--active {
+            background: #1E293B;
+        }
+    }
+
+    &__option-label {
+        display    : flex;
+        align-items: center;
+        gap        : 6px;
+        font-size  : 14px;
+        font-weight: 600;
+        color      : #F8FAFC;
+    }
+
+    &__option-hint {
+        font-size: 11px;
+        color    : #6B7280;
+    }
+
+    &__badge {
+        font-size    : 10px;
+        font-weight  : 700;
+        padding      : 1px 6px;
+        border-radius: 10px;
+        background   : #00C389;
+        color        : #fff;
+
+        &--pkce {
+            background: #374151;
+            color     : #9CA3AF;
+        }
+    }
+
+    &__divider {
+        height    : 1px;
+        background: #1E293B;
+        margin    : 4px 0;
+    }
+}

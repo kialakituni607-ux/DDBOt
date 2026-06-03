@@ -326,6 +326,50 @@ app.post('/api/auth/deriv', authLimiter, async (req, res) => {
     }
 });
 
+// ── PKCE token exchange ───────────────────────────────────────────────────────
+// Frontend sends { code, codeVerifier, clientId, redirectUri }.
+// We POST to Deriv's token endpoint and forward the response.
+// Running this on the backend avoids CORS issues and keeps codeVerifier off the
+// network in plain sight.
+app.post('/api/auth/pkce-exchange', authLimiter, async (req, res) => {
+    const { code, codeVerifier, clientId, redirectUri } = req.body || {};
+    if (!code || !codeVerifier || !clientId || !redirectUri) {
+        return res.status(400).json({ error: 'code, codeVerifier, clientId and redirectUri are all required' });
+    }
+
+    try {
+        const { default: fetch } = await import('node-fetch').catch(() => ({ default: global.fetch }));
+
+        const body = new URLSearchParams({
+            grant_type   : 'authorization_code',
+            code,
+            client_id    : clientId,
+            redirect_uri : redirectUri,
+            code_verifier: codeVerifier,
+        });
+
+        const tokenResp = await fetch('https://oauth.deriv.com/oauth2/token', {
+            method : 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body   : body.toString(),
+        });
+
+        const data = await tokenResp.json();
+
+        if (!tokenResp.ok) {
+            console.error('[PKCE] Deriv token exchange failed:', data);
+            return res.status(tokenResp.status).json({
+                error: data.error_description || data.error || 'Deriv token exchange failed',
+            });
+        }
+
+        return res.json(data);
+    } catch (err) {
+        console.error('[PKCE] Exchange error:', err.message);
+        return res.status(502).json({ error: 'Could not reach Deriv token endpoint' });
+    }
+});
+
 app.post('/api/tokens', authMiddleware, async (req, res) => {
     const { token, token_name } = req.body;
     if (!token) return res.status(400).json({ error: 'token is required' });
