@@ -177,10 +177,7 @@ const generateOAuthState = (): string => {
  * Deriv app dashboard — scheme, domain, path and trailing slash must all match.
  */
 export const buildLegacyAuthorizeURL = (opts: LoginOptions = {}): string => {
-    // Always use TRADEMASTERS_APP_ID for the OAuth URL — never the localStorage
-    // override (config.app_id), which can be a different app's ID and would
-    // cause a redirect_uri mismatch on oauth.deriv.com.
-    const app_id = TRADEMASTERS_APP_ID;
+    const app_id = String(getAppId());
 
     // Pick the right OAuth host for the user's region.
     const host = window.location.hostname;
@@ -189,17 +186,22 @@ export const buildLegacyAuthorizeURL = (opts: LoginOptions = {}): string => {
     else if (host.includes('.deriv.be')) oauth_host = 'oauth.deriv.be';
 
     const url = new URL(`https://${oauth_host}/oauth2/authorize`);
-    url.searchParams.set('app_id', String(app_id));
+    url.searchParams.set('app_id', app_id);
     url.searchParams.set('brand', 'deriv');
 
-    // Use the pre-registered redirect_uri for this app.
-    // Deriv requires this to exactly match the URL in the app dashboard.
-    const redirect_uri = opts.redirectUri || REGISTERED_REDIRECT_URIS[app_id];
-    if (redirect_uri) {
-        url.searchParams.set('redirect_uri', redirect_uri);
+    // Use `redirect=home` instead of `redirect_uri` — this is the parameter
+    // pattern used by other working Deriv platforms. It instructs Deriv's login
+    // portal to redirect to the app's pre-registered redirect URL on its server
+    // side, bypassing the `redirect_uri` parsing that the new portal ignores.
+    if (opts.redirectUri) {
+        // Caller explicitly supplied a URI (e.g. test harness) — honour it.
+        url.searchParams.set('redirect_uri', opts.redirectUri);
+    } else {
+        url.searchParams.set('redirect', 'home');
     }
 
-    // Include a CSRF state nonce — standard OAuth2 best practice.
+    // Include a CSRF state nonce — standard OAuth2 best practice, and present
+    // in all observed working Deriv integrations.
     url.searchParams.set('state', generateOAuthState());
 
     return url.toString();
