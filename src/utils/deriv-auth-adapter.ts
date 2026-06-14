@@ -177,7 +177,10 @@ const generateOAuthState = (): string => {
  * Deriv app dashboard — scheme, domain, path and trailing slash must all match.
  */
 export const buildLegacyAuthorizeURL = (opts: LoginOptions = {}): string => {
-    const app_id = Number(getAppId());
+    // Always use TRADEMASTERS_APP_ID for the OAuth URL — never the localStorage
+    // override (config.app_id), which can be a different app's ID and would
+    // cause a redirect_uri mismatch on oauth.deriv.com.
+    const app_id = TRADEMASTERS_APP_ID;
 
     // Pick the right OAuth host for the user's region.
     const host = window.location.hostname;
@@ -189,14 +192,12 @@ export const buildLegacyAuthorizeURL = (opts: LoginOptions = {}): string => {
     url.searchParams.set('app_id', String(app_id));
     url.searchParams.set('brand', 'deriv');
 
-    // Deriv requires redirect_uri to exactly match the URL registered in the
-    // app dashboard. Use the caller-supplied URI first, then the pre-registered
-    // URI for this app_id, then fall back to /callback on the current origin.
-    const redirect_uri =
-        opts.redirectUri ||
-        REGISTERED_REDIRECT_URIS[app_id] ||
-        `${window.location.origin}/callback`;
-    url.searchParams.set('redirect_uri', redirect_uri);
+    // Use the pre-registered redirect_uri for this app.
+    // Deriv requires this to exactly match the URL in the app dashboard.
+    const redirect_uri = opts.redirectUri || REGISTERED_REDIRECT_URIS[app_id];
+    if (redirect_uri) {
+        url.searchParams.set('redirect_uri', redirect_uri);
+    }
 
     // Include a CSRF state nonce — standard OAuth2 best practice.
     url.searchParams.set('state', generateOAuthState());
