@@ -165,19 +165,19 @@ const generateOAuthState = (): string => {
 };
 
 /**
- * Build the legacy OAuth URL using the pattern observed from working
- * Deriv-integrated platforms:
+ * Build the legacy OAuth URL.
  *
- *   ?app_id=<id>&brand=deriv&redirect=home&state=<nonce>
+ *   https://oauth.deriv.com/oauth2/authorize
+ *     ?app_id=<id>
+ *     &brand=deriv
+ *     &redirect_uri=<registered_uri>
+ *     &state=<nonce>
  *
- * Using `redirect=home` tells Deriv's login portal to redirect to the URL
- * registered in the app's Deriv dashboard after authentication, rather than
- * reading `redirect_uri` from the query string. Deriv's new
- * `home.deriv.com/dashboard/login` portal ignores `redirect_uri` for
- * non-OIDC apps, which is why the old approach failed.
+ * Deriv requires redirect_uri to exactly match the URL registered in the
+ * Deriv app dashboard — scheme, domain, path and trailing slash must all match.
  */
 export const buildLegacyAuthorizeURL = (opts: LoginOptions = {}): string => {
-    const app_id = String(getAppId());
+    const app_id = Number(getAppId());
 
     // Pick the right OAuth host for the user's region.
     const host = window.location.hostname;
@@ -186,22 +186,19 @@ export const buildLegacyAuthorizeURL = (opts: LoginOptions = {}): string => {
     else if (host.includes('.deriv.be')) oauth_host = 'oauth.deriv.be';
 
     const url = new URL(`https://${oauth_host}/oauth2/authorize`);
-    url.searchParams.set('app_id', app_id);
+    url.searchParams.set('app_id', String(app_id));
     url.searchParams.set('brand', 'deriv');
 
-    // Use `redirect=home` instead of `redirect_uri` — this is the parameter
-    // pattern used by other working Deriv platforms. It instructs Deriv's login
-    // portal to redirect to the app's pre-registered redirect URL on its server
-    // side, bypassing the `redirect_uri` parsing that the new portal ignores.
-    if (opts.redirectUri) {
-        // Caller explicitly supplied a URI (e.g. test harness) — honour it.
-        url.searchParams.set('redirect_uri', opts.redirectUri);
-    } else {
-        url.searchParams.set('redirect', 'home');
-    }
+    // Deriv requires redirect_uri to exactly match the URL registered in the
+    // app dashboard. Use the caller-supplied URI first, then the pre-registered
+    // URI for this app_id, then fall back to /callback on the current origin.
+    const redirect_uri =
+        opts.redirectUri ||
+        REGISTERED_REDIRECT_URIS[app_id] ||
+        `${window.location.origin}/callback`;
+    url.searchParams.set('redirect_uri', redirect_uri);
 
-    // Include a CSRF state nonce — standard OAuth2 best practice, and present
-    // in all observed working Deriv integrations.
+    // Include a CSRF state nonce — standard OAuth2 best practice.
     url.searchParams.set('state', generateOAuthState());
 
     return url.toString();
