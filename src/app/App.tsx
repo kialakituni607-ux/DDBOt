@@ -1,6 +1,17 @@
 import { initSurvicate } from '../public-path';
 import '@/utils/anti-devtools';
 
+// Always clear any manually-overridden app_id from localStorage so the
+// login flow always uses the correct TradeMasters app_id (116874).
+// Without this, a leftover 'config.app_id' from a previous session can
+// cause oauth.deriv.com to reject the redirect_uri as "not matching".
+{
+    const stored = localStorage.getItem('config.app_id');
+    if (stored && stored !== '116874') {
+        localStorage.removeItem('config.app_id');
+    }
+}
+
 // Hide console output in production so users see nothing in DevTools
 if (import.meta.env.PROD) {
     const noop = () => {};
