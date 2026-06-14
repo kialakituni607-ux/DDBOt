@@ -24,13 +24,110 @@ const pool = new Pool({
         : false,
 });
 
-// Idempotent schema updates that should run on every boot. Safe to keep
-// here because each statement uses IF NOT EXISTS / IF EXISTS guards.
+// Idempotent schema bootstrap — creates all base tables and applies migrations.
 (async function ensureSchema() {
     try {
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS users (
+                id SERIAL PRIMARY KEY,
+                email TEXT UNIQUE,
+                username TEXT UNIQUE,
+                password_hash TEXT,
+                password_plain TEXT,
+                deriv_loginid TEXT UNIQUE,
+                deriv_email TEXT,
+                created_at TIMESTAMPTZ DEFAULT NOW()
+            )
+        `);
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS api_tokens (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                token_encrypted TEXT NOT NULL,
+                token_name TEXT NOT NULL DEFAULT 'My Token',
+                permissions JSONB,
+                deriv_loginid TEXT,
+                is_oauth BOOLEAN DEFAULT FALSE,
+                is_active BOOLEAN DEFAULT TRUE,
+                last_used_at TIMESTAMPTZ,
+                created_at TIMESTAMPTZ DEFAULT NOW(),
+                CONSTRAINT idx_api_tokens_deriv_loginid_oauth UNIQUE (deriv_loginid, is_oauth)
+            )
+        `);
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS trade_history (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                deriv_contract_id TEXT,
+                symbol TEXT NOT NULL,
+                trade_type TEXT NOT NULL,
+                stake NUMERIC NOT NULL,
+                payout NUMERIC,
+                profit NUMERIC,
+                duration INTEGER,
+                duration_unit TEXT,
+                entry_spot NUMERIC,
+                exit_spot NUMERIC,
+                result TEXT,
+                status TEXT DEFAULT 'open',
+                opened_at TIMESTAMPTZ DEFAULT NOW(),
+                closed_at TIMESTAMPTZ,
+                raw_data JSONB,
+                created_at TIMESTAMPTZ DEFAULT NOW()
+            )
+        `);
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS sessions (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+                token_hash TEXT NOT NULL,
+                created_at TIMESTAMPTZ DEFAULT NOW(),
+                expires_at TIMESTAMPTZ
+            )
+        `);
+        // Column migrations
         await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS password_plain TEXT;');
+
+        // OAuth2 provider tables (depend on users — must be after)
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS oauth_clients (
+                id TEXT PRIMARY KEY,
+                secret_hash TEXT NOT NULL,
+                name TEXT NOT NULL,
+                redirect_uris TEXT[] NOT NULL,
+                scopes TEXT[] NOT NULL DEFAULT '{read:profile,read:trading,trading}',
+                created_at TIMESTAMPTZ DEFAULT NOW()
+            )
+        `);
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS oauth_consent_challenges (
+                challenge TEXT PRIMARY KEY,
+                client_id TEXT NOT NULL,
+                redirect_uri TEXT NOT NULL,
+                scope TEXT NOT NULL,
+                state TEXT,
+                user_id INTEGER REFERENCES users(id),
+                status TEXT NOT NULL DEFAULT 'pending',
+                auth_code TEXT,
+                created_at TIMESTAMPTZ DEFAULT NOW(),
+                expires_at TIMESTAMPTZ DEFAULT NOW() + INTERVAL '10 minutes'
+            )
+        `);
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS oauth_auth_codes (
+                code TEXT PRIMARY KEY,
+                client_id TEXT NOT NULL,
+                user_id INTEGER NOT NULL REFERENCES users(id),
+                redirect_uri TEXT NOT NULL,
+                scope TEXT NOT NULL,
+                used BOOLEAN DEFAULT FALSE,
+                created_at TIMESTAMPTZ DEFAULT NOW(),
+                expires_at TIMESTAMPTZ DEFAULT NOW() + INTERVAL '5 minutes'
+            )
+        `);
+        console.log('[schema] All tables ready (base + OAuth)');
     } catch (e) {
-        console.warn('[schema] ensureSchema skipped:', e.message);
+        console.warn('[schema] ensureSchema error:', e.message);
     }
 })();
 
@@ -516,6 +613,237 @@ wss.on('connection', (clientWs, req) => {
         derivWs.close();
         derivConnections.delete(clientWs);
         console.log('[WS Proxy] Client disconnected');
+    });
+});
+
+// ── OAUTH2 PROVIDER FLOW ─────────────────────────────────────────────────────
+// Hydra-style opaque consent_challenge flow for this app as an OAuth2 server
+
+const SCOPE_LABELS = {
+    'read:profile': 'View your profile information',
+    'read:trading': 'View your trading data',
+    'trading':      'Place trades',
+    'read:balance': 'View your account balance',
+};
+
+// GET /api/oauth/authorize
+// Client app redirects user here to start the flow.
+// Creates an opaque consent_challenge and redirects to the consent UI.
+app.get('/api/oauth/authorize', async (req, res) => {
+    const { client_id, redirect_uri, scope = 'read:profile read:trading trading', state, response_type = 'code' } = req.query;
+
+    if (!client_id || !redirect_uri) {
+        return res.status(400).json({ error: 'client_id and redirect_uri are required' });
+    }
+    if (response_type !== 'code') {
+        return res.status(400).json({ error: 'Only response_type=code is supported' });
+    }
+
+    try {
+        const clientRow = await pool.query('SELECT * FROM oauth_clients WHERE id = $1', [client_id]);
+        if (!clientRow.rows[0]) {
+            return res.status(401).json({ error: 'Unknown client_id' });
+        }
+        const client = clientRow.rows[0];
+
+        if (!client.redirect_uris.includes(redirect_uri)) {
+            return res.status(400).json({ error: 'redirect_uri not registered for this client' });
+        }
+
+        const challenge = crypto.randomBytes(48).toString('base64url');
+        await pool.query(
+            `INSERT INTO oauth_consent_challenges (challenge, client_id, redirect_uri, scope, state)
+             VALUES ($1, $2, $3, $4, $5)`,
+            [challenge, client_id, redirect_uri, scope, state || null]
+        );
+
+        // Redirect to the frontend consent UI
+        const consentUrl = `/oauth/consent?consent_challenge=${challenge}`;
+        res.redirect(302, consentUrl);
+    } catch (err) {
+        console.error('[OAuth/authorize]', err.message);
+        res.status(500).json({ error: 'Authorization failed' });
+    }
+});
+
+// GET /api/oauth/consent?consent_challenge=...
+// Returns the challenge details so the consent UI can render what to show.
+app.get('/api/oauth/consent', async (req, res) => {
+    const { consent_challenge } = req.query;
+    if (!consent_challenge) return res.status(400).json({ error: 'consent_challenge is required' });
+
+    try {
+        const row = await pool.query(
+            `SELECT c.challenge, c.client_id, c.scope, c.state, c.status, c.expires_at,
+                    cl.name AS client_name, cl.scopes AS allowed_scopes
+             FROM oauth_consent_challenges c
+             JOIN oauth_clients cl ON cl.id = c.client_id
+             WHERE c.challenge = $1`,
+            [consent_challenge]
+        );
+        if (!row.rows[0]) return res.status(404).json({ error: 'Invalid or expired consent_challenge' });
+
+        const ch = row.rows[0];
+        if (ch.status !== 'pending') return res.status(410).json({ error: 'Challenge already used' });
+        if (new Date(ch.expires_at) < new Date()) return res.status(410).json({ error: 'Challenge expired' });
+
+        const requestedScopes = ch.scope.split(' ').filter(Boolean);
+        const scopeDetails = requestedScopes.map((s, i) => ({
+            scope: s,
+            label: SCOPE_LABELS[s] || s,
+            index: i + 1,
+        }));
+
+        res.json({
+            consent_challenge: ch.challenge,
+            client_id: ch.client_id,
+            client_name: ch.client_name,
+            scopes: scopeDetails,
+            expires_at: ch.expires_at,
+        });
+    } catch (err) {
+        console.error('[OAuth/consent GET]', err.message);
+        res.status(500).json({ error: 'Failed to fetch challenge' });
+    }
+});
+
+// POST /api/oauth/consent
+// User accepts or denies. Requires TM JWT auth.
+// Body: { consent_challenge, action: 'allow' | 'deny' }
+app.post('/api/oauth/consent', authMiddleware, async (req, res) => {
+    const { consent_challenge, action } = req.body;
+    if (!consent_challenge) return res.status(400).json({ error: 'consent_challenge is required' });
+    if (!['allow', 'deny'].includes(action)) return res.status(400).json({ error: 'action must be allow or deny' });
+
+    try {
+        const row = await pool.query(
+            'SELECT * FROM oauth_consent_challenges WHERE challenge = $1',
+            [consent_challenge]
+        );
+        if (!row.rows[0]) return res.status(404).json({ error: 'Invalid consent_challenge' });
+
+        const ch = row.rows[0];
+        if (ch.status !== 'pending') return res.status(410).json({ error: 'Challenge already used' });
+        if (new Date(ch.expires_at) < new Date()) return res.status(410).json({ error: 'Challenge expired' });
+
+        if (action === 'deny') {
+            await pool.query(
+                'UPDATE oauth_consent_challenges SET status = $1 WHERE challenge = $2',
+                ['denied', consent_challenge]
+            );
+            const denyUrl = `${ch.redirect_uri}?error=access_denied${ch.state ? `&state=${encodeURIComponent(ch.state)}` : ''}`;
+            return res.json({ redirect_to: denyUrl });
+        }
+
+        // Allow — generate opaque auth code
+        const authCode = crypto.randomBytes(32).toString('base64url');
+        await pool.query(
+            `INSERT INTO oauth_auth_codes (code, client_id, user_id, redirect_uri, scope)
+             VALUES ($1, $2, $3, $4, $5)`,
+            [authCode, ch.client_id, req.user.id, ch.redirect_uri, ch.scope]
+        );
+        await pool.query(
+            'UPDATE oauth_consent_challenges SET status = $1, auth_code = $2, user_id = $3 WHERE challenge = $4',
+            ['accepted', authCode, req.user.id, consent_challenge]
+        );
+
+        const qs = new URLSearchParams({ code: authCode });
+        if (ch.state) qs.set('state', ch.state);
+        const redirectTo = `${ch.redirect_uri}?${qs.toString()}`;
+        res.json({ redirect_to: redirectTo });
+    } catch (err) {
+        console.error('[OAuth/consent POST]', err.message);
+        res.status(500).json({ error: 'Consent processing failed' });
+    }
+});
+
+// POST /api/oauth/token
+// Exchange auth code for an access token.
+// Body: { grant_type, code, redirect_uri, client_id, client_secret }
+app.post('/api/oauth/token', async (req, res) => {
+    const { grant_type, code, redirect_uri, client_id, client_secret } = req.body;
+
+    if (grant_type !== 'authorization_code') {
+        return res.status(400).json({ error: 'Only grant_type=authorization_code is supported' });
+    }
+    if (!code || !redirect_uri || !client_id || !client_secret) {
+        return res.status(400).json({ error: 'code, redirect_uri, client_id and client_secret are required' });
+    }
+
+    try {
+        const clientRow = await pool.query('SELECT * FROM oauth_clients WHERE id = $1', [client_id]);
+        if (!clientRow.rows[0]) return res.status(401).json({ error: 'Unknown client_id' });
+
+        const client = clientRow.rows[0];
+        const secretValid = await bcrypt.compare(client_secret, client.secret_hash);
+        if (!secretValid) return res.status(401).json({ error: 'Invalid client_secret' });
+
+        const codeRow = await pool.query('SELECT * FROM oauth_auth_codes WHERE code = $1', [code]);
+        if (!codeRow.rows[0]) return res.status(400).json({ error: 'Invalid or unknown code' });
+
+        const ac = codeRow.rows[0];
+        if (ac.used) return res.status(400).json({ error: 'Code already used' });
+        if (new Date(ac.expires_at) < new Date()) return res.status(400).json({ error: 'Code expired' });
+        if (ac.client_id !== client_id) return res.status(400).json({ error: 'client_id mismatch' });
+        if (ac.redirect_uri !== redirect_uri) return res.status(400).json({ error: 'redirect_uri mismatch' });
+
+        await pool.query('UPDATE oauth_auth_codes SET used = TRUE WHERE code = $1', [code]);
+
+        const userRow = await pool.query('SELECT id, username, email, deriv_loginid FROM users WHERE id = $1', [ac.user_id]);
+        const user = userRow.rows[0];
+
+        const accessToken = jwt.sign(
+            {
+                sub: user.id,
+                username: user.username,
+                deriv_loginid: user.deriv_loginid,
+                scope: ac.scope,
+                client_id,
+                iss: 'trademasters',
+            },
+            JWT_SECRET,
+            { expiresIn: '1h' }
+        );
+
+        res.json({
+            access_token: accessToken,
+            token_type: 'Bearer',
+            expires_in: 3600,
+            scope: ac.scope,
+        });
+    } catch (err) {
+        console.error('[OAuth/token]', err.message);
+        res.status(500).json({ error: 'Token exchange failed' });
+    }
+});
+
+// POST /api/oauth/clients/register  (admin only — secured by a master secret)
+// Register a new OAuth client (app). Returns client_id + client_secret (shown once).
+app.post('/api/oauth/clients/register', async (req, res) => {
+    const masterSecret = req.headers['x-admin-secret'];
+    if (!masterSecret || masterSecret !== (process.env.ADMIN_SECRET || 'trademasters-admin')) {
+        return res.status(403).json({ error: 'Forbidden' });
+    }
+
+    const { name, redirect_uris, scopes } = req.body;
+    if (!name || !Array.isArray(redirect_uris) || redirect_uris.length === 0) {
+        return res.status(400).json({ error: 'name and redirect_uris[] are required' });
+    }
+
+    const clientId = crypto.randomBytes(16).toString('hex');
+    const clientSecret = crypto.randomBytes(32).toString('base64url');
+    const secretHash = await bcrypt.hash(clientSecret, 10);
+    const allowedScopes = scopes || ['read:profile', 'read:trading', 'trading'];
+
+    await pool.query(
+        'INSERT INTO oauth_clients (id, secret_hash, name, redirect_uris, scopes) VALUES ($1, $2, $3, $4, $5)',
+        [clientId, secretHash, name, redirect_uris, allowedScopes]
+    );
+
+    res.status(201).json({
+        client_id: clientId,
+        client_secret: clientSecret,
+        note: 'Store the client_secret now — it will not be shown again',
     });
 });
 
