@@ -45,7 +45,7 @@ import { requestOidcAuthentication, OAuth2Logout } from '@deriv-com/auth-client'
  * scheme, domain, path, and trailing slash all must match.
  */
 const REGISTERED_REDIRECT_URIS: Record<number, string> = {
-    [TRADEMASTERS_APP_ID]: 'https://trademasters.site/',
+    [TRADEMASTERS_APP_ID]: 'https://trademasters.site/callback',
 };
 
 export type AuthMode = 'legacy' | 'oidc' | 'auto';
