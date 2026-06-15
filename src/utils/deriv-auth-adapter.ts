@@ -37,7 +37,14 @@
 
 import Cookies from 'js-cookie';
 import { getAppId, TRADEMASTERS_APP_ID } from '@/components/shared/utils/config/config';
-import { requestOidcAuthentication, OAuth2Logout } from '@deriv-com/auth-client';
+import { OAuth2Logout } from '@deriv-com/auth-client';
+
+/**
+ * OAuth 2.0 client_id for the new Deriv API (PKCE flow).
+ * This is different from the legacy app_id — the new API uses client_id
+ * and requires code_challenge (PKCE) instead of just app_id.
+ */
+const TRADEMASTERS_CLIENT_ID = '33s7LwZCzluES8H4HmjIK';
 
 /**
  * The redirect URI registered in the Deriv app dashboard for each app_id.
@@ -254,7 +261,35 @@ const legacyLogin = async (opts: LoginOptions): Promise<void> => {
 };
 
 /* -------------------------------------------------------------------------- */
-/* OIDC adapter                                                               */
+/* PKCE helpers                                                               */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Generate a PKCE code_verifier + code_challenge pair.
+ * - code_verifier: random 32-byte base64url string (stored in sessionStorage
+ *   so the /callback page can exchange the auth code for tokens)
+ * - code_challenge: BASE64URL( SHA-256( code_verifier ) )
+ */
+const generatePKCE = async (): Promise<{ verifier: string; challenge: string }> => {
+    const array = new Uint8Array(32);
+    crypto.getRandomValues(array);
+    const verifier = btoa(String.fromCharCode(...array))
+        .replace(/\+/g, '-')
+        .replace(/\//g, '_')
+        .replace(/=+$/, '');
+
+    const encoded = new TextEncoder().encode(verifier);
+    const digest = await crypto.subtle.digest('SHA-256', encoded);
+    const challenge = btoa(String.fromCharCode(...new Uint8Array(digest)))
+        .replace(/\+/g, '-')
+        .replace(/\//g, '_')
+        .replace(/=+$/, '');
+
+    return { verifier, challenge };
+};
+
+/* -------------------------------------------------------------------------- */
+/* New API (OAuth 2.0 + PKCE) adapter                                         */
 /* -------------------------------------------------------------------------- */
 
 const oidcLogin = async (opts: LoginOptions): Promise<void> => {
@@ -262,11 +297,27 @@ const oidcLogin = async (opts: LoginOptions): Promise<void> => {
     if (opts.currency) {
         sessionStorage.setItem('query_param_currency', opts.currency);
     }
-    await requestOidcAuthentication({
-        redirectCallbackUri: opts.redirectUri || `${window.location.origin}/callback`,
-        postLogoutRedirectUri: window.location.origin,
-        ...(opts.currency ? { state: { account: opts.currency } } : {}),
-    });
+
+    const { verifier, challenge } = await generatePKCE();
+    // Store the verifier so the /callback page can exchange the auth code
+    sessionStorage.setItem('deriv.pkce.verifier', verifier);
+
+    const redirect_uri = opts.redirectUri || 'https://trademasters.site/callback';
+
+    const host = window.location.hostname;
+    let oauth_host = 'oauth.deriv.com';
+    if (host.includes('.deriv.me')) oauth_host = 'oauth.deriv.me';
+    else if (host.includes('.deriv.be')) oauth_host = 'oauth.deriv.be';
+
+    const url = new URL(`https://${oauth_host}/oauth2/authorize`);
+    url.searchParams.set('client_id', TRADEMASTERS_CLIENT_ID);
+    url.searchParams.set('response_type', 'code');
+    url.searchParams.set('code_challenge', challenge);
+    url.searchParams.set('code_challenge_method', 'S256');
+    url.searchParams.set('redirect_uri', redirect_uri);
+    url.searchParams.set('state', generateOAuthState());
+
+    window.location.href = url.toString();
 };
 
 /* -------------------------------------------------------------------------- */
