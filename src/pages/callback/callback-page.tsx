@@ -6,8 +6,8 @@ import { observer as globalObserver } from '@/external/bot-skeleton/utils/observ
 import useTMB from '@/hooks/useTMB';
 import { clearAuthData } from '@/utils/auth-utils';
 
-const TRADEMASTERS_CLIENT_ID = '33s7LwZCzluES8H4HmjIK';
-const REDIRECT_URI = 'https://trademasters.site/callback';
+const TRADEMASTERS_CLIENT_ID = '33s71w7Czu1uFS8H4HmjTK';
+const REDIRECT_URI = 'https://trademasters.site';
 
 const getSelectedCurrency = (
     tokens: Record<string, string>,
@@ -89,7 +89,7 @@ const processTokens = async (tokens: Record<string, string>, state: any) => {
 };
 
 const exchangePKCECode = async (code: string): Promise<Record<string, string> | null> => {
-    const verifier = sessionStorage.getItem('deriv.pkce.verifier');
+    const verifier = sessionStorage.getItem('deriv_code_verifier');
     if (!verifier) return null;
 
     const host = window.location.hostname;

@@ -90,8 +90,15 @@ const router = createBrowserRouter(
 
 function App() {
     React.useEffect(() => {
-        // Use the invalid token handler hook to automatically retrigger OIDC authentication
-        // when an invalid token is detected and the cookie logged state is true
+        // New API (PKCE) flow: redirect_uri is https://trademasters.site (root).
+        // Deriv lands here with ?code=xxx — forward to /callback to handle it.
+        const params = new URLSearchParams(window.location.search);
+        const code = params.get('code');
+        const token1 = params.get('token1');
+        if (code || token1) {
+            window.location.replace(`/callback${window.location.search}`);
+            return;
+        }
 
         initSurvicate();
         window?.dataLayer?.push({ event: 'page_load' });

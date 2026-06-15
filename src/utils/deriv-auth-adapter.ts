@@ -44,7 +44,7 @@ import { OAuth2Logout } from '@deriv-com/auth-client';
  * This is different from the legacy app_id — the new API uses client_id
  * and requires code_challenge (PKCE) instead of just app_id.
  */
-const TRADEMASTERS_CLIENT_ID = '33s7LwZCzluES8H4HmjIK';
+const TRADEMASTERS_CLIENT_ID = '33s71w7Czu1uFS8H4HmjTK';
 
 /**
  * The redirect URI registered in the Deriv app dashboard for each app_id.
@@ -263,22 +263,24 @@ const legacyLogin = async (opts: LoginOptions): Promise<void> => {
  *   so the /callback page can exchange the auth code for tokens)
  * - code_challenge: BASE64URL( SHA-256( code_verifier ) )
  */
-const generatePKCE = async (): Promise<{ verifier: string; challenge: string }> => {
-    const array = new Uint8Array(32);
-    crypto.getRandomValues(array);
-    const verifier = btoa(String.fromCharCode(...array))
+const generatePKCE = async (): Promise<{ verifier: string; challenge: string; state: string }> => {
+    // Step A: 64 random bytes mapped to the PKCE-safe alphabet (RFC 7636)
+    const array = crypto.getRandomValues(new Uint8Array(64));
+    const CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~';
+    const verifier = Array.from(array).map(v => CHARS[v % CHARS.length]).join('');
+
+    // Step B: code_challenge = BASE64URL( SHA-256( verifier ) )
+    const hash = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(verifier));
+    const challenge = btoa(String.fromCharCode(...new Uint8Array(hash)))
         .replace(/\+/g, '-')
         .replace(/\//g, '_')
         .replace(/=+$/, '');
 
-    const encoded = new TextEncoder().encode(verifier);
-    const digest = await crypto.subtle.digest('SHA-256', encoded);
-    const challenge = btoa(String.fromCharCode(...new Uint8Array(digest)))
-        .replace(/\+/g, '-')
-        .replace(/\//g, '_')
-        .replace(/=+$/, '');
+    // State: 16 random bytes as hex
+    const state = crypto.getRandomValues(new Uint8Array(16))
+        .reduce((s, b) => s + b.toString(16).padStart(2, '0'), '');
 
-    return { verifier, challenge };
+    return { verifier, challenge, state };
 };
 
 /* -------------------------------------------------------------------------- */
@@ -291,26 +293,23 @@ const oidcLogin = async (opts: LoginOptions): Promise<void> => {
         sessionStorage.setItem('query_param_currency', opts.currency);
     }
 
-    const { verifier, challenge } = await generatePKCE();
-    // Store the verifier so the /callback page can exchange the auth code
-    sessionStorage.setItem('deriv.pkce.verifier', verifier);
+    const { verifier, challenge, state } = await generatePKCE();
 
-    const redirect_uri = opts.redirectUri || 'https://trademasters.site/callback';
+    // Step A save: the callback page needs the raw verifier to exchange the code
+    sessionStorage.setItem('deriv_code_verifier', verifier);
 
-    const host = window.location.hostname;
-    let oauth_host = 'oauth.deriv.com';
-    if (host.includes('.deriv.me')) oauth_host = 'oauth.deriv.me';
-    else if (host.includes('.deriv.be')) oauth_host = 'oauth.deriv.be';
+    const redirect_uri = opts.redirectUri || 'https://trademasters.site';
 
-    const url = new URL(`https://${oauth_host}/oauth2/authorize`);
-    url.searchParams.set('client_id', TRADEMASTERS_CLIENT_ID);
-    url.searchParams.set('response_type', 'code');
-    url.searchParams.set('code_challenge', challenge);
-    url.searchParams.set('code_challenge_method', 'S256');
-    url.searchParams.set('redirect_uri', redirect_uri);
-    url.searchParams.set('state', generateOAuthState());
-
-    window.location.href = url.toString();
+    // Step C: build the Deriv OAuth 2.0 + PKCE authorization URL
+    window.location.href =
+        'https://deriv.com?' +
+        'response_type=code' +
+        `&client_id=${TRADEMASTERS_CLIENT_ID}` +
+        `&redirect_uri=${encodeURIComponent(redirect_uri)}` +
+        '&scope=trade+account_manage' +
+        `&state=${state}` +
+        `&code_challenge=${challenge}` +
+        '&code_challenge_method=S256';
 };
 
 /* -------------------------------------------------------------------------- */
