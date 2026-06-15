@@ -37,14 +37,7 @@
 
 import Cookies from 'js-cookie';
 import { getAppId, TRADEMASTERS_APP_ID } from '@/components/shared/utils/config/config';
-import { OAuth2Logout } from '@deriv-com/auth-client';
-
-/**
- * OAuth 2.0 client_id for the new Deriv API (PKCE flow).
- * This is different from the legacy app_id — the new API uses client_id
- * and requires code_challenge (PKCE) instead of just app_id.
- */
-const TRADEMASTERS_CLIENT_ID = '33s71w7Czu1uFS8H4HmjTK';
+import { requestOidcAuthentication, OAuth2Logout } from '@deriv-com/auth-client';
 
 /**
  * The redirect URI registered in the Deriv app dashboard for each app_id.
@@ -196,84 +189,72 @@ export const buildLegacyAuthorizeURL = (opts: LoginOptions = {}): string => {
     url.searchParams.set('app_id', app_id);
     url.searchParams.set('brand', 'deriv');
 
-    // Use redirect_uri so Deriv sends the user back to TradeMasters after login.
-    // The registered redirect URI for this app is https://trademasters.site/callback.
-    // After login Deriv appends token params: ?token1=x&acct1=x&cur1=x…
-    const redirect_uri = opts.redirectUri || 'https://trademasters.site/callback';
-    url.searchParams.set('redirect_uri', redirect_uri);
+    // Use `redirect=home` instead of `redirect_uri` — this is the parameter
+    // pattern used by other working Deriv platforms. It instructs Deriv's login
+    // portal to redirect to the app's pre-registered redirect URL on its server
+    // side, bypassing the `redirect_uri` parsing that the new portal ignores.
+    if (opts.redirectUri) {
+        // Caller explicitly supplied a URI (e.g. test harness) — honour it.
+        url.searchParams.set('redirect_uri', opts.redirectUri);
+    } else {
+        url.searchParams.set('redirect', 'home');
+    }
 
+    // Include a CSRF state nonce — standard OAuth2 best practice, and present
+    // in all observed working Deriv integrations.
     url.searchParams.set('state', generateOAuthState());
 
     return url.toString();
 };
 
-const legacyLogin = (opts: LoginOptions): void => {
-    persistAffiliateTracking();
-    if (opts.currency) {
-        sessionStorage.setItem('query_param_currency', opts.currency);
-    }
-
-    const oauthUrl = buildLegacyAuthorizeURL(opts);
-
-    // Deriv's new SSO portal (home.deriv.com) ignores `redirect_uri` when the
-    // user already has an active Deriv session — it just auto-logs them in and
-    // sends them to home.deriv.com/dashboard/home.
-    //
-    // A background fetch() to the logout endpoint does NOT fix this because
-    // modern browsers block SameSite=Lax cookies on cross-origin fetch requests.
-    //
-    // Solution: do a FULL-PAGE redirect through Deriv's logout URL first.
-    //   redirect_to=<oauthUrl> tells Deriv to send the user directly to the
-    //   OAuth authorize page after clearing the session, which forces the login
-    //   form to appear and then honours our redirect_uri.
-    //
-    // Fallback: if Deriv ignores redirect_to and sends the user back to us,
-    // App.tsx reads `deriv_pending_login_url` from sessionStorage and forwards
-    // them to the OAuth URL automatically.
-    sessionStorage.setItem('deriv_pending_login_url', oauthUrl);
-
+/**
+ * Clear any active Deriv session before starting the OAuth flow.
+ *
+ * Why this is needed: Deriv's new login portal (`home.deriv.com/dashboard/login`)
+ * auto-completes the flow using the existing browser session and redirects to
+ * `app.deriv.com` — completely ignoring the `redirect_uri` we supply. Clearing
+ * the session first forces the login portal to show the sign-in form and then
+ * honour our redirect_uri after the user authenticates.
+ *
+ * Previous approach (iframe) was blocked by Deriv's X-Frame-Options header.
+ * This approach uses fetch with `credentials: 'include'` so the browser sends
+ * the Deriv session cookie; Deriv's server clears it via Set-Cookie. We use
+ * `mode: 'no-cors'` and `redirect: 'manual'` so we never follow the server
+ * redirect — we only care that the session cookie is cleared.
+ */
+const preClearDerivSession = (): Promise<void> => {
     const host = window.location.hostname;
     let oauth_host = 'oauth.deriv.com';
     if (host.includes('.deriv.me')) oauth_host = 'oauth.deriv.me';
     else if (host.includes('.deriv.be')) oauth_host = 'oauth.deriv.be';
 
-    window.location.href =
-        `https://${oauth_host}/oauth2/sessions/logout` +
-        `?redirect_to=${encodeURIComponent(oauthUrl)}`;
+    const logoutUrl = `https://${oauth_host}/oauth2/sessions/logout`;
+
+    // Race between the fetch completing and a 1.5s safety timeout so the
+    // login button never freezes even if the request hangs.
+    return Promise.race([
+        fetch(logoutUrl, {
+            method: 'GET',
+            credentials: 'include',
+            mode: 'no-cors',
+            redirect: 'manual',
+        }).catch(() => { /* network error — ignore, proceed to login */ }),
+        new Promise<void>(resolve => setTimeout(resolve, 1500)),
+    ]).then(() => { /* void */ });
+};
+
+const legacyLogin = async (opts: LoginOptions): Promise<void> => {
+    persistAffiliateTracking();
+    if (opts.currency) {
+        sessionStorage.setItem('query_param_currency', opts.currency);
+    }
+    // Clear any stale Deriv session that would otherwise short-circuit OAuth.
+    await preClearDerivSession();
+    window.location.href = buildLegacyAuthorizeURL(opts);
 };
 
 /* -------------------------------------------------------------------------- */
-/* PKCE helpers                                                               */
-/* -------------------------------------------------------------------------- */
-
-/**
- * Generate a PKCE code_verifier + code_challenge pair.
- * - code_verifier: random 32-byte base64url string (stored in sessionStorage
- *   so the /callback page can exchange the auth code for tokens)
- * - code_challenge: BASE64URL( SHA-256( code_verifier ) )
- */
-const generatePKCE = async (): Promise<{ verifier: string; challenge: string; state: string }> => {
-    // Step A: 64 random bytes mapped to the PKCE-safe alphabet (RFC 7636)
-    const array = crypto.getRandomValues(new Uint8Array(64));
-    const CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~';
-    const verifier = Array.from(array).map(v => CHARS[v % CHARS.length]).join('');
-
-    // Step B: code_challenge = BASE64URL( SHA-256( verifier ) )
-    const hash = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(verifier));
-    const challenge = btoa(String.fromCharCode(...new Uint8Array(hash)))
-        .replace(/\+/g, '-')
-        .replace(/\//g, '_')
-        .replace(/=+$/, '');
-
-    // State: 16 random bytes as hex
-    const state = crypto.getRandomValues(new Uint8Array(16))
-        .reduce((s, b) => s + b.toString(16).padStart(2, '0'), '');
-
-    return { verifier, challenge, state };
-};
-
-/* -------------------------------------------------------------------------- */
-/* New API (OAuth 2.0 + PKCE) adapter                                         */
+/* OIDC adapter                                                               */
 /* -------------------------------------------------------------------------- */
 
 const oidcLogin = async (opts: LoginOptions): Promise<void> => {
@@ -281,32 +262,11 @@ const oidcLogin = async (opts: LoginOptions): Promise<void> => {
     if (opts.currency) {
         sessionStorage.setItem('query_param_currency', opts.currency);
     }
-
-    const { verifier, challenge, state } = await generatePKCE();
-
-    // Step A save: the callback page needs the raw verifier to exchange the code
-    sessionStorage.setItem('deriv_code_verifier', verifier);
-
-    const redirect_uri = opts.redirectUri || 'https://trademasters.site';
-
-    // Step C: build the Deriv OAuth 2.0 + PKCE authorization URL.
-    // Must go to oauth.deriv.com/oauth2/authorize — deriv.com is just the
-    // marketing homepage and ignores OAuth query parameters.
-    const host = window.location.hostname;
-    let oauth_host = 'oauth.deriv.com';
-    if (host.includes('.deriv.me')) oauth_host = 'oauth.deriv.me';
-    else if (host.includes('.deriv.be')) oauth_host = 'oauth.deriv.be';
-
-    const url = new URL(`https://${oauth_host}/oauth2/authorize`);
-    url.searchParams.set('response_type', 'code');
-    url.searchParams.set('client_id', TRADEMASTERS_CLIENT_ID);
-    url.searchParams.set('redirect_uri', redirect_uri);
-    url.searchParams.set('scope', 'trade account_manage');
-    url.searchParams.set('state', state);
-    url.searchParams.set('code_challenge', challenge);
-    url.searchParams.set('code_challenge_method', 'S256');
-
-    window.location.href = url.toString();
+    await requestOidcAuthentication({
+        redirectCallbackUri: opts.redirectUri || `${window.location.origin}/callback`,
+        postLogoutRedirectUri: window.location.origin,
+        ...(opts.currency ? { state: { account: opts.currency } } : {}),
+    });
 };
 
 /* -------------------------------------------------------------------------- */

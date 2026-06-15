@@ -90,26 +90,8 @@ const router = createBrowserRouter(
 
 function App() {
     React.useEffect(() => {
-        const params = new URLSearchParams(window.location.search);
-        const code = params.get('code');
-        const token1 = params.get('token1');
-
-        // New API (PKCE) flow: redirect_uri is https://trademasters.site (root).
-        // Deriv lands here with ?code=xxx — forward to /callback to handle it.
-        if (code || token1) {
-            window.location.replace(`/callback${window.location.search}`);
-            return;
-        }
-
-        // Legacy login fallback: if Deriv's logout endpoint ignores redirect_to
-        // and sends the user back to us, pick up the pending OAuth URL that
-        // legacyLogin stored before redirecting through logout.
-        const pendingLoginUrl = sessionStorage.getItem('deriv_pending_login_url');
-        if (pendingLoginUrl && document.referrer.includes('deriv.com')) {
-            sessionStorage.removeItem('deriv_pending_login_url');
-            window.location.href = pendingLoginUrl;
-            return;
-        }
+        // Use the invalid token handler hook to automatically retrigger OIDC authentication
+        // when an invalid token is detected and the cookie logged state is true
 
         initSurvicate();
         window?.dataLayer?.push({ event: 'page_load' });
