@@ -207,50 +207,39 @@ export const buildLegacyAuthorizeURL = (opts: LoginOptions = {}): string => {
     return url.toString();
 };
 
-/**
- * Clear any active Deriv session before starting the OAuth flow.
- *
- * Why this is needed: Deriv's new login portal (`home.deriv.com/dashboard/login`)
- * auto-completes the flow using the existing browser session and redirects to
- * `app.deriv.com` — completely ignoring the `redirect_uri` we supply. Clearing
- * the session first forces the login portal to show the sign-in form and then
- * honour our redirect_uri after the user authenticates.
- *
- * Previous approach (iframe) was blocked by Deriv's X-Frame-Options header.
- * This approach uses fetch with `credentials: 'include'` so the browser sends
- * the Deriv session cookie; Deriv's server clears it via Set-Cookie. We use
- * `mode: 'no-cors'` and `redirect: 'manual'` so we never follow the server
- * redirect — we only care that the session cookie is cleared.
- */
-const preClearDerivSession = (): Promise<void> => {
+const legacyLogin = (opts: LoginOptions): void => {
+    persistAffiliateTracking();
+    if (opts.currency) {
+        sessionStorage.setItem('query_param_currency', opts.currency);
+    }
+
+    const oauthUrl = buildLegacyAuthorizeURL(opts);
+
+    // Deriv's new SSO portal (home.deriv.com) ignores `redirect_uri` when the
+    // user already has an active Deriv session — it just auto-logs them in and
+    // sends them to home.deriv.com/dashboard/home.
+    //
+    // A background fetch() to the logout endpoint does NOT fix this because
+    // modern browsers block SameSite=Lax cookies on cross-origin fetch requests.
+    //
+    // Solution: do a FULL-PAGE redirect through Deriv's logout URL first.
+    //   redirect_to=<oauthUrl> tells Deriv to send the user directly to the
+    //   OAuth authorize page after clearing the session, which forces the login
+    //   form to appear and then honours our redirect_uri.
+    //
+    // Fallback: if Deriv ignores redirect_to and sends the user back to us,
+    // App.tsx reads `deriv_pending_login_url` from sessionStorage and forwards
+    // them to the OAuth URL automatically.
+    sessionStorage.setItem('deriv_pending_login_url', oauthUrl);
+
     const host = window.location.hostname;
     let oauth_host = 'oauth.deriv.com';
     if (host.includes('.deriv.me')) oauth_host = 'oauth.deriv.me';
     else if (host.includes('.deriv.be')) oauth_host = 'oauth.deriv.be';
 
-    const logoutUrl = `https://${oauth_host}/oauth2/sessions/logout`;
-
-    // Race between the fetch completing and a 1.5s safety timeout so the
-    // login button never freezes even if the request hangs.
-    return Promise.race([
-        fetch(logoutUrl, {
-            method: 'GET',
-            credentials: 'include',
-            mode: 'no-cors',
-            redirect: 'manual',
-        }).catch(() => { /* network error — ignore, proceed to login */ }),
-        new Promise<void>(resolve => setTimeout(resolve, 1500)),
-    ]).then(() => { /* void */ });
-};
-
-const legacyLogin = async (opts: LoginOptions): Promise<void> => {
-    persistAffiliateTracking();
-    if (opts.currency) {
-        sessionStorage.setItem('query_param_currency', opts.currency);
-    }
-    // Clear any stale Deriv session that would otherwise short-circuit OAuth.
-    await preClearDerivSession();
-    window.location.href = buildLegacyAuthorizeURL(opts);
+    window.location.href =
+        `https://${oauth_host}/oauth2/sessions/logout` +
+        `?redirect_to=${encodeURIComponent(oauthUrl)}`;
 };
 
 /* -------------------------------------------------------------------------- */
