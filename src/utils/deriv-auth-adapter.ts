@@ -300,16 +300,24 @@ const oidcLogin = async (opts: LoginOptions): Promise<void> => {
 
     const redirect_uri = opts.redirectUri || 'https://trademasters.site';
 
-    // Step C: build the Deriv OAuth 2.0 + PKCE authorization URL
-    window.location.href =
-        'https://deriv.com?' +
-        'response_type=code' +
-        `&client_id=${TRADEMASTERS_CLIENT_ID}` +
-        `&redirect_uri=${encodeURIComponent(redirect_uri)}` +
-        '&scope=trade+account_manage' +
-        `&state=${state}` +
-        `&code_challenge=${challenge}` +
-        '&code_challenge_method=S256';
+    // Step C: build the Deriv OAuth 2.0 + PKCE authorization URL.
+    // Must go to oauth.deriv.com/oauth2/authorize — deriv.com is just the
+    // marketing homepage and ignores OAuth query parameters.
+    const host = window.location.hostname;
+    let oauth_host = 'oauth.deriv.com';
+    if (host.includes('.deriv.me')) oauth_host = 'oauth.deriv.me';
+    else if (host.includes('.deriv.be')) oauth_host = 'oauth.deriv.be';
+
+    const url = new URL(`https://${oauth_host}/oauth2/authorize`);
+    url.searchParams.set('response_type', 'code');
+    url.searchParams.set('client_id', TRADEMASTERS_CLIENT_ID);
+    url.searchParams.set('redirect_uri', redirect_uri);
+    url.searchParams.set('scope', 'trade account_manage');
+    url.searchParams.set('state', state);
+    url.searchParams.set('code_challenge', challenge);
+    url.searchParams.set('code_challenge_method', 'S256');
+
+    window.location.href = url.toString();
 };
 
 /* -------------------------------------------------------------------------- */
