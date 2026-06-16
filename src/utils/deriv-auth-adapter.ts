@@ -35,7 +35,7 @@
  */
 
 import Cookies from 'js-cookie';
-import { getAppId, TRADEMASTERS_APP_ID } from '@/components/shared/utils/config/config';
+import { getAppId } from '@/components/shared/utils/config/config';
 import { requestOidcAuthentication, OAuth2Logout } from '@deriv-com/auth-client';
 
 /**
@@ -50,15 +50,6 @@ export const DERIV_OAUTH_CLIENT_ID = '33s7LwZCzluES8H4HmjIK';
  * Must match EXACTLY — scheme, host, path — or Deriv will reject the request.
  */
 export const DERIV_REDIRECT_URI = 'https://trademasters.site/callback';
-
-/**
- * The redirect URI registered in the Deriv app dashboard for each app_id.
- * Deriv requires the redirect_uri in the request to exactly match this value —
- * scheme, domain, path, and trailing slash all must match.
- */
-const REGISTERED_REDIRECT_URIS: Record<number, string> = {
-    [TRADEMASTERS_APP_ID]: 'https://trademasters.site/callback',
-};
 
 export type AuthMode = 'legacy' | 'oidc' | 'auto';
 

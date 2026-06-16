@@ -1,7 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import Cookies from 'js-cookie';
 import { crypto_currencies_display_order, fiat_currencies_display_order } from '@/components/shared';
-import { getAppId } from '@/components/shared/utils/config/config';
 import { generateDerivApiInstance } from '@/external/bot-skeleton/services/api/appId';
 import { observer as globalObserver } from '@/external/bot-skeleton/utils/observer';
 import { clearAuthData } from '@/utils/auth-utils';
