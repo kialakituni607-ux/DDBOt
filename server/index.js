@@ -543,6 +543,52 @@ app.get('/api/trades/stats', authMiddleware, async (req, res) => {
     }
 });
 
+// ── PKCE TOKEN EXCHANGE ──────────────────────────────────────────────────────
+// Server-side code → access_token exchange per Deriv OAuth2 PKCE documentation.
+// The browser must never perform this exchange directly (PKCE best practice).
+//
+// POST /api/auth/pkce-token
+//   Body: { code, code_verifier, redirect_uri, client_id }
+//   Returns: { access_token, token_type, expires_in, … }
+app.post('/api/auth/pkce-token', authLimiter, async (req, res) => {
+    const { code, code_verifier, redirect_uri, client_id } = req.body;
+
+    if (!code || !code_verifier || !redirect_uri) {
+        return res.status(400).json({
+            error: 'code, code_verifier, and redirect_uri are required',
+        });
+    }
+
+    const params = new URLSearchParams();
+    params.append('grant_type', 'authorization_code');
+    params.append('client_id', client_id || DERIV_APP_ID);
+    params.append('code', code);
+    params.append('code_verifier', code_verifier);
+    params.append('redirect_uri', redirect_uri);
+
+    try {
+        const response = await fetch('https://auth.deriv.com/oauth2/token', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: params.toString(),
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            console.error('[PKCE] Token exchange failed:', data);
+            return res.status(response.status).json({
+                error: data.error_description || data.error || 'Token exchange failed',
+            });
+        }
+
+        res.json(data);
+    } catch (err) {
+        console.error('[PKCE] Token exchange error:', err.message);
+        res.status(500).json({ error: 'Token exchange request failed' });
+    }
+});
+
 const wss = new WebSocket.Server({ server, path: '/ws/deriv-proxy' });
 const derivConnections = new Map();
 

@@ -6,20 +6,20 @@
  *      ↓
  *   API Layer (this module)
  *      ↓
- *   Adapter (LEGACY or OIDC)
+ *   Adapter (PKCE or OIDC)
  *      ↓
- *   WebSocket / OAuth handshake at oauth.deriv.com
+ *   auth.deriv.com / oauth.deriv.com
  *
  * The app picks ONE mode at runtime:
  *
- *   - 'legacy' : classic `oauth.deriv.com/oauth2/authorize` URL
- *                (works with the old API and any app registered on
- *                 legacy-api.deriv.com).
+ *   - 'legacy' : new PKCE flow via auth.deriv.com (replaces old oauth.deriv.com URL).
+ *                Generates code_verifier + code_challenge per Deriv OAuth2 PKCE docs.
+ *                Callback handled by /callback with server-side token exchange.
  *
- *   - 'oidc'   : new Deriv OIDC PKCE flow via @deriv-com/auth-client
- *                (works with apps that have OIDC enabled).
+ *   - 'oidc'   : Deriv OIDC PKCE flow via @deriv-com/auth-client
+ *                (works with apps that have OIDC enabled on the new Deriv API).
  *
- *   - 'auto'   : try OIDC first, fall back to legacy on failure
+ *   - 'auto'   : try OIDC first, fall back to PKCE on failure
  *                (default — covers both old and new app registrations).
  *
  * Mode can be forced from outside by setting one of:
@@ -27,12 +27,11 @@
  *   - URL: ?auth_mode=legacy
  *   - window.DERIV_AUTH_MODE = 'legacy'
  *
- * IMPORTANT: This builds a SPEC-COMPLIANT legacy URL. The previous
- * hardcoded URL was missing `redirect_uri` and contained non-OAuth2
- * parameters (`affiliate_token`, `utm_campaign`) that Deriv's stricter
- * server now rejects with `invalid_request`. We pass `redirect_uri`
- * explicitly and keep marketing tags out of the OAuth call itself
- * (they go in a cookie instead, the same way Deriv's main app does it).
+ * PKCE implementation follows:
+ *   https://developers.deriv.com/docs/oauth2-pkce
+ *   Step 1: Generate code_verifier + code_challenge (SHA-256 + BASE64URL)
+ *   Step 2: Redirect to https://auth.deriv.com/oauth2/auth
+ *   Step 3: /callback verifies state, exchanges code server-side
  */
 
 import Cookies from 'js-cookie';
@@ -74,7 +73,7 @@ const AFFILIATE_COOKIE = 'affiliate_tracking';
  * responds with `invalid_client: The requested OAuth 2.0 Client does not exist`.
  *
  * For these app_ids we skip the OIDC attempt in `auto` mode and go straight to
- * the legacy URL — saves a network round-trip and avoids the brief flash of
+ * the PKCE URL — saves a network round-trip and avoids the brief flash of
  * Deriv's OIDC error page.
  */
 const LEGACY_ONLY_APP_IDS = new Set<number>([
@@ -135,51 +134,105 @@ const persistAffiliateTracking = () => {
 };
 
 /* -------------------------------------------------------------------------- */
-/* Legacy adapter                                                             */
+/* PKCE helpers (Step 1 of Deriv PKCE docs)                                   */
 /* -------------------------------------------------------------------------- */
 
 /**
- * Generate a cryptographically random state value for OAuth CSRF protection,
- * persist it in sessionStorage, and return the base64url-encoded string.
+ * Generate PKCE parameters per Deriv OAuth2 documentation.
  *
- * Why: other Deriv-integrated platforms (e.g. dollarprinter.com) use a
- * `state` nonce with `redirect=home` instead of a `redirect_uri` query param.
- * This is the pattern Deriv's new `home.deriv.com` login portal honours for
- * legacy (non-OIDC) apps — it uses the app's registered redirect URL from
- * the Deriv dashboard rather than reading `redirect_uri` from the request,
- * which it now ignores for non-OIDC app_ids.
+ * - code_verifier : cryptographically random string (64 chars, safe alphabet)
+ * - code_challenge: BASE64URL(SHA256(code_verifier))
+ *
+ * Uses Web Crypto API — available in all modern browsers and Node ≥ 15.
  */
-const generateOAuthState = (): string => {
-    const array = new Uint8Array(32);
-    crypto.getRandomValues(array);
-    const state = btoa(String.fromCharCode(...array))
+export const generatePKCEParams = async (): Promise<{
+    codeVerifier: string;
+    codeChallenge: string;
+}> => {
+    // Generate a cryptographically random code_verifier
+    const array = crypto.getRandomValues(new Uint8Array(64));
+    const codeVerifier = Array.from(array)
+        .map(v => 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~'[v % 66])
+        .join('');
+
+    // Derive code_challenge = BASE64URL(SHA256(code_verifier))
+    const hash = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(codeVerifier));
+    const codeChallenge = btoa(String.fromCharCode(...new Uint8Array(hash)))
         .replace(/\+/g, '-')
         .replace(/\//g, '_')
         .replace(/=+$/, '');
-    try {
-        sessionStorage.setItem('deriv.oauth.state', state);
-    } catch {
-        /* sessionStorage may be unavailable — non-fatal */
-    }
-    return state;
+
+    return { codeVerifier, codeChallenge };
 };
 
 /**
- * Build the legacy OAuth URL.
+ * Generate a random hex state string for CSRF protection.
+ */
+const generateState = (): string =>
+    Array.from(crypto.getRandomValues(new Uint8Array(16)))
+        .map(b => b.toString(16).padStart(2, '0'))
+        .join('');
+
+/* -------------------------------------------------------------------------- */
+/* PKCE auth URL builder (Step 2 of Deriv PKCE docs)                          */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Build the new Deriv PKCE authorization URL targeting auth.deriv.com.
  *
- *   https://oauth.deriv.com/oauth2/authorize
- *     ?app_id=<id>
- *     &brand=deriv
- *     &redirect_uri=<registered_uri>
- *     &state=<nonce>
+ *   https://auth.deriv.com/oauth2/auth
+ *     ?response_type=code
+ *     &client_id=<app_id>
+ *     &redirect_uri=<callback>
+ *     &scope=trade+account_manage
+ *     &state=<csrf_nonce>
+ *     &code_challenge=<BASE64URL(SHA256(verifier))>
+ *     &code_challenge_method=S256
+ *     &app_id=<legacy_app_id>   ← dual-support per docs
  *
- * Deriv requires redirect_uri to exactly match the URL registered in the
- * Deriv app dashboard — scheme, domain, path and trailing slash must all match.
+ * Stores code_verifier + state in sessionStorage before redirecting.
+ * Both are cleared by the callback handler after a successful exchange.
+ */
+export const buildPKCEAuthURL = async (opts: LoginOptions = {}): Promise<string> => {
+    const { codeVerifier, codeChallenge } = await generatePKCEParams();
+    const state = generateState();
+
+    // Store per docs — cleared after successful token exchange
+    try {
+        sessionStorage.setItem('pkce_code_verifier', codeVerifier);
+        sessionStorage.setItem('oauth_state', state);
+        // Also preserve currency for post-auth redirect
+        if (opts.currency) {
+            sessionStorage.setItem('query_param_currency', opts.currency);
+        }
+    } catch {
+        /* sessionStorage may be unavailable — non-fatal */
+    }
+
+    const app_id = String(getAppId());
+    const redirect_uri = opts.redirectUri || `${window.location.origin}/callback`;
+
+    const url = new URL('https://auth.deriv.com/oauth2/auth');
+    url.searchParams.set('response_type', 'code');
+    url.searchParams.set('client_id', app_id);
+    url.searchParams.set('redirect_uri', redirect_uri);
+    url.searchParams.set('scope', 'trade account_manage');
+    url.searchParams.set('state', state);
+    url.searchParams.set('code_challenge', codeChallenge);
+    url.searchParams.set('code_challenge_method', 'S256');
+    // Dual legacy+new support per docs: include app_id for legacy API routing
+    url.searchParams.set('app_id', app_id);
+
+    return url.toString();
+};
+
+/**
+ * Build the legacy OAuth URL (fallback for QA / test environments).
+ * Used as a hard fallback when auth.deriv.com is unreachable.
  */
 export const buildLegacyAuthorizeURL = (opts: LoginOptions = {}): string => {
     const app_id = String(getAppId());
 
-    // Pick the right OAuth host for the user's region.
     const host = window.location.hostname;
     let oauth_host = 'oauth.deriv.com';
     if (host.includes('.deriv.me')) oauth_host = 'oauth.deriv.me';
@@ -189,68 +242,37 @@ export const buildLegacyAuthorizeURL = (opts: LoginOptions = {}): string => {
     url.searchParams.set('app_id', app_id);
     url.searchParams.set('brand', 'deriv');
 
-    // Use `redirect=home` instead of `redirect_uri` — this is the parameter
-    // pattern used by other working Deriv platforms. It instructs Deriv's login
-    // portal to redirect to the app's pre-registered redirect URL on its server
-    // side, bypassing the `redirect_uri` parsing that the new portal ignores.
     if (opts.redirectUri) {
-        // Caller explicitly supplied a URI (e.g. test harness) — honour it.
         url.searchParams.set('redirect_uri', opts.redirectUri);
     } else {
         url.searchParams.set('redirect', 'home');
     }
 
-    // Include a CSRF state nonce — standard OAuth2 best practice, and present
-    // in all observed working Deriv integrations.
-    url.searchParams.set('state', generateOAuthState());
+    // CSRF state nonce (stored under legacy key — not the PKCE key)
+    const array = new Uint8Array(32);
+    crypto.getRandomValues(array);
+    const state = btoa(String.fromCharCode(...array))
+        .replace(/\+/g, '-')
+        .replace(/\//g, '_')
+        .replace(/=+$/, '');
+    try { sessionStorage.setItem('deriv.oauth.state', state); } catch { /* non-fatal */ }
+    url.searchParams.set('state', state);
 
     return url.toString();
 };
 
+/* -------------------------------------------------------------------------- */
+/* Login adapters                                                              */
+/* -------------------------------------------------------------------------- */
+
 /**
- * Clear any active Deriv session before starting the OAuth flow.
- *
- * Why this is needed: Deriv's new login portal (`home.deriv.com/dashboard/login`)
- * auto-completes the flow using the existing browser session and redirects to
- * `app.deriv.com` — completely ignoring the `redirect_uri` we supply. Clearing
- * the session first forces the login portal to show the sign-in form and then
- * honour our redirect_uri after the user authenticates.
- *
- * Previous approach (iframe) was blocked by Deriv's X-Frame-Options header.
- * This approach uses fetch with `credentials: 'include'` so the browser sends
- * the Deriv session cookie; Deriv's server clears it via Set-Cookie. We use
- * `mode: 'no-cors'` and `redirect: 'manual'` so we never follow the server
- * redirect — we only care that the session cookie is cleared.
+ * PKCE login — uses new auth.deriv.com endpoint with full PKCE per docs.
+ * Token exchange is handled server-side in /callback via /api/auth/pkce-token.
  */
-const preClearDerivSession = (): Promise<void> => {
-    const host = window.location.hostname;
-    let oauth_host = 'oauth.deriv.com';
-    if (host.includes('.deriv.me')) oauth_host = 'oauth.deriv.me';
-    else if (host.includes('.deriv.be')) oauth_host = 'oauth.deriv.be';
-
-    const logoutUrl = `https://${oauth_host}/oauth2/sessions/logout`;
-
-    // Race between the fetch completing and a 1.5s safety timeout so the
-    // login button never freezes even if the request hangs.
-    return Promise.race([
-        fetch(logoutUrl, {
-            method: 'GET',
-            credentials: 'include',
-            mode: 'no-cors',
-            redirect: 'manual',
-        }).catch(() => { /* network error — ignore, proceed to login */ }),
-        new Promise<void>(resolve => setTimeout(resolve, 1500)),
-    ]).then(() => { /* void */ });
-};
-
-const legacyLogin = async (opts: LoginOptions): Promise<void> => {
+const pkceLogin = async (opts: LoginOptions): Promise<void> => {
     persistAffiliateTracking();
-    if (opts.currency) {
-        sessionStorage.setItem('query_param_currency', opts.currency);
-    }
-    // Clear any stale Deriv session that would otherwise short-circuit OAuth.
-    await preClearDerivSession();
-    window.location.href = buildLegacyAuthorizeURL(opts);
+    const url = await buildPKCEAuthURL(opts);
+    window.location.href = url;
 };
 
 /* -------------------------------------------------------------------------- */
@@ -276,11 +298,10 @@ const oidcLogin = async (opts: LoginOptions): Promise<void> => {
 /**
  * Single entry point for "log in to Deriv".
  *
- *  - mode='legacy' → uses the legacy URL only
- *  - mode='oidc'   → uses the new Deriv OIDC flow only
- *  - mode='auto'   → try OIDC first, fall back to legacy on any error
- *                    (this is what makes the same button work for users
- *                    on BOTH the old and the new Deriv API)
+ *  - mode='legacy' → PKCE flow via auth.deriv.com (our implementation)
+ *  - mode='oidc'   → OIDC PKCE flow via @deriv-com/auth-client
+ *  - mode='auto'   → For legacy-only apps: use PKCE directly.
+ *                    For OIDC-enabled apps: try OIDC first, fall back to PKCE.
  */
 export const derivLogin = async (options: LoginOptions = {}): Promise<void> => {
     const mode = resolveAuthMode(options.mode);
@@ -296,28 +317,27 @@ export const derivLogin = async (options: LoginOptions = {}): Promise<void> => {
     console.info(`[deriv-auth] login mode=${mode} app_id=${getAppId()}`);
 
     if (mode === 'legacy') {
-        return legacyLogin(opts);
+        return pkceLogin(opts);
     }
 
     if (mode === 'oidc') {
         return oidcLogin(opts);
     }
 
-    // mode === 'auto' → If we know this app is legacy-only, skip OIDC entirely.
-    // Otherwise try OIDC, then legacy.
+    // mode === 'auto'
     const app_id = Number(getAppId());
     if (LEGACY_ONLY_APP_IDS.has(app_id)) {
         // eslint-disable-next-line no-console
-        console.info(`[deriv-auth] auto: app_id ${app_id} is legacy-only → using legacy adapter`);
-        return legacyLogin(opts);
+        console.info(`[deriv-auth] auto: app_id ${app_id} → using PKCE adapter (auth.deriv.com)`);
+        return pkceLogin(opts);
     }
 
     try {
         await oidcLogin(opts);
     } catch (err) {
         // eslint-disable-next-line no-console
-        console.warn('[deriv-auth] OIDC failed, falling back to legacy:', err);
-        await legacyLogin(opts);
+        console.warn('[deriv-auth] OIDC failed, falling back to PKCE:', err);
+        await pkceLogin(opts);
     }
 };
 
