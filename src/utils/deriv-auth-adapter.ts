@@ -39,6 +39,19 @@ import { getAppId, TRADEMASTERS_APP_ID } from '@/components/shared/utils/config/
 import { requestOidcAuthentication, OAuth2Logout } from '@deriv-com/auth-client';
 
 /**
+ * New Deriv OAuth2 client_id — registered at developers.deriv.com.
+ * This is the `client_id` used in the PKCE authorization request.
+ * Distinct from `app_id` (legacy WebSocket API identifier, kept for dual support).
+ */
+export const DERIV_OAUTH_CLIENT_ID = '33s7LwZCzluES8H4HmjIK';
+
+/**
+ * The redirect URI registered for DERIV_OAUTH_CLIENT_ID.
+ * Must match EXACTLY — scheme, host, path — or Deriv will reject the request.
+ */
+export const DERIV_REDIRECT_URI = 'https://trademasters.site/callback';
+
+/**
  * The redirect URI registered in the Deriv app dashboard for each app_id.
  * Deriv requires the redirect_uri in the request to exactly match this value —
  * scheme, domain, path, and trailing slash all must match.
@@ -105,7 +118,8 @@ export const resolveAuthMode = (override?: AuthMode): AuthMode => {
 
     if (window.DERIV_AUTH_MODE) return window.DERIV_AUTH_MODE;
 
-    return 'auto';
+    // Default to 'legacy' — always use the new PKCE flow with client_id
+    return 'legacy';
 };
 
 /* -------------------------------------------------------------------------- */
@@ -209,19 +223,21 @@ export const buildPKCEAuthURL = async (opts: LoginOptions = {}): Promise<string>
         /* sessionStorage may be unavailable — non-fatal */
     }
 
-    const app_id = String(getAppId());
-    const redirect_uri = opts.redirectUri || `${window.location.origin}/callback`;
+    // client_id = new OAuth2 client (33s7LwZCzluES8H4HmjIK)
+    // app_id    = legacy WebSocket API identifier (116874) — optional dual-support param per docs
+    const legacy_app_id = String(getAppId());
+    const redirect_uri = DERIV_REDIRECT_URI;
 
     const url = new URL('https://auth.deriv.com/oauth2/auth');
     url.searchParams.set('response_type', 'code');
-    url.searchParams.set('client_id', app_id);
+    url.searchParams.set('client_id', DERIV_OAUTH_CLIENT_ID);
     url.searchParams.set('redirect_uri', redirect_uri);
     url.searchParams.set('scope', 'trade account_manage');
     url.searchParams.set('state', state);
     url.searchParams.set('code_challenge', codeChallenge);
     url.searchParams.set('code_challenge_method', 'S256');
-    // Dual legacy+new support per docs: include app_id for legacy API routing
-    url.searchParams.set('app_id', app_id);
+    // Optional: include legacy app_id for dual-support routing per Deriv docs
+    url.searchParams.set('app_id', legacy_app_id);
 
     return url.toString();
 };

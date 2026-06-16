@@ -5,6 +5,7 @@ import { getAppId } from '@/components/shared/utils/config/config';
 import { generateDerivApiInstance } from '@/external/bot-skeleton/services/api/appId';
 import { observer as globalObserver } from '@/external/bot-skeleton/utils/observer';
 import { clearAuthData } from '@/utils/auth-utils';
+import { DERIV_OAUTH_CLIENT_ID, DERIV_REDIRECT_URI } from '@/utils/deriv-auth-adapter';
 import { Callback, requestLegacyToken } from '@deriv-com/auth-client';
 import { Button } from '@deriv-com/ui';
 
@@ -127,8 +128,9 @@ const ManualPKCECallback: React.FC<{ code: string; codeVerifier: string }> = ({
 
         (async () => {
             try {
-                const redirectUri = `${window.location.origin}/callback`;
-                const clientId = String(getAppId());
+                // Use the registered redirect_uri and new OAuth2 client_id — must match exactly
+                const redirectUri = DERIV_REDIRECT_URI;
+                const clientId = DERIV_OAUTH_CLIENT_ID;
 
                 // Step 3a: Server-side token exchange (per docs — never in browser)
                 const response = await fetch('/api/auth/pkce-token', {
