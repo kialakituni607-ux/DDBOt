@@ -1,1 +1,0 @@
-- [Legacy OAuth Callback Behavior](callback-legacy-oauth.md) — Callback from auth-client only handles ?code= (OIDC); fix: detect no code, read tokens from localStorage (set by AuthWrapper), set logged_state=true, redirect to / not /bot/
