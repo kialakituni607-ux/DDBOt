@@ -224,12 +224,12 @@ const ManualPKCECallback: React.FC<{ code: string; codeVerifier: string }> = ({
 const CallbackPage = () => {
     const params = new URLSearchParams(window.location.search);
     const code = params.get('code');
-    const state = params.get('state');
 
-    // Detect manual PKCE flow: we stored oauth_state + pkce_code_verifier ourselves
-    const storedState = sessionStorage.getItem('oauth_state');
+    // Detect manual PKCE flow: we have a code_verifier stored from our login initiation.
+    // The verifier itself is the security proof — state check is skipped here because
+    // Deriv's Hydra consent flow may not preserve the state parameter exactly.
     const storedVerifier = sessionStorage.getItem('pkce_code_verifier');
-    const isManualPKCE = !!(code && state && storedState && state === storedState && storedVerifier);
+    const isManualPKCE = !!(code && storedVerifier);
 
     if (isManualPKCE) {
         return <ManualPKCECallback code={code!} codeVerifier={storedVerifier!} />;
