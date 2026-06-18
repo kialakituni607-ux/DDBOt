@@ -131,22 +131,27 @@ const ManualPKCECallback: React.FC<{ code: string; codeVerifier: string }> = ({
                 const redirectUri = DERIV_REDIRECT_URI;
                 const clientId = DERIV_OAUTH_CLIENT_ID;
 
-                // Step 3a: Server-side token exchange (per docs — never in browser)
-                const response = await fetch('/api/auth/pkce-token', {
+                // Step 3a: Exchange code for access_token directly with Deriv's token endpoint.
+                // PKCE needs no client_secret — the code_verifier is the proof.
+                const params = new URLSearchParams();
+                params.append('grant_type', 'authorization_code');
+                params.append('client_id', clientId);
+                params.append('code', code);
+                params.append('code_verifier', codeVerifier);
+                params.append('redirect_uri', redirectUri);
+
+                const response = await fetch('https://auth.deriv.com/oauth2/token', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        code,
-                        code_verifier: codeVerifier,
-                        redirect_uri: redirectUri,
-                        client_id: clientId,
-                    }),
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: params.toString(),
                 });
 
                 const data = await response.json();
 
                 if (!response.ok) {
-                    throw new Error(data.error || `Token exchange failed (${response.status})`);
+                    throw new Error(
+                        data.error_description || data.error || `Token exchange failed (${response.status})`
+                    );
                 }
 
                 const access_token: string = data.access_token;
