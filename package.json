@@ -20,6 +20,7 @@
         "build:analyze": "BUNDLE_ANALYZE=true rsbuild build"
     },
     "dependencies": {
+        "@rspack/lite-tapable": "^1.0.0",
         "@datadog/browser-rum": "^5.31.1",
         "@deriv-com/analytics": "1.31.5",
         "@deriv-com/auth-client": "^1.5.1",
