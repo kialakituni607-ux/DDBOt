@@ -1,8 +1,8 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": null,
-  "installCommand": "npm install --legacy-peer-deps --no-audit --no-fund --ignore-engines --registry https://registry.npmjs.org",
-  "buildCommand": "npm run build",
+  "installCommand": "yarn install --ignore-engines",
+  "buildCommand": "yarn build",
   "outputDirectory": "dist",
   "build": {
     "env": {
@@ -12,9 +12,7 @@
   "headers": [
     {
       "source": "/bots/(.*)",
-      "headers": [
-        { "key": "X-Robots-Tag", "value": "noindex" }
-      ]
+      "headers": [{ "key": "X-Robots-Tag", "value": "noindex" }]
     }
   ],
   "rewrites": [
