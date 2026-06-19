@@ -90,8 +90,13 @@ const router = createBrowserRouter(
 
 function App() {
     React.useEffect(() => {
-        // Use the invalid token handler hook to automatically retrigger OIDC authentication
-        // when an invalid token is detected and the cookie logged state is true
+        // Clean up any stale PKCE verifier if the user lands anywhere other than /callback
+        // without an active auth code in the URL (i.e. they abandoned a login mid-flow).
+        const isCallback = window.location.pathname.includes('/callback');
+        const hasCode = new URLSearchParams(window.location.search).has('code');
+        if (!isCallback && !hasCode) {
+            localStorage.removeItem('pkce_code_verifier');
+        }
 
         initSurvicate();
         window?.dataLayer?.push({ event: 'page_load' });
