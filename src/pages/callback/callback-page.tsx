@@ -223,15 +223,8 @@ const CallbackPage = () => {
     const params = new URLSearchParams(window.location.search);
     const code = params.get('code');
 
-    // Detect manual PKCE flow: we have a code_verifier stored from our login initiation.
-    // The verifier itself is the security proof — state check is skipped here because
-    // Deriv's Hydra consent flow may not preserve the state parameter exactly.
-    const storedVerifier = localStorage.getItem('pkce_code_verifier');
-    const isManualPKCE = !!(code && storedVerifier);
-
-    if (isManualPKCE) {
-        return <ManualPKCECallback code={code!} codeVerifier={storedVerifier!} />;
-    }
+    // PKCE handled by Callback component from @deriv-com/auth-client
+    localStorage.removeItem('pkce_code_verifier');
 
     // OIDC library flow — handled by <Callback> from @deriv-com/auth-client
     return (
