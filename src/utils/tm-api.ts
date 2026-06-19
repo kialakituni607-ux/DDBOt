@@ -1,3 +1,6 @@
+// Set VITE_API_URL in your Vercel environment variables to point to your Render backend.
+// Example: https://your-backend.onrender.com
+// Defaults to the production backend if not set.
 const BASE_URL = (import.meta.env.VITE_API_URL || 'https://api.trademasters.site') + '/api';
 
 function getToken(): string | null {
