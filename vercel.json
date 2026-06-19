@@ -21,6 +21,38 @@
       "destination": "/api/blocked"
     },
     {
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": null,
+  "installCommand": "yarn install --ignore-engines",
+  "buildCommand": "yarn build",
+  "outputDirectory": "dist",
+  "build": {
+    "env": {
+      "NODE_OPTIONS": "--max-old-space-size=4096"
+    }
+  },
+  "headers": [
+    {
+      "source": "/bots/(.*)",
+      "headers": [{ "key": "X-Robots-Tag", "value": "noindex" }]
+    }
+  ],
+  "rewrites": [
+    {
+      "source": "/bots/(.*)",
+      "destination": "/api/blocked"
+    },
+    {
+      "source": "/api/(.*)",
+      "destination": "https://api.trademasters.site/api/$1"
+    },
+    {
+      "source": "/((?!static|assets|js|favicon|manifest|sw\\.js|offline\\.html).*)",
+      "destination": "/index.html"
+    }
+  ]
+}
+    {
       "source": "/((?!static|assets|js|favicon|manifest|sw\\.js|offline\\.html).*)",
       "destination": "/index.html"
     }
