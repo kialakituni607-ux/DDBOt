@@ -160,7 +160,7 @@ const ManualPKCECallback: React.FC<{ code: string; codeVerifier: string }> = ({
                 }
 
                 // Step 3b: Clear PKCE storage immediately after exchange (per docs)
-                sessionStorage.removeItem('pkce_code_verifier');
+                localStorage.removeItem('pkce_code_verifier');
                 sessionStorage.removeItem('oauth_state');
 
                 // Step 3c: Exchange access_token → Deriv legacy tokens
@@ -205,7 +205,7 @@ const ManualPKCECallback: React.FC<{ code: string; codeVerifier: string }> = ({
                 <Button
                     className='callback-return-button'
                     onClick={() => {
-                        sessionStorage.removeItem('pkce_code_verifier');
+                        localStorage.removeItem('pkce_code_verifier');
                         sessionStorage.removeItem('oauth_state');
                         window.location.href = '/';
                     }}
@@ -228,7 +228,7 @@ const CallbackPage = () => {
     // Detect manual PKCE flow: we have a code_verifier stored from our login initiation.
     // The verifier itself is the security proof — state check is skipped here because
     // Deriv's Hydra consent flow may not preserve the state parameter exactly.
-    const storedVerifier = sessionStorage.getItem('pkce_code_verifier');
+    const storedVerifier = localStorage.getItem('pkce_code_verifier');
     const isManualPKCE = !!(code && storedVerifier);
 
     if (isManualPKCE) {

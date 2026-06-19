@@ -204,7 +204,7 @@ export const buildPKCEAuthURL = async (opts: LoginOptions = {}): Promise<string>
 
     // Store per docs — cleared after successful token exchange
     try {
-        sessionStorage.setItem('pkce_code_verifier', codeVerifier);
+        localStorage.setItem('pkce_code_verifier', codeVerifier);
         sessionStorage.setItem('oauth_state', state);
         // Also preserve currency for post-auth redirect
         if (opts.currency) {
