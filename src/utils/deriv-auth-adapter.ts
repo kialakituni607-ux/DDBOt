@@ -162,7 +162,10 @@ export const generatePKCEParams = async (): Promise<{
 
     // Derive code_challenge = BASE64URL(SHA256(code_verifier))
     const hash = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(codeVerifier));
-    const codeChallenge = btoa(String.fromCharCode(...new Uint8Array(hash)))
+    const hashArray = new Uint8Array(hash);
+    let binary = '';
+    for (let i = 0; i < hashArray.length; i++) binary += String.fromCharCode(hashArray[i]);
+    const codeChallenge = btoa(binary)
         .replace(/\+/g, '-')
         .replace(/\//g, '_')
         .replace(/=+$/, '');
