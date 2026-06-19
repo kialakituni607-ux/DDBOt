@@ -16,6 +16,8 @@ const PORT = process.env.PORT || process.env.BACKEND_PORT || 3001;
 const JWT_SECRET = process.env.JWT_SECRET || 'fallback-dev-secret-change-in-prod';
 const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || crypto.randomBytes(32).toString('hex');
 const DERIV_APP_ID = '116874';
+const DERIV_OAUTH_CLIENT_ID = '33s7LwZCzluES8H4HmjIK';
+const VALID_CLIENT_IDS = new Set([DERIV_APP_ID, DERIV_OAUTH_CLIENT_ID]);
 
 const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
@@ -559,9 +561,14 @@ app.post('/api/auth/pkce-token', authLimiter, async (req, res) => {
         });
     }
 
+    const resolved_client_id = client_id || DERIV_OAUTH_CLIENT_ID;
+    if (!VALID_CLIENT_IDS.has(resolved_client_id)) {
+        return res.status(400).json({ error: 'Invalid client_id' });
+    }
+
     const params = new URLSearchParams();
     params.append('grant_type', 'authorization_code');
-    params.append('client_id', client_id || DERIV_APP_ID);
+    params.append('client_id', resolved_client_id);
     params.append('code', code);
     params.append('code_verifier', code_verifier);
     params.append('redirect_uri', redirect_uri);
