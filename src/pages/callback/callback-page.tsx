@@ -5,7 +5,7 @@ import { generateDerivApiInstance } from '@/external/bot-skeleton/services/api/a
 import { observer as globalObserver } from '@/external/bot-skeleton/utils/observer';
 import { clearAuthData } from '@/utils/auth-utils';
 import { DERIV_OAUTH_CLIENT_ID, DERIV_REDIRECT_URI } from '@/utils/deriv-auth-adapter';
-import { Callback, requestLegacyToken } from '@deriv-com/auth-client';
+import { Callback } from '@deriv-com/auth-client';
 import { Button } from '@deriv-com/ui';
 
 /**
@@ -39,10 +39,7 @@ const getSelectedCurrency = (
  *   { acct1, token1, cur1, acct2, token2, cur2, … }
  * rawState: OIDC state object (may contain { account: currency })
  */
-const processTokensAndRedirect = async (
-    tokens: Record<string, string>,
-    rawState: unknown
-): Promise<void> => {
+const processTokensAndRedirect = async (tokens: Record<string, string>, rawState: unknown): Promise<void> => {
     const state = rawState as { account?: string } | null;
     const accountsList: Record<string, string> = {};
     const clientAccounts: Record<string, { loginid: string; token: string; currency: string }> = {};
@@ -113,10 +110,7 @@ const processTokensAndRedirect = async (
 
 type PKCEStatus = 'idle' | 'loading' | 'error';
 
-const ManualPKCECallback: React.FC<{ code: string; codeVerifier: string }> = ({
-    code,
-    codeVerifier,
-}) => {
+const ManualPKCECallback: React.FC<{ code: string; codeVerifier: string }> = ({ code, codeVerifier }) => {
     const [status, setStatus] = useState<PKCEStatus>('loading');
     const [errorMsg, setErrorMsg] = useState<string>('');
     const handledRef = useRef(false);
@@ -140,10 +134,11 @@ const ManualPKCECallback: React.FC<{ code: string; codeVerifier: string }> = ({
                 params.append('code_verifier', codeVerifier);
                 params.append('redirect_uri', redirectUri);
 
-                const response = await fetch('https://auth.deriv.com/oauth2/token', {
+                // Route through backend to avoid CORS
+                const response = await fetch('/api/auth/pkce-exchange', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                    body: params.toString(),
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ code, code_verifier: codeVerifier, redirect_uri: redirectUri }),
                 });
 
                 const data = await response.json();
@@ -159,15 +154,18 @@ const ManualPKCECallback: React.FC<{ code: string; codeVerifier: string }> = ({
                     throw new Error('No access_token in token exchange response');
                 }
 
-                // Step 3b: Clear PKCE storage immediately after exchange (per docs)
+                // Clear PKCE storage immediately after exchange
                 localStorage.removeItem('pkce_code_verifier');
                 sessionStorage.removeItem('oauth_state');
 
-                // Step 3c: Exchange access_token → Deriv legacy tokens
-                const legacyTokens = (await requestLegacyToken(access_token)) as Record<
-                    string,
-                    string
-                >;
+                // Convert OIDC access token → Deriv legacy tokens via backend
+                const legacyRes = await fetch('/api/auth/legacy-tokens', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ access_token }),
+                });
+                if (!legacyRes.ok) throw new Error('Failed to retrieve legacy tokens');
+                const legacyTokens = (await legacyRes.json()) as Record<string, string>;
 
                 // Step 3d: Process and redirect
                 await processTokensAndRedirect(legacyTokens, null);

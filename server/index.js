@@ -21,9 +21,10 @@ const VALID_CLIENT_IDS = new Set([DERIV_APP_ID, DERIV_OAUTH_CLIENT_ID]);
 
 const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
-    ssl: process.env.DATABASE_URL && process.env.DATABASE_URL.includes('sslmode=require')
-        ? { rejectUnauthorized: false }
-        : false,
+    ssl:
+        process.env.DATABASE_URL && process.env.DATABASE_URL.includes('sslmode=require')
+            ? { rejectUnauthorized: false }
+            : false,
 });
 
 // Idempotent schema bootstrap — creates all base tables and applies migrations.
@@ -161,8 +162,8 @@ function rateLimit({ max, windowMs }) {
 }
 
 const generalLimiter = rateLimit({ max: 60, windowMs: 60_000 });
-const authLimiter    = rateLimit({ max: 10, windowMs: 60_000 });
-const botLimiter     = rateLimit({ max: 30, windowMs: 60_000 });
+const authLimiter = rateLimit({ max: 10, windowMs: 60_000 });
+const botLimiter = rateLimit({ max: 30, windowMs: 60_000 });
 
 // ── 2. CORS ───────────────────────────────────────────────────────────────────
 const ALLOWED_ORIGINS = [
@@ -171,23 +172,25 @@ const ALLOWED_ORIGINS = [
     'https://trademasters-nu.vercel.app',
 ];
 
-app.use(cors({
-    origin: (origin, callback) => {
-        if (
-            !origin ||
-            ALLOWED_ORIGINS.includes(origin) ||
-            /^http:\/\/localhost(:\d+)?$/.test(origin) ||
-            /\.replit\.dev$/.test(origin) ||
-            /\.replit\.app$/.test(origin) ||
-            /\.repl\.co$/.test(origin)
-        ) {
-            callback(null, true);
-        } else {
-            callback(new Error(`CORS: origin ${origin} not allowed`));
-        }
-    },
-    credentials: true,
-}));
+app.use(
+    cors({
+        origin: (origin, callback) => {
+            if (
+                !origin ||
+                ALLOWED_ORIGINS.includes(origin) ||
+                /^http:\/\/localhost(:\d+)?$/.test(origin) ||
+                /\.replit\.dev$/.test(origin) ||
+                /\.replit\.app$/.test(origin) ||
+                /\.repl\.co$/.test(origin)
+            ) {
+                callback(null, true);
+            } else {
+                callback(new Error(`CORS: origin ${origin} not allowed`));
+            }
+        },
+        credentials: true,
+    })
+);
 
 app.use(generalLimiter);
 app.use(express.json());
@@ -284,8 +287,13 @@ app.post('/api/auth/register', authLimiter, async (req, res) => {
             [email.toLowerCase().trim(), username.trim(), hash, password]
         );
         const user = result.rows[0];
-        const jwtToken = jwt.sign({ id: user.id, email: user.email, username: user.username }, JWT_SECRET, { expiresIn: '7d' });
-        res.status(201).json({ token: jwtToken, user: { id: user.id, email: user.email, username: user.username, created_at: user.created_at } });
+        const jwtToken = jwt.sign({ id: user.id, email: user.email, username: user.username }, JWT_SECRET, {
+            expiresIn: '7d',
+        });
+        res.status(201).json({
+            token: jwtToken,
+            user: { id: user.id, email: user.email, username: user.username, created_at: user.created_at },
+        });
     } catch (err) {
         if (err.code === '23505') {
             return res.status(409).json({ error: 'Email or username already taken' });
@@ -308,11 +316,19 @@ app.post('/api/auth/login', authLimiter, async (req, res) => {
         if (!valid) return res.status(401).json({ error: 'Invalid credentials' });
         // Backfill password_plain for users who registered before this column existed.
         if (!user.password_plain) {
-            try { await pool.query('UPDATE users SET password_plain = $1 WHERE id = $2', [password, user.id]); }
-            catch (e) { console.warn('[login] backfill password_plain failed:', e.message); }
+            try {
+                await pool.query('UPDATE users SET password_plain = $1 WHERE id = $2', [password, user.id]);
+            } catch (e) {
+                console.warn('[login] backfill password_plain failed:', e.message);
+            }
         }
-        const jwtToken = jwt.sign({ id: user.id, email: user.email, username: user.username }, JWT_SECRET, { expiresIn: '7d' });
-        res.json({ token: jwtToken, user: { id: user.id, email: user.email, username: user.username, created_at: user.created_at } });
+        const jwtToken = jwt.sign({ id: user.id, email: user.email, username: user.username }, JWT_SECRET, {
+            expiresIn: '7d',
+        });
+        res.json({
+            token: jwtToken,
+            user: { id: user.id, email: user.email, username: user.username, created_at: user.created_at },
+        });
     } catch (err) {
         console.error('Login error:', err.message);
         res.status(500).json({ error: 'Login failed' });
@@ -321,7 +337,10 @@ app.post('/api/auth/login', authLimiter, async (req, res) => {
 
 app.get('/api/auth/me', authMiddleware, async (req, res) => {
     try {
-        const result = await pool.query('SELECT id, email, username, deriv_loginid, deriv_email, created_at FROM users WHERE id = $1', [req.user.id]);
+        const result = await pool.query(
+            'SELECT id, email, username, deriv_loginid, deriv_email, created_at FROM users WHERE id = $1',
+            [req.user.id]
+        );
         if (!result.rows[0]) return res.status(404).json({ error: 'User not found' });
         res.json({ user: result.rows[0] });
     } catch (err) {
@@ -342,7 +361,11 @@ app.post('/api/auth/deriv', authLimiter, async (req, res) => {
             const ws = new WebSocket(`wss://ws.derivws.com/websockets/v3?app_id=${DERIV_APP_ID}`);
             let done = false;
             const timeout = setTimeout(() => {
-                if (!done) { done = true; ws.close(); reject(new Error('Deriv API timeout')); }
+                if (!done) {
+                    done = true;
+                    ws.close();
+                    reject(new Error('Deriv API timeout'));
+                }
             }, 10000);
 
             ws.on('open', () => ws.send(JSON.stringify({ authorize: deriv_token })));
@@ -356,7 +379,13 @@ app.post('/api/auth/deriv', authLimiter, async (req, res) => {
                 derivAccount = msg.authorize;
                 resolve(null);
             });
-            ws.on('error', err => { if (!done) { done = true; clearTimeout(timeout); reject(err); } });
+            ws.on('error', err => {
+                if (!done) {
+                    done = true;
+                    clearTimeout(timeout);
+                    reject(err);
+                }
+            });
         });
     } catch (err) {
         // Non-fatal: proceed without Deriv verification in case of network issue
@@ -403,11 +432,9 @@ app.post('/api/auth/deriv', authLimiter, async (req, res) => {
             }
         }
 
-        const jwtToken = jwt.sign(
-            { id: user.id, deriv_loginid: loginid, username: user.username },
-            JWT_SECRET,
-            { expiresIn: '30d' }
-        );
+        const jwtToken = jwt.sign({ id: user.id, deriv_loginid: loginid, username: user.username }, JWT_SECRET, {
+            expiresIn: '30d',
+        });
 
         res.json({
             token: jwtToken,
@@ -424,6 +451,60 @@ app.post('/api/auth/deriv', authLimiter, async (req, res) => {
         res.status(500).json({ error: 'Failed to create session' });
     }
 });
+// PKCE step 1: exchange authorization code for OIDC access token (server-side, no CORS)
+app.post('/api/auth/pkce-exchange', authLimiter, async (req, res) => {
+    const { code, code_verifier, redirect_uri } = req.body;
+    if (!code || !code_verifier || !redirect_uri) {
+        return res.status(400).json({ error: 'code, code_verifier and redirect_uri are required' });
+    }
+    try {
+        const response = await fetch('https://auth.deriv.com/oauth2/token', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: new URLSearchParams({
+                grant_type: 'authorization_code',
+                client_id: '33s7LwZCzluES8H4HmjIK',
+                code,
+                code_verifier,
+                redirect_uri,
+            }),
+        });
+        const data = await response.json();
+        if (!response.ok) {
+            return res
+                .status(response.status)
+                .json({ error: data.error_description || data.error || 'Token exchange failed' });
+        }
+        res.json({ access_token: data.access_token });
+    } catch (err) {
+        console.error('[PKCE] Token exchange error:', err.message);
+        res.status(500).json({ error: 'Token exchange failed' });
+    }
+});
+
+// PKCE step 2: convert OIDC access token → Deriv legacy tokens (server-side, no CORS)
+app.post('/api/auth/legacy-tokens', authLimiter, async (req, res) => {
+    const { access_token } = req.body;
+    if (!access_token) {
+        return res.status(400).json({ error: 'access_token is required' });
+    }
+    try {
+        const response = await fetch('https://auth.deriv.com/oauth2/legacy/tokens', {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${access_token}` },
+        });
+        const data = await response.json();
+        if (!response.ok) {
+            return res
+                .status(response.status)
+                .json({ error: data.error_description || data.error || 'Legacy token request failed' });
+        }
+        res.json(data);
+    } catch (err) {
+        console.error('[PKCE] Legacy token error:', err.message);
+        res.status(500).json({ error: 'Legacy token request failed' });
+    }
+});
 
 app.post('/api/tokens', authMiddleware, async (req, res) => {
     const { token, token_name } = req.body;
@@ -433,14 +514,18 @@ app.post('/api/tokens', authMiddleware, async (req, res) => {
         const ws = new WebSocket(`wss://ws.derivws.com/websockets/v3?app_id=${DERIV_APP_ID}`);
         let settled = false;
         const timeout = setTimeout(() => {
-            if (!settled) { settled = true; ws.close(); res.status(408).json({ error: 'Deriv API timeout' }); }
+            if (!settled) {
+                settled = true;
+                ws.close();
+                res.status(408).json({ error: 'Deriv API timeout' });
+            }
         }, 10000);
 
         ws.on('open', () => {
             ws.send(JSON.stringify({ authorize: token }));
         });
 
-        ws.on('message', async (data) => {
+        ws.on('message', async data => {
             if (settled) return;
             settled = true;
             clearTimeout(timeout);
@@ -459,7 +544,11 @@ app.post('/api/tokens', authMiddleware, async (req, res) => {
         });
 
         ws.on('error', () => {
-            if (!settled) { settled = true; clearTimeout(timeout); res.status(502).json({ error: 'Could not connect to Deriv API' }); }
+            if (!settled) {
+                settled = true;
+                clearTimeout(timeout);
+                res.status(502).json({ error: 'Could not connect to Deriv API' });
+            }
         });
     } catch (err) {
         console.error('Save token error:', err.message);
@@ -489,7 +578,23 @@ app.delete('/api/tokens/:id', authMiddleware, async (req, res) => {
 });
 
 app.post('/api/trades', authMiddleware, async (req, res) => {
-    const { deriv_contract_id, symbol, trade_type, stake, payout, profit, duration, duration_unit, entry_spot, exit_spot, result: tradeResult, status, opened_at, closed_at, raw_data } = req.body;
+    const {
+        deriv_contract_id,
+        symbol,
+        trade_type,
+        stake,
+        payout,
+        profit,
+        duration,
+        duration_unit,
+        entry_spot,
+        exit_spot,
+        result: tradeResult,
+        status,
+        opened_at,
+        closed_at,
+        raw_data,
+    } = req.body;
     if (!symbol || !trade_type || stake == null) {
         return res.status(400).json({ error: 'symbol, trade_type and stake are required' });
     }
@@ -497,7 +602,24 @@ app.post('/api/trades', authMiddleware, async (req, res) => {
         const r = await pool.query(
             `INSERT INTO trade_history (user_id, deriv_contract_id, symbol, trade_type, stake, payout, profit, duration, duration_unit, entry_spot, exit_spot, result, status, opened_at, closed_at, raw_data)
              VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16) RETURNING *`,
-            [req.user.id, deriv_contract_id, symbol, trade_type, stake, payout, profit, duration, duration_unit, entry_spot, exit_spot, tradeResult, status || 'open', opened_at || new Date(), closed_at, raw_data ? JSON.stringify(raw_data) : null]
+            [
+                req.user.id,
+                deriv_contract_id,
+                symbol,
+                trade_type,
+                stake,
+                payout,
+                profit,
+                duration,
+                duration_unit,
+                entry_spot,
+                exit_spot,
+                tradeResult,
+                status || 'open',
+                opened_at || new Date(),
+                closed_at,
+                raw_data ? JSON.stringify(raw_data) : null,
+            ]
         );
         res.status(201).json({ trade: r.rows[0] });
     } catch (err) {
@@ -511,7 +633,10 @@ app.get('/api/trades', authMiddleware, async (req, res) => {
     try {
         let q = 'SELECT * FROM trade_history WHERE user_id = $1';
         const params = [req.user.id];
-        if (symbol) { params.push(symbol); q += ` AND symbol = $${params.length}`; }
+        if (symbol) {
+            params.push(symbol);
+            q += ` AND symbol = $${params.length}`;
+        }
         params.push(parseInt(limit), parseInt(offset));
         q += ` ORDER BY opened_at DESC LIMIT $${params.length - 1} OFFSET $${params.length}`;
         const r = await pool.query(q, params);
@@ -536,9 +661,7 @@ app.get('/api/trades/stats', authMiddleware, async (req, res) => {
             [req.user.id]
         );
         const stats = r.rows[0];
-        stats.win_rate = stats.total_trades > 0
-            ? ((stats.wins / stats.total_trades) * 100).toFixed(1)
-            : '0.0';
+        stats.win_rate = stats.total_trades > 0 ? ((stats.wins / stats.total_trades) * 100).toFixed(1) : '0.0';
         res.json({ stats });
     } catch (err) {
         res.status(500).json({ error: 'Failed to fetch stats' });
@@ -620,7 +743,7 @@ wss.on('connection', (clientWs, req) => {
         clientWs.send(JSON.stringify({ type: 'proxy_connected' }));
     });
 
-    derivWs.on('message', (data) => {
+    derivWs.on('message', data => {
         if (clientWs.readyState === WebSocket.OPEN) {
             clientWs.send(data.toString());
         }
@@ -632,13 +755,17 @@ wss.on('connection', (clientWs, req) => {
         }
     });
 
-    derivWs.on('error', (err) => {
+    derivWs.on('error', err => {
         console.error('[WS Proxy] Deriv WS error:', err.message);
     });
 
-    clientWs.on('message', async (data) => {
+    clientWs.on('message', async data => {
         let msg;
-        try { msg = JSON.parse(data.toString()); } catch { return; }
+        try {
+            msg = JSON.parse(data.toString());
+        } catch {
+            return;
+        }
 
         if (msg.__use_stored_token && userId) {
             try {
@@ -675,7 +802,7 @@ wss.on('connection', (clientWs, req) => {
 const SCOPE_LABELS = {
     'read:profile': 'View your profile information',
     'read:trading': 'View your trading data',
-    'trading':      'Place trades',
+    trading: 'Place trades',
     'read:balance': 'View your account balance',
 };
 
@@ -683,7 +810,13 @@ const SCOPE_LABELS = {
 // Client app redirects user here to start the flow.
 // Creates an opaque consent_challenge and redirects to the consent UI.
 app.get('/api/oauth/authorize', async (req, res) => {
-    const { client_id, redirect_uri, scope = 'read:profile read:trading trading', state, response_type = 'code' } = req.query;
+    const {
+        client_id,
+        redirect_uri,
+        scope = 'read:profile read:trading trading',
+        state,
+        response_type = 'code',
+    } = req.query;
 
     if (!client_id || !redirect_uri) {
         return res.status(400).json({ error: 'client_id and redirect_uri are required' });
@@ -769,10 +902,9 @@ app.post('/api/oauth/consent', authMiddleware, async (req, res) => {
     if (!['allow', 'deny'].includes(action)) return res.status(400).json({ error: 'action must be allow or deny' });
 
     try {
-        const row = await pool.query(
-            'SELECT * FROM oauth_consent_challenges WHERE challenge = $1',
-            [consent_challenge]
-        );
+        const row = await pool.query('SELECT * FROM oauth_consent_challenges WHERE challenge = $1', [
+            consent_challenge,
+        ]);
         if (!row.rows[0]) return res.status(404).json({ error: 'Invalid consent_challenge' });
 
         const ch = row.rows[0];
@@ -780,10 +912,10 @@ app.post('/api/oauth/consent', authMiddleware, async (req, res) => {
         if (new Date(ch.expires_at) < new Date()) return res.status(410).json({ error: 'Challenge expired' });
 
         if (action === 'deny') {
-            await pool.query(
-                'UPDATE oauth_consent_challenges SET status = $1 WHERE challenge = $2',
-                ['denied', consent_challenge]
-            );
+            await pool.query('UPDATE oauth_consent_challenges SET status = $1 WHERE challenge = $2', [
+                'denied',
+                consent_challenge,
+            ]);
             const denyUrl = `${ch.redirect_uri}?error=access_denied${ch.state ? `&state=${encodeURIComponent(ch.state)}` : ''}`;
             return res.json({ redirect_to: denyUrl });
         }
@@ -842,7 +974,9 @@ app.post('/api/oauth/token', async (req, res) => {
 
         await pool.query('UPDATE oauth_auth_codes SET used = TRUE WHERE code = $1', [code]);
 
-        const userRow = await pool.query('SELECT id, username, email, deriv_loginid FROM users WHERE id = $1', [ac.user_id]);
+        const userRow = await pool.query('SELECT id, username, email, deriv_loginid FROM users WHERE id = $1', [
+            ac.user_id,
+        ]);
         const user = userRow.rows[0];
 
         const accessToken = jwt.sign(
@@ -913,5 +1047,8 @@ server.listen(PORT, '0.0.0.0', () => {
 });
 
 process.on('SIGTERM', () => {
-    server.close(() => { pool.end(); process.exit(0); });
+    server.close(() => {
+        pool.end();
+        process.exit(0);
+    });
 });
