@@ -62,13 +62,35 @@ const CallbackPage = () => {
                     if (!res.ok) throw new Error(data.error || 'Token exchange failed');
                     localStorage.removeItem('pkce_code_verifier');
                     localStorage.removeItem('pkce_state');
-                    // Use access_token directly as the session token
-                    const tokens: Record<string, string> = {
-                        acct1: 'new_account',
-                        token1: data.access_token,
-                        cur1: 'USD',
-                    };
-                    await processTokensAndRedirect(tokens);
+                    // Step 2: Get accounts
+                    const accountsRes = await fetch('/api/auth/accounts', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ access_token: data.access_token }),
+                    });
+                    const accountsData = await accountsRes.json();
+                    if (!accountsRes.ok) throw new Error(accountsData.error || 'Failed to get accounts');
+                    console.log('[callback] accounts:', JSON.stringify(accountsData));
+                    const accounts = accountsData.data || [];
+                    const realAccount = accounts.find((a) => a.account_type === 'real') || accounts[0];
+                    if (!realAccount) throw new Error('No accounts found');
+                    // Step 3: Get OTP
+                    const otpRes = await fetch('/api/auth/otp', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ access_token: data.access_token, account_id: realAccount.account_id }),
+                    });
+                    const otpData = await otpRes.json();
+                    if (!otpRes.ok) throw new Error(otpData.error || 'Failed to get OTP');
+                    console.log('[callback] otp:', JSON.stringify(otpData));
+                    const wsUrl = otpData.data && otpData.data.url;
+                    if (!wsUrl) throw new Error('No WebSocket URL returned');
+                    localStorage.setItem('deriv_ws_url', wsUrl);
+                    localStorage.setItem('authToken', data.access_token);
+                    localStorage.setItem('active_loginid', realAccount.account_id);
+                    const domain = window.location.hostname.split('.').slice(-2).join('.');
+                    document.cookie = 'logged_state=true; path=/; domain=' + domain + '; secure; max-age=2592000';
+                    window.location.href = '/';
                 } catch(e: any) { setError(e.message || 'Authentication failed'); }
             })();
             return;

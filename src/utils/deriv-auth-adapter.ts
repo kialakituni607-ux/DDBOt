@@ -31,7 +31,6 @@ export const derivLogin = async (_options: LoginOptions = {}): Promise<void> => 
     url.searchParams.set('state', state);
     url.searchParams.set('code_challenge', codeChallenge);
     url.searchParams.set('code_challenge_method', 'S256');
-    url.searchParams.set('app_id', APP_ID);
     window.location.href = url.toString();
 };
 

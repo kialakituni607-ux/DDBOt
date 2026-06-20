@@ -694,6 +694,47 @@ app.get('/api/trades/stats', authMiddleware, async (req, res) => {
 // Server-side code → access_token exchange per Deriv OAuth2 PKCE documentation.
 // The browser must never perform this exchange directly (PKCE best practice).
 //
+
+// GET accounts
+app.post('/api/auth/accounts', authLimiter, async (req, res) => {
+    const { access_token } = req.body;
+    try {
+        const response = await fetch('https://api.derivws.com/trading/v1/options/accounts', {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${access_token}`,
+                'Deriv-App-ID': '33s7LwZCzluES8H4HmjIK'
+            }
+        });
+        const data = await response.json();
+        console.log('[accounts]:', JSON.stringify(data).substring(0, 200));
+        res.json(data);
+    } catch (err) {
+        console.error('[accounts] error:', err.message);
+        res.status(500).json({ error: 'Failed to get accounts' });
+    }
+});
+
+// GET OTP
+app.post('/api/auth/otp', authLimiter, async (req, res) => {
+    const { access_token, account_id } = req.body;
+    try {
+        const response = await fetch(`https://api.derivws.com/trading/v1/options/accounts/${account_id}/otp`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${access_token}`,
+                'Deriv-App-ID': '33s7LwZCzluES8H4HmjIK'
+            }
+        });
+        const data = await response.json();
+        console.log('[otp]:', JSON.stringify(data).substring(0, 200));
+        res.json(data);
+    } catch (err) {
+        console.error('[otp] error:', err.message);
+        res.status(500).json({ error: 'Failed to get OTP' });
+    }
+});
+
 // POST /api/auth/pkce-token
 //   Body: { code, code_verifier, redirect_uri, client_id }
 //   Returns: { access_token, token_type, expires_in, … }
