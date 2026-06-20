@@ -281,6 +281,13 @@ export const buildLegacyAuthorizeURL = (opts: LoginOptions = {}): string => {
  */
 const pkceLogin = async (opts: LoginOptions): Promise<void> => {
     persistAffiliateTracking();
+    // Use legacy OAuth for app_id 116874 which is not registered on new OIDC
+    const app_id = Number(getAppId());
+    if (LEGACY_ONLY_APP_IDS.has(app_id)) {
+        const url = buildLegacyAuthorizeURL(opts);
+        window.location.href = url;
+        return;
+    }
     const url = await buildPKCEAuthURL(opts);
     window.location.href = url;
 };
