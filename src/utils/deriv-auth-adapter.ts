@@ -27,7 +27,7 @@ export const derivLogin = async (_options: LoginOptions = {}): Promise<void> => 
     url.searchParams.set('response_type', 'code');
     url.searchParams.set('client_id', DERIV_OAUTH_CLIENT_ID);
     url.searchParams.set('redirect_uri', DERIV_REDIRECT_URI);
-    url.searchParams.set('scope', 'trade account_manage');
+    url.searchParams.set('scope', 'trade');
     url.searchParams.set('state', state);
     url.searchParams.set('code_challenge', codeChallenge);
     url.searchParams.set('code_challenge_method', 'S256');
