@@ -5,7 +5,7 @@ import { generateDerivApiInstance } from '@/external/bot-skeleton/services/api/a
 import { observer as globalObserver } from '@/external/bot-skeleton/utils/observer';
 import { clearAuthData } from '@/utils/auth-utils';
 import { DERIV_OAUTH_CLIENT_ID, DERIV_REDIRECT_URI } from '@/utils/deriv-auth-adapter';
-import { Callback } from '@deriv-com/auth-client';
+import { Callback, requestLegacyToken } from '@deriv-com/auth-client';
 import { Button } from '@deriv-com/ui';
 
 /**
@@ -158,14 +158,8 @@ const ManualPKCECallback: React.FC<{ code: string; codeVerifier: string }> = ({ 
                 localStorage.removeItem('pkce_code_verifier');
                 sessionStorage.removeItem('oauth_state');
 
-                // Convert OIDC access token → Deriv legacy tokens via backend
-                const legacyRes = await fetch('/api/auth/legacy-tokens', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ access_token }),
-                });
-                if (!legacyRes.ok) throw new Error('Failed to retrieve legacy tokens');
-                const legacyTokens = (await legacyRes.json()) as Record<string, string>;
+                // Convert OIDC access token → Deriv legacy tokens via auth-client
+                const legacyTokens = await requestLegacyToken(access_token) as Record<string, string>;
 
                 // Step 3d: Process and redirect
                 await processTokensAndRedirect(legacyTokens, null);
