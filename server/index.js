@@ -490,7 +490,7 @@ app.post('/api/auth/userinfo', authLimiter, async (req, res) => {
     const { access_token } = req.body;
     if (!access_token) return res.status(400).json({ error: 'access_token is required' });
     try {
-        const response = await fetch('https://auth.deriv.com/oauth2/userinfo', {
+        const response = await fetch('https://api.derivws.com/oauth2/userinfo', {
             method: 'GET',
             headers: { Authorization: `Bearer ${access_token}` },
         });
