@@ -485,6 +485,24 @@ app.post('/api/auth/pkce-exchange', authLimiter, async (req, res) => {
 });
 
 // PKCE step 2: convert OIDC access token → Deriv legacy tokens (server-side, no CORS)
+
+app.post('/api/auth/userinfo', authLimiter, async (req, res) => {
+    const { access_token } = req.body;
+    if (!access_token) return res.status(400).json({ error: 'access_token is required' });
+    try {
+        const response = await fetch('https://auth.deriv.com/oauth2/userinfo', {
+            method: 'GET',
+            headers: { Authorization: `Bearer ${access_token}` },
+        });
+        const data = await response.json();
+        console.log('[userinfo]:', JSON.stringify(data).substring(0, 300));
+        res.json(data);
+    } catch (err) {
+        console.error('[userinfo] error:', err.message);
+        res.status(500).json({ error: 'Failed to get user info' });
+    }
+});
+
 app.post('/api/auth/legacy-tokens', authLimiter, async (req, res) => {
     const { access_token } = req.body;
     if (!access_token) {
