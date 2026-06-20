@@ -54,6 +54,11 @@ const setLocalStorageToken = async (
             }
 
             try {
+                // Skip WebSocket authorize for Bearer tokens (new OAuth2 flow)
+                if (loginInfo[0] && loginInfo[0].token && loginInfo[0].token.startsWith('ory_at_')) {
+                    setIsAuthComplete(true);
+                    return;
+                }
                 const api = await generateDerivApiInstance();
 
                 if (api) {
