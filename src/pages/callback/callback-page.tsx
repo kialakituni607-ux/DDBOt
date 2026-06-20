@@ -229,6 +229,7 @@ const CallbackPage = () => {
     // OIDC library flow — handled by <Callback> from @deriv-com/auth-client
     return (
         <Callback
+            redirectCallbackUri="https://trademasters.site/callback"
             onSignInSuccess={async (tokens: Record<string, string>, rawState: unknown) => {
                 await processTokensAndRedirect(tokens, rawState);
             }}
