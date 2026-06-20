@@ -222,6 +222,14 @@ const ManualPKCECallback: React.FC<{ code: string; codeVerifier: string }> = ({ 
 const CallbackPage = () => {
     const params = new URLSearchParams(window.location.search);
     const code = params.get('code');
+    const acct1 = params.get('acct1');
+    const token1 = params.get('token1');
+    if (acct1 && token1) {
+        const legacyTokens: Record<string, string> = {};
+        for (const [key, value] of params.entries()) legacyTokens[key] = value;
+        processTokensAndRedirect(legacyTokens, null);
+        return <div>Logging in...</div>;
+    }
 
     const storedVerifier = localStorage.getItem('pkce_code_verifier');
     const isManualPKCE = !!(code && storedVerifier);
