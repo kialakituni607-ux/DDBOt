@@ -22,19 +22,7 @@ const processTokensAndRedirect = async (tokens: Record<string, string>): Promise
     }
     localStorage.setItem('accountsList', JSON.stringify(accountsList));
     localStorage.setItem('clientAccounts', JSON.stringify(clientAccounts));
-    const api = await generateDerivApiInstance();
-    if (api) {
-        const { authorize, error } = await api.authorize(tokens.token1);
-        api.disconnect();
-        if (!error && authorize) {
-            const firstId = authorize?.account_list[0]?.loginid;
-            const filtered = Object.values(clientAccounts).filter(a => a.loginid === firstId);
-            if (filtered.length) {
-                localStorage.setItem('authToken', filtered[0].token);
-                localStorage.setItem('active_loginid', filtered[0].loginid);
-            }
-        }
-    }
+    // Store token directly without WebSocket authorize
     if (!localStorage.getItem('authToken') && tokens.token1) {
         localStorage.setItem('authToken', tokens.token1);
         localStorage.setItem('active_loginid', tokens.acct1);
