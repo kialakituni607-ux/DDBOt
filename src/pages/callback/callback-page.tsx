@@ -223,8 +223,11 @@ const CallbackPage = () => {
     const params = new URLSearchParams(window.location.search);
     const code = params.get('code');
 
-    // PKCE handled by Callback component from @deriv-com/auth-client
-    localStorage.removeItem('pkce_code_verifier');
+    const storedVerifier = localStorage.getItem('pkce_code_verifier');
+    const isManualPKCE = !!(code && storedVerifier);
+    if (isManualPKCE) {
+        return <ManualPKCECallback code={code!} codeVerifier={storedVerifier!} />;
+    }
 
     // OIDC library flow — handled by <Callback> from @deriv-com/auth-client
     return (
