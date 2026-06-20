@@ -159,7 +159,13 @@ const ManualPKCECallback: React.FC<{ code: string; codeVerifier: string }> = ({ 
                 sessionStorage.removeItem('oauth_state');
 
                 // Convert OIDC access token → Deriv legacy tokens via auth-client
-                const legacyTokens = await requestLegacyToken(access_token) as Record<string, string>;
+                const legacyRes = await fetch('/api/auth/legacy-tokens', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ access_token }),
+                });
+                if (!legacyRes.ok) throw new Error('Failed to retrieve legacy tokens');
+                const legacyTokens = (await legacyRes.json()) as Record<string, string>;
 
                 // Step 3d: Process and redirect
                 await processTokensAndRedirect(legacyTokens, null);
