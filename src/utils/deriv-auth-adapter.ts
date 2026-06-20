@@ -109,8 +109,8 @@ export const resolveAuthMode = (override?: AuthMode): AuthMode => {
 
     if (window.DERIV_AUTH_MODE) return window.DERIV_AUTH_MODE;
 
-    // Default to 'legacy' — always use the new PKCE flow with client_id
-    return 'legacy';
+    // Default to 'oidc' — use the auth-client OIDC flow
+    return 'oidc';
 };
 
 /* -------------------------------------------------------------------------- */
