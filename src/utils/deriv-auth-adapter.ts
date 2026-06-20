@@ -109,8 +109,8 @@ export const resolveAuthMode = (override?: AuthMode): AuthMode => {
 
     if (window.DERIV_AUTH_MODE) return window.DERIV_AUTH_MODE;
 
-    // Default to 'oidc' — use the auth-client OIDC flow
-    return 'oidc';
+    // Default to 'legacy' — use manual PKCE flow
+    return 'legacy';
 };
 
 /* -------------------------------------------------------------------------- */
