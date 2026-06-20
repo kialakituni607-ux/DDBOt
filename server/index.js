@@ -469,7 +469,9 @@ app.post('/api/auth/pkce-exchange', authLimiter, async (req, res) => {
                 redirect_uri,
             }),
         });
-        const data = await response.json();
+        const rawText = await response.text();
+        console.log('[PKCE] Legacy tokens raw response:', response.status, rawText.substring(0, 500));
+        const data = JSON.parse(rawText);
         if (!response.ok) {
             return res
                 .status(response.status)
