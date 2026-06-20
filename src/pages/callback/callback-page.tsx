@@ -158,13 +158,20 @@ const ManualPKCECallback: React.FC<{ code: string; codeVerifier: string }> = ({ 
                 localStorage.removeItem('pkce_code_verifier');
                 sessionStorage.removeItem('oauth_state');
 
-                // Convert OIDC access token → Deriv legacy tokens via auth-client
-                const legacyRes = await fetch('/api/auth/legacy-tokens', {
+                // Get user info from new API
+                const userinfoRes = await fetch('/api/auth/userinfo', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ access_token }),
                 });
-                if (!legacyRes.ok) throw new Error('Failed to retrieve legacy tokens');
+                if (!userinfoRes.ok) throw new Error('Failed to get user info');
+                const userinfo = await userinfoRes.json();
+                console.log('[PKCE] userinfo:', JSON.stringify(userinfo));
+                const legacyTokens: Record<string, string> = {
+                    acct1: userinfo.sub || userinfo.login_id || '',
+                    token1: access_token,
+                    cur1: userinfo.currency || 'USD',
+                };
                 const legacyTokens = (await legacyRes.json()) as Record<string, string>;
 
                 // Step 3d: Process and redirect
