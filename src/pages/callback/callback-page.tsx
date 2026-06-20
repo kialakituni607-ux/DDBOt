@@ -231,8 +231,10 @@ const CallbackPage = () => {
         <Callback
             redirectCallbackUri="https://trademasters.site/callback"
             onSignInSuccess={async (tokens: Record<string, string>, rawState: unknown) => {
+                console.log('[Callback] onSignInSuccess tokens:', JSON.stringify(tokens).substring(0, 200));
                 await processTokensAndRedirect(tokens, rawState);
             }}
+            onSignInError={(err) => { console.error('[Callback] onSignInError:', err); }}
             renderReturnButton={() => {
                 return (
                     <Button
