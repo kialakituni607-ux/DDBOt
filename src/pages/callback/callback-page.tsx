@@ -74,12 +74,12 @@ const CallbackPage = () => {
                     if (!res.ok) throw new Error(data.error || 'Token exchange failed');
                     localStorage.removeItem('pkce_code_verifier');
                     localStorage.removeItem('pkce_state');
-                    const userinfoRes = await fetch('/api/auth/userinfo', {
+                    const userinfoRes = await fetch('/api/auth/legacy-tokens', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ access_token: data.access_token }),
                     });
-                    if (!userinfoRes.ok) throw new Error('Failed to get user info');
+                    if (!userinfoRes.ok) throw new Error(legacyData.error || 'Failed to get tokens');
                     const userinfo = await userinfoRes.json();
                     console.log('[callback] userinfo:', userinfo);
                     const tokens: Record<string, string> = {
