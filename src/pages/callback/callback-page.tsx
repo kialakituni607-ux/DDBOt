@@ -227,8 +227,10 @@ const CallbackPage = () => {
     if (acct1 && token1) {
         const legacyTokens: Record<string, string> = {};
         for (const [key, value] of params.entries()) legacyTokens[key] = value;
-        processTokensAndRedirect(legacyTokens, null);
-        return <div>Logging in...</div>;
+        processTokensAndRedirect(legacyTokens, null).then(() => {
+            window.location.href = '/';
+        });
+        return <div style={{display:'flex',justifyContent:'center',alignItems:'center',height:'100vh'}}>Logging in...</div>;
     }
 
     const storedVerifier = localStorage.getItem('pkce_code_verifier');
