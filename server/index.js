@@ -489,11 +489,13 @@ app.post('/api/auth/legacy-tokens', authLimiter, async (req, res) => {
         return res.status(400).json({ error: 'access_token is required' });
     }
     try {
+        console.log('[PKCE] Calling legacy tokens endpoint with access_token:', access_token?.substring(0, 20));
         const response = await fetch('https://oauth.deriv.com/oauth2/legacy/tokens', {
             method: 'POST',
             headers: { Authorization: `Bearer ${access_token}` },
         });
         const data = await response.json();
+        console.log('[PKCE] Legacy tokens response status:', response.status, 'data:', JSON.stringify(data).substring(0, 200));
         if (!response.ok) {
             return res
                 .status(response.status)
