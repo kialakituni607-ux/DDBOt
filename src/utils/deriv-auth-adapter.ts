@@ -81,7 +81,7 @@ const AFFILIATE_COOKIE = 'affiliate_tracking';
  * Deriv's OIDC error page.
  */
 const LEGACY_ONLY_APP_IDS = new Set<number>([
-    116874, // trademasters.site (verified 2026-04-28: invalid_client on /oauth2/auth)
+    // 116874 removed — now using dual-support PKCE flow with both client_id and app_id
 ]);
 
 declare global {
