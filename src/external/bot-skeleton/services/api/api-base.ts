@@ -226,6 +226,11 @@ class APIBase {
         try {
             const { authorize, error } = await this.api.authorize(this.token);
             if (error) {
+                // Skip InvalidToken handling for Bearer tokens (new OAuth2 flow)
+                if (this.token && this.token.startsWith('ory_at_')) {
+                    setIsAuthorizing(false);
+                    return;
+                }
                 if (error.code === 'InvalidToken') {
                     const is_tmb_enabled = window.is_tmb_enabled === true;
                     if (Cookies.get('logged_state') === 'true' && !is_tmb_enabled) {
