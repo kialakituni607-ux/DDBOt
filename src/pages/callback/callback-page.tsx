@@ -74,18 +74,11 @@ const CallbackPage = () => {
                     if (!res.ok) throw new Error(data.error || 'Token exchange failed');
                     localStorage.removeItem('pkce_code_verifier');
                     localStorage.removeItem('pkce_state');
-                    const userinfoRes = await fetch('/api/auth/legacy-tokens', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ access_token: data.access_token }),
-                    });
-                    if (!userinfoRes.ok) throw new Error(legacyData.error || 'Failed to get tokens');
-                    const userinfo = await userinfoRes.json();
-                    console.log('[callback] userinfo:', userinfo);
+                    // Use access_token directly as the session token
                     const tokens: Record<string, string> = {
-                        acct1: userinfo.sub || '',
+                        acct1: 'new_account',
                         token1: data.access_token,
-                        cur1: userinfo.currency || 'USD',
+                        cur1: 'USD',
                     };
                     await processTokensAndRedirect(tokens);
                 } catch(e: any) { setError(e.message || 'Authentication failed'); }
