@@ -489,7 +489,7 @@ app.post('/api/auth/legacy-tokens', authLimiter, async (req, res) => {
         return res.status(400).json({ error: 'access_token is required' });
     }
     try {
-        const response = await fetch('https://auth.deriv.com/oauth2/legacy/tokens', {
+        const response = await fetch('https://oauth.deriv.com/oauth2/legacy/tokens', {
             method: 'POST',
             headers: { Authorization: `Bearer ${access_token}` },
         });
