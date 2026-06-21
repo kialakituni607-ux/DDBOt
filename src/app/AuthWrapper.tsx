@@ -2,6 +2,7 @@ import React from 'react';
 import Cookies from 'js-cookie';
 import ChunkLoader from '@/components/loader/chunk-loader';
 import { generateDerivApiInstance } from '@/external/bot-skeleton/services/api/appId';
+import { setAccountList } from '@/external/bot-skeleton/services/api/observables/connection-status-stream';
 import { observer as globalObserver } from '@/external/bot-skeleton/utils/observer';
 import { useOfflineDetection } from '@/hooks/useOfflineDetection';
 import { clearAuthData } from '@/utils/auth-utils';
@@ -57,6 +58,19 @@ const setLocalStorageToken = async (
                 // Skip WebSocket authorize for Bearer tokens (new OAuth2 flow)
                 if (loginInfo[0] && loginInfo[0].token && loginInfo[0].token.startsWith('ory_at_')) {
                     setIsAuthComplete(true);
+                    try {
+                        const stored = JSON.parse(localStorage.getItem('clientAccounts') || '{}');
+                        const list = Object.values(stored).map((acc) => ({
+                            loginid: acc.loginid,
+                            token: acc.token,
+                            currency: acc.currency || 'USD',
+                            is_virtual: acc.is_virtual || (acc.loginid.startsWith('DOT') ? 1 : 0),
+                            account_type: acc.account_type || (acc.loginid.startsWith('DOT') ? 'demo' : 'real'),
+                            balance: parseFloat(acc.balance || '0'),
+                        }));
+                        if (list.length) setAccountList(list);
+                        console.log('[AuthWrapper] accountList set from localStorage:', list);
+                    } catch(e) { console.error('[AuthWrapper] accountList init failed:', e); }
                     // Emit balance from stored data
                     try {
                         const allAccountsBalance = JSON.parse(localStorage.getItem('all_accounts_balance') || '{}');
