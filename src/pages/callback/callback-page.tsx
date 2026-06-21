@@ -89,12 +89,12 @@ const CallbackPage = () => {
                     localStorage.setItem('authToken', data.access_token);
                     localStorage.setItem('active_loginid', realAccount.account_id);
                     // Store ALL accounts
-                    const accountsList = {};
-                    const clientAccounts = {};
+                    const newAccountsList: Record<string, string> = {};
+                    const newClientAccounts: Record<string, any> = {};
                     let urlParams = '';
                     accounts.forEach((acc, idx) => {
-                        accountsList[acc.account_id] = data.access_token;
-                        clientAccounts[acc.account_id] = {loginid: acc.account_id, token: data.access_token, currency: acc.currency || 'USD', balance: acc.balance || '0.00'};
+                        newAccountsList[acc.account_id] = data.access_token;
+                        newClientAccounts[acc.account_id] = {loginid: acc.account_id, token: data.access_token, currency: acc.currency || 'USD', balance: acc.balance || '0.00'};
                         urlParams += '&acct' + (idx+1) + '=' + acc.account_id + '&token' + (idx+1) + '=' + data.access_token + '&cur' + (idx+1) + '=' + (acc.currency || 'USD');
                     });
                     // Store balance for each account
@@ -119,8 +119,8 @@ const CallbackPage = () => {
                         };
                     });
                     localStorage.setItem('all_accounts_balance', JSON.stringify(allAccountsBalance));
-                    localStorage.setItem('accountsList', JSON.stringify(accountsList));
-                    localStorage.setItem('clientAccounts', JSON.stringify(clientAccounts));
+                    localStorage.setItem('accountsList', JSON.stringify(newAccountsList));
+                    localStorage.setItem('clientAccounts', JSON.stringify(newClientAccounts));
                     const domain = window.location.hostname.split('.').slice(-2).join('.');
                     document.cookie = 'logged_state=true; path=/; domain=' + domain + '; secure; max-age=2592000';
                     window.location.href = '/?' + urlParams.substring(1);
