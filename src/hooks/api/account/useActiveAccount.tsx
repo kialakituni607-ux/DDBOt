@@ -30,7 +30,7 @@ const useActiveAccount = ({ allBalanceData }: { allBalanceData: Balance | null }
                           isVirtual={Boolean(activeAccount?.is_virtual)}
                       />
                   ),
-                  isVirtual: Boolean(activeAccount?.is_virtual),
+                  isVirtual: Boolean(activeAccount?.is_virtual) || activeAccount?.loginid?.startsWith('DOT') || false,
                   isActive: activeAccount?.loginid === activeLoginid,
               }
             : undefined;
