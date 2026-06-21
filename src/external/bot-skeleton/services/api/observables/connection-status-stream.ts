@@ -30,6 +30,10 @@ const getInitialAccountList = () => {
 export const account_list$ = new BehaviorSubject<TAuthData['account_list']>(getInitialAccountList() as any);
 export const authData$ = new BehaviorSubject<TAuthData | null>(null);
 
+// Initialize activeLoginid from localStorage so header icon is correct on refresh
+const storedLoginid = typeof localStorage !== 'undefined' ? localStorage.getItem('active_loginid') || '' : '';
+export const activeLoginid$ = new BehaviorSubject<string>(storedLoginid);
+
 // Create functions to easily update status
 export const setConnectionStatus = (status: CONNECTION_STATUS) => {
     connectionStatus$.next(status);

@@ -15,7 +15,7 @@ export const useApiBase = () => {
     const [isAuthorizing, setIsAuthorizing] = useState<boolean>(false);
     const [accountList, setAccountList] = useState<TAuthData['account_list']>([]);
     const [authData, setAuthData] = useState<TAuthData | null>(null);
-    const [activeLoginid, setActiveLoginid] = useState<string>('');
+    const [activeLoginid, setActiveLoginid] = useState<string>(() => localStorage.getItem('active_loginid') || '');
 
     useEffect(() => {
         const connectionStatusSubscription = connectionStatus$.subscribe(status => {
