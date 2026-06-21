@@ -21,8 +21,8 @@ export const derivLogin = async (_options: LoginOptions = {}): Promise<void> => 
     const codeChallenge = btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
     const state = Array.from(crypto.getRandomValues(new Uint8Array(16)))
         .map(b => b.toString(16).padStart(2, '0')).join('');
-    localStorage.setItem('pkce_code_verifier', codeVerifier);
-    localStorage.setItem('pkce_state', state);
+    sessionStorage.setItem('pkce_code_verifier', codeVerifier);
+    sessionStorage.setItem('pkce_state', state);
     const url = new URL('https://auth.deriv.com/oauth2/auth');
     url.searchParams.set('response_type', 'code');
     url.searchParams.set('client_id', DERIV_OAUTH_CLIENT_ID);

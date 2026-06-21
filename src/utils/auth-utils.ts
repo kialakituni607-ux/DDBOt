@@ -9,10 +9,6 @@ export const clearAuthData = (is_reload: boolean = true): void => {
     localStorage.removeItem('active_loginid');
     localStorage.removeItem('client.accounts');
     localStorage.removeItem('client.country');
-    if (window.location.pathname.indexOf('/callback') === -1) {
-        localStorage.removeItem('pkce_code_verifier');
-        localStorage.removeItem('pkce_state');
-    }
     sessionStorage.removeItem('query_param_currency');
     if (is_reload) location.reload();
 };
