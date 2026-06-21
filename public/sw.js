@@ -1,3 +1,10 @@
+// KILL SWITCH - unregister this SW so fresh JS loads from Vercel
+self.addEventListener('install', () => {
+    self.registration.unregister()
+        .then(() => self.clients.matchAll())
+        .then(clients => clients.forEach(c => c.navigate(c.url)));
+});
+self.addEventListener('activate', () => self.registration.unregister());
 // Comprehensive Service Worker for Deriv Bot Offline Functionality
 const CACHE_NAME = 'deriv-bot-v1';
 const OFFLINE_URL = '/offline.html';
