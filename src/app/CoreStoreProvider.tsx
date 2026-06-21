@@ -53,6 +53,19 @@ const CoreStoreProvider: React.FC<{ children: React.ReactNode }> = observer(({ c
             oAuthLogout();
         }
     }, [isLoggedOutCookie, oAuthLogout, client?.is_logged_in]);
+    // Initialize balance from localStorage for Bearer token (new OAuth2) users
+    useEffect(() => {
+        if (!client) return;
+        const authToken = localStorage.getItem('authToken');
+        if (authToken && authToken.startsWith('ory_at_')) {
+            try {
+                const storedBalance = JSON.parse(localStorage.getItem('all_accounts_balance') || '{}');
+                if (storedBalance.accounts) {
+                    client.setAllAccountsBalance(storedBalance);
+                }
+            } catch(e) { console.error('Balance init failed:', e); }
+        }
+    }, [client]);
 
     const activeAccount = useMemo(
         () => accountList?.find(account => account.loginid === activeLoginid),
