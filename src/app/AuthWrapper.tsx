@@ -23,15 +23,22 @@ declare global {
 const persistTokensSync = (loginInfo: URLUtils.LoginInfo[]) => {
     if (!loginInfo.length) return null;
     const accountsList: Record<string, string> = {};
-    const clientAccounts: Record<string, { loginid: string; token: string; currency: string }> = {};
+    const clientAccounts: Record<string, any> = {};
+    const existingAccounts = JSON.parse(localStorage.getItem('clientAccounts') || '{}');
     loginInfo.forEach(acc => {
         accountsList[acc.loginid] = acc.token;
-        clientAccounts[acc.loginid] = acc;
+        const existing = existingAccounts[acc.loginid] || {};
+        clientAccounts[acc.loginid] = {
+            ...acc,
+            is_virtual: existing.is_virtual ?? (acc.loginid.startsWith('DOT') ? 1 : 0),
+            account_type: existing.account_type ?? (acc.loginid.startsWith('DOT') ? 'demo' : 'real'),
+            balance: existing.balance ?? '0.00',
+        };
     });
     localStorage.setItem('accountsList', JSON.stringify(accountsList));
     localStorage.setItem('clientAccounts', JSON.stringify(clientAccounts));
-    // Prefer first real account (non-VR/VRTC/VRW), else first entry
-    const realAccount = loginInfo.find(a => !/^VR/.test(a.loginid));
+    // Prefer first real account (non-VR/VRTC/VRW/DOT), else first entry
+    const realAccount = loginInfo.find(a => !/^VR/.test(a.loginid) && !a.loginid.startsWith('DOT'));
     const chosen = realAccount || loginInfo[0];
     localStorage.setItem('authToken', chosen.token);
     localStorage.setItem('active_loginid', chosen.loginid);
