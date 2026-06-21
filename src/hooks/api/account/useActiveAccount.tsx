@@ -23,11 +23,11 @@ const useActiveAccount = ({ allBalanceData }: { allBalanceData: Balance | null }
                   balance:
                       addComma(currentBalanceData?.balance?.toFixed(getDecimalPlaces(currentBalanceData.currency))) ??
                       '0',
-                  currencyLabel: activeAccount?.is_virtual ? localize('Demo') : activeAccount?.currency,
+                  currencyLabel: (activeAccount?.is_virtual || activeAccount?.loginid?.startsWith('DOT')) ? localize('Demo') : activeAccount?.currency,
                   icon: (
                       <CurrencyIcon
                           currency={activeAccount?.currency?.toLowerCase()}
-                          isVirtual={Boolean(activeAccount?.is_virtual)}
+                          isVirtual={Boolean(activeAccount?.is_virtual) || Boolean(activeAccount?.loginid?.startsWith('DOT'))}
                       />
                   ),
                   isVirtual: Boolean(activeAccount?.is_virtual) || activeAccount?.loginid?.startsWith('DOT') || false,
