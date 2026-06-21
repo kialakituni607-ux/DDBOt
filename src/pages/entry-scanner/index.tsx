@@ -239,7 +239,7 @@ const EntryScanner: React.FC = observer(() => {
         // Create a dedicated WebSocket API just for scanning
         let api: any = null;
         try {
-            api = await generateDerivApiInstance();
+            api = generateDerivApiInstance();
         } catch (e) {
             setStatusMsg('⚠️ Could not connect to market data. Check your connection.');
             setScanning(false);
