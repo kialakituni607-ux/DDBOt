@@ -12,7 +12,22 @@ export enum CONNECTION_STATUS {
 export const connectionStatus$ = new BehaviorSubject<string>('unknown');
 export const isAuthorizing$ = new BehaviorSubject<boolean>(false);
 export const isAuthorized$ = new BehaviorSubject<boolean>(false);
-export const account_list$ = new BehaviorSubject<TAuthData['account_list']>([]);
+// Initialize from localStorage immediately so icons/tabs are correct on first render
+const getInitialAccountList = () => {
+    try {
+        const stored = JSON.parse(localStorage.getItem('clientAccounts') || '{}');
+        const list = Object.values(stored).map((acc: any) => ({
+            loginid: acc.loginid,
+            token: acc.token,
+            currency: acc.currency || 'USD',
+            is_virtual: acc.is_virtual ?? (acc.loginid.startsWith('DOT') ? 1 : 0),
+            account_type: acc.account_type ?? (acc.loginid.startsWith('DOT') ? 'demo' : 'real'),
+            balance: parseFloat(acc.balance || '0'),
+        }));
+        return list;
+    } catch(e) { return []; }
+};
+export const account_list$ = new BehaviorSubject<TAuthData['account_list']>(getInitialAccountList() as any);
 export const authData$ = new BehaviorSubject<TAuthData | null>(null);
 
 // Create functions to easily update status
