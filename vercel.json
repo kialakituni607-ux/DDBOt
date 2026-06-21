@@ -1,32 +1,18 @@
 {
-  "$schema": "https://openapi.vercel.sh/vercel.json",
-  "framework": null,
-  "installCommand": "yarn install --ignore-engines",
-  "buildCommand": "yarn build",
-  "outputDirectory": "dist",
-  "build": {
-    "env": {
-      "NODE_OPTIONS": "--max-old-space-size=4096"
-    }
-  },
   "headers": [
     {
-      "source": "/bots/(.*)",
-      "headers": [{ "key": "X-Robots-Tag", "value": "noindex" }]
-    }
-  ],
-  "rewrites": [
-    {
-      "source": "/bots/(.*)",
-      "destination": "/api/blocked"
+      "source": "/index.html",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" },
+        { "key": "Pragma", "value": "no-cache" },
+        { "key": "Expires", "value": "0" }
+      ]
     },
     {
-      "source": "/api/(.*)",
-      "destination": "https://api.trademasters.site/api/$1"
-    },
-    {
-      "source": "/((?!static|assets|js|favicon|manifest|sw\\.js|offline\\.html).*)",
-      "destination": "/index.html"
+      "source": "/sw.js",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }
+      ]
     }
   ]
 }
