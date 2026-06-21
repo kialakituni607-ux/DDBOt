@@ -68,6 +68,12 @@ const useTMB = (): UseTMBReturn => {
     const activeSessionsRef = useRef<TMBWebsocketTokens | undefined>(undefined);
 
     const getActiveSessions = useCallback(async (): Promise<TMBWebsocketTokens | undefined> => {
+        // Skip for Bearer token (new OAuth2/PKCE flow) - these don't use sessions/active
+        const authToken = localStorage.getItem('authToken');
+        if (authToken && authToken.startsWith('ory_at_')) {
+            console.log('[TMB] Skipping sessions/active for Bearer token user');
+            return undefined;
+        }
         try {
             const configServerUrl = localStorage.getItem('config.server_url');
             if (configServerUrl) {
