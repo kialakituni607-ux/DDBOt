@@ -4,15 +4,32 @@ import DerivAPIBasic from '@deriv/deriv-api/dist/DerivAPIBasic';
 import { getInitialLanguage } from '@deriv-com/translations';
 import APIMiddleware from './api-middleware';
 
-export const generateDerivApiInstance = () => {
+export const generateDerivApiInstance = async () => {
     // Use OTP WebSocket URL for Bearer token (new OAuth2/PKCE flow) users
     const authToken = localStorage.getItem('authToken');
-    const otpWsUrl = localStorage.getItem('deriv_ws_url');
     let socket_url;
-    if (authToken && authToken.startsWith('ory_at_') && otpWsUrl) {
-        socket_url = otpWsUrl;
-        console.log('[WS] Using OTP WebSocket URL:', socket_url);
-    } else {
+    if (authToken && authToken.startsWith('ory_at_')) {
+        try {
+            // Always fetch a fresh OTP - they expire quickly
+            const active_loginid = localStorage.getItem('active_loginid');
+            const otpRes = await fetch('/api/auth/otp', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ access_token: authToken, account_id: active_loginid }),
+            });
+            const otpData = await otpRes.json();
+            const freshOtpUrl = otpData.data && otpData.data.url;
+            if (freshOtpUrl) {
+                socket_url = freshOtpUrl;
+                localStorage.setItem('deriv_ws_url', freshOtpUrl);
+                console.log('[WS] Fresh OTP WebSocket URL:', socket_url);
+            }
+        } catch(e) {
+            console.error('[WS] Failed to get fresh OTP:', e);
+            socket_url = localStorage.getItem('deriv_ws_url');
+        }
+    }
+    if (!socket_url) {
         const cleanedServer = getSocketURL().replace(/[^a-zA-Z0-9.]/g, '');
         const cleanedAppId = getAppId()?.replace?.(/[^a-zA-Z0-9]/g, '') ?? getAppId();
         socket_url = `wss://${cleanedServer}/websockets/v3?app_id=${cleanedAppId}&l=${getInitialLanguage()}&brand=${website_name.toLowerCase()}`;
