@@ -101,7 +101,7 @@ export const authorizeWithPersonalToken = async (rawToken: string): Promise<Auth
 
     let api: ReturnType<typeof generateDerivApiInstance> | null = null;
     try {
-        api = generateDerivApiInstance();
+        api = await generateDerivApiInstance();
         if (!api) {
             return {
                 success: false,
