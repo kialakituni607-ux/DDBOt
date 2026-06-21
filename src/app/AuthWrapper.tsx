@@ -57,6 +57,13 @@ const setLocalStorageToken = async (
                 // Skip WebSocket authorize for Bearer tokens (new OAuth2 flow)
                 if (loginInfo[0] && loginInfo[0].token && loginInfo[0].token.startsWith('ory_at_')) {
                     setIsAuthComplete(true);
+                    // Emit balance from stored data
+                    try {
+                        const allAccountsBalance = JSON.parse(localStorage.getItem('all_accounts_balance') || '{}');
+                        if (allAccountsBalance.accounts) {
+                            globalObserver.emit('balance.update', allAccountsBalance);
+                        }
+                    } catch(e) { console.error('Balance emit failed:', e); }
                     return;
                 }
                 const api = await generateDerivApiInstance();
