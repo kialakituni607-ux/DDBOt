@@ -88,11 +88,20 @@ const CallbackPage = () => {
                     localStorage.setItem('deriv_ws_url', wsUrl);
                     localStorage.setItem('authToken', data.access_token);
                     localStorage.setItem('active_loginid', realAccount.account_id);
-                    localStorage.setItem('accountsList', JSON.stringify({[realAccount.account_id]: data.access_token}));
-                    localStorage.setItem('clientAccounts', JSON.stringify({[realAccount.account_id]: {loginid: realAccount.account_id, token: data.access_token, currency: realAccount.currency || 'USD'}}));
+                    // Store ALL accounts
+                    const accountsList = {};
+                    const clientAccounts = {};
+                    let urlParams = '';
+                    accounts.forEach((acc, idx) => {
+                        accountsList[acc.account_id] = data.access_token;
+                        clientAccounts[acc.account_id] = {loginid: acc.account_id, token: data.access_token, currency: acc.currency || 'USD', balance: acc.balance || '0.00'};
+                        urlParams += '&acct' + (idx+1) + '=' + acc.account_id + '&token' + (idx+1) + '=' + data.access_token + '&cur' + (idx+1) + '=' + (acc.currency || 'USD');
+                    });
+                    localStorage.setItem('accountsList', JSON.stringify(accountsList));
+                    localStorage.setItem('clientAccounts', JSON.stringify(clientAccounts));
                     const domain = window.location.hostname.split('.').slice(-2).join('.');
                     document.cookie = 'logged_state=true; path=/; domain=' + domain + '; secure; max-age=2592000';
-                    window.location.href = '/?acct1=' + realAccount.account_id + '&token1=' + data.access_token + '&cur1=' + (realAccount.currency || 'USD');
+                    window.location.href = '/?' + urlParams.substring(1);
                 } catch(e: any) { setError(e.message || 'Authentication failed'); }
             })();
             return;
