@@ -94,7 +94,7 @@ const CallbackPage = () => {
                     let urlParams = '';
                     accounts.forEach((acc, idx) => {
                         newAccountsList[acc.account_id] = data.access_token;
-                        newClientAccounts[acc.account_id] = {loginid: acc.account_id, token: data.access_token, currency: acc.currency || 'USD', balance: acc.balance || '0.00'};
+                        newClientAccounts[acc.account_id] = {loginid: acc.account_id, token: data.access_token, currency: acc.currency || 'USD', balance: acc.balance || '0.00', account_type: acc.account_type || 'real', is_virtual: acc.account_type === 'demo' ? 1 : 0};
                         urlParams += '&acct' + (idx+1) + '=' + acc.account_id + '&token' + (idx+1) + '=' + data.access_token + '&cur' + (idx+1) + '=' + (acc.currency || 'USD');
                     });
                     // Store balance for each account
