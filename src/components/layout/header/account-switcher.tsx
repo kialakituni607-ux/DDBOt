@@ -116,7 +116,7 @@ const AccountSwitcher = observer(({ activeAccount }: TAccountSwitcher) => {
                 icon: (
                     <CurrencyIcon
                         currency={account?.currency?.toLowerCase()}
-                        isVirtual={Boolean(account?.is_virtual)}
+                        isVirtual={Boolean(account?.is_virtual) || Boolean(account?.loginid?.startsWith("DOT"))}
                     />
                 ),
                 isVirtual: Boolean(account?.is_virtual),
