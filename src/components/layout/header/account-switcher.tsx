@@ -7,6 +7,7 @@ import Popover from '@/components/shared_ui/popover';
 import { api_base } from '@/external/bot-skeleton';
 import { useOauth2 } from '@/hooks/auth/useOauth2';
 import { useApiBase } from '@/hooks/useApiBase';
+import { setAccountList } from '@/external/bot-skeleton/services/api/observables/connection-status-stream';
 import { useStore } from '@/hooks/useStore';
 import { waitForDomElement } from '@/utils/dom-observer';
 import { Analytics } from '@deriv-com/analytics';
@@ -157,6 +158,19 @@ const AccountSwitcher = observer(({ activeAccount }: TAccountSwitcher) => {
             account_type,
         });
         await api_base?.init(true);
+        // Restore accountList from localStorage after re-init (Bearer token flow)
+        try {
+            const stored = JSON.parse(localStorage.getItem('clientAccounts') || '{}');
+            const list = Object.values(stored).map((acc: any) => ({
+                loginid: acc.loginid,
+                token: acc.token,
+                currency: acc.currency || 'USD',
+                is_virtual: acc.is_virtual ?? (acc.loginid.startsWith('DOT') ? 1 : 0),
+                account_type: acc.account_type ?? (acc.loginid.startsWith('DOT') ? 'demo' : 'real'),
+                balance: parseFloat(acc.balance || '0'),
+            }));
+            if (list.length) setAccountList(list as any);
+        } catch(e) { console.error('setAccountList after switch failed:', e); }
         const search_params = new URLSearchParams(window.location.search);
         const selected_account = modifiedAccountList.find(acc => acc.loginid === loginId.toString());
         if (!selected_account) return;
