@@ -97,6 +97,17 @@ const CallbackPage = () => {
                         clientAccounts[acc.account_id] = {loginid: acc.account_id, token: data.access_token, currency: acc.currency || 'USD', balance: acc.balance || '0.00'};
                         urlParams += '&acct' + (idx+1) + '=' + acc.account_id + '&token' + (idx+1) + '=' + data.access_token + '&cur' + (idx+1) + '=' + (acc.currency || 'USD');
                     });
+                    // Store balance for each account
+                    const allAccountsBalance = { accounts: {} as Record<string, any> };
+                    accounts.forEach((acc) => {
+                        (allAccountsBalance.accounts as Record<string, any>)[acc.account_id] = {
+                            balance: parseFloat(acc.balance || '0'),
+                            currency: acc.currency || 'USD',
+                            converted_amount: parseFloat(acc.balance || '0'),
+                            type: acc.account_type || 'real',
+                        };
+                    });
+                    localStorage.setItem('all_accounts_balance', JSON.stringify(allAccountsBalance));
                     localStorage.setItem('accountsList', JSON.stringify(accountsList));
                     localStorage.setItem('clientAccounts', JSON.stringify(clientAccounts));
                     const domain = window.location.hostname.split('.').slice(-2).join('.');
