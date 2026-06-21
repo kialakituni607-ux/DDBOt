@@ -1115,3 +1115,10 @@ process.on('SIGTERM', () => {
         process.exit(0);
     });
 });
+
+// Keep Render awake - ping every 10 minutes
+setInterval(() => {
+    fetch('https://api.trademasters.site/health')
+        .then(() => console.log('[ping] alive'))
+        .catch(e => console.error('[ping] failed:', e.message));
+}, 600000);
