@@ -88,9 +88,11 @@ const CallbackPage = () => {
                     localStorage.setItem('deriv_ws_url', wsUrl);
                     localStorage.setItem('authToken', data.access_token);
                     localStorage.setItem('active_loginid', realAccount.account_id);
+                    localStorage.setItem('accountsList', JSON.stringify({[realAccount.account_id]: data.access_token}));
+                    localStorage.setItem('clientAccounts', JSON.stringify({[realAccount.account_id]: {loginid: realAccount.account_id, token: data.access_token, currency: realAccount.currency || 'USD'}}));
                     const domain = window.location.hostname.split('.').slice(-2).join('.');
                     document.cookie = 'logged_state=true; path=/; domain=' + domain + '; secure; max-age=2592000';
-                    window.location.href = '/';
+                    window.location.href = '/?acct1=' + realAccount.account_id + '&token1=' + data.access_token + '&cur1=' + (realAccount.currency || 'USD');
                 } catch(e: any) { setError(e.message || 'Authentication failed'); }
             })();
             return;
