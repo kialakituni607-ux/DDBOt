@@ -306,7 +306,9 @@ class APIBase {
     }
 
     getActiveSymbols = async () => {
-        await doUntilDone(() => this.api?.send({ active_symbols: 'brief' }), [], this).then(
+        const sendFn = () => this.api?.send({ active_symbols: 'brief' });
+        const apiCall = sendFn() || Promise.resolve({});
+        await apiCall.then(
             ({ active_symbols = [], error = {} }) => {
                 const pip_sizes = {};
                 if (active_symbols.length) this.has_active_symbols = true;
