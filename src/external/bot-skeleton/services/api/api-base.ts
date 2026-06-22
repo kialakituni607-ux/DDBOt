@@ -309,19 +309,30 @@ class APIBase {
     }
 
     getActiveSymbols = async () => {
-        // Wait for WebSocket to be open before sending
-        await new Promise<void>(resolve => {
-            if (this.api?.connection?.readyState === 1) return resolve();
-            const check = setInterval(() => {
-                if (this.api?.connection?.readyState === 1) {
-                    clearInterval(check);
-                    resolve();
-                }
-            }, 100);
-            setTimeout(() => { clearInterval(check); resolve(); }, 5000);
+        // Use public WebSocket for market data - no auth needed
+        await new Promise<void>((resolve) => {
+            const ws = new WebSocket('wss://api.derivws.com/trading/v1/options/ws/public');
+            ws.onopen = () => ws.send(JSON.stringify({ active_symbols: 'brief' }));
+            ws.onmessage = (msg: MessageEvent) => {
+                const data = JSON.parse(msg.data);
+                const active_symbols = data.active_symbols || [];
+                const error = data.error || {};
+                const pip_sizes: Record<string, number> = {};
+                if (active_symbols.length) this.has_active_symbols = true;
+                active_symbols.forEach(({ symbol, pip }: { symbol: string; pip: string }) => {
+                    pip_sizes[symbol] = +(+pip).toExponential().substring(3);
+                });
+                this.pip_sizes = pip_sizes;
+                this.toggleRunButton(false);
+                this.active_symbols = active_symbols;
+                console.log('[api-base] active_symbols loaded:', active_symbols.length);
+                ws.close();
+                resolve();
+            };
+            ws.onerror = (e) => { console.error('[api-base] public WS error:', e); resolve(); };
+            setTimeout(() => { ws.close(); resolve(); }, 10000);
         });
-        const apiCall = this.api?.send({ active_symbols: 'brief' }) || Promise.resolve({});
-        await apiCall.then(
+        await Promise.resolve({}).then(
             ({ active_symbols = [], error = {} }) => {
                 const pip_sizes = {};
                 if (active_symbols.length) this.has_active_symbols = true;
