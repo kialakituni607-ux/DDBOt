@@ -18,7 +18,10 @@ export default class TradingTimes {
         this.last_update_moment = this.server_time.local();
 
         if (!Object.keys(this.trading_times).length) {
-            await this.updateTradingTimes();
+            await Promise.race([
+                this.updateTradingTimes(),
+                new Promise(resolve => setTimeout(resolve, 3000))
+            ]).catch(() => {});
             this.init_promise.resolve();
 
             const periodicUpdate = async () => {
