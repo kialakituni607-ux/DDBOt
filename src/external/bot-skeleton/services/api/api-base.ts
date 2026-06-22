@@ -306,8 +306,18 @@ class APIBase {
     }
 
     getActiveSymbols = async () => {
-        const sendFn = () => this.api?.send({ active_symbols: 'brief' });
-        const apiCall = sendFn() || Promise.resolve({});
+        // Wait for WebSocket to be open before sending
+        await new Promise<void>(resolve => {
+            if (this.api?.connection?.readyState === 1) return resolve();
+            const check = setInterval(() => {
+                if (this.api?.connection?.readyState === 1) {
+                    clearInterval(check);
+                    resolve();
+                }
+            }, 100);
+            setTimeout(() => { clearInterval(check); resolve(); }, 5000);
+        });
+        const apiCall = this.api?.send({ active_symbols: 'brief' }) || Promise.resolve({});
         await apiCall.then(
             ({ active_symbols = [], error = {} }) => {
                 const pip_sizes = {};
