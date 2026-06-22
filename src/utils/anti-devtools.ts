@@ -1,4 +1,4 @@
-if (import.meta.env.PROD) {
+if (false) { // temporarily disabled for debugging
 
     // ── KEYBOARD SHORTCUTS: block everything that opens DevTools ────────────
     document.addEventListener('keydown', e => {
