@@ -16,7 +16,7 @@ export default class ActiveSymbols {
     }
 
     async retrieveActiveSymbols(is_forced_update = false) {
-        await this.trading_times.initialise();
+        try { await this.trading_times.initialise(); } catch(e) { console.log("[active-symbols] trading_times.initialise failed:", e.message); }
 
         if (!is_forced_update && this.is_initialised) {
             await this.init_promise;
