@@ -315,8 +315,18 @@ class APIBase {
             ws.onopen = () => ws.send(JSON.stringify({ active_symbols: 'brief' }));
             ws.onmessage = (msg: MessageEvent) => {
                 const data = JSON.parse(msg.data);
-                const active_symbols = data.active_symbols || [];
+                const raw_symbols = data.active_symbols || [];
                 const error = data.error || {};
+                // Map public WS field names to expected field names
+                const active_symbols = raw_symbols.map((s: any) => ({
+                    ...s,
+                    symbol: s.symbol ?? s.underlying_symbol,
+                    display_name: s.display_name ?? s.underlying_symbol_name,
+                    market_display_name: s.market_display_name ?? s.market,
+                    submarket_display_name: s.submarket_display_name ?? s.submarket,
+                    pip: s.pip ?? s.pip_size,
+                    exchange_is_open: s.exchange_is_open === 1 || s.exchange_is_open === true,
+                }));
                 const pip_sizes: Record<string, number> = {};
                 if (active_symbols.length) this.has_active_symbols = true;
                 active_symbols.forEach(({ symbol, pip }: { symbol: string; pip: string }) => {
