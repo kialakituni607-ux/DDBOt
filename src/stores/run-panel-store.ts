@@ -13,6 +13,7 @@ import { helpers } from '@/utils/store-helpers';
 import { Buy, ProposalOpenContract } from '@deriv/api-types';
 import { TStores } from '@deriv/stores/types';
 import { localize } from '@deriv-com/translations';
+import { api_base } from '@/external/bot-skeleton';
 import { TDbot } from 'Types';
 import RootStore from './root-store';
 
