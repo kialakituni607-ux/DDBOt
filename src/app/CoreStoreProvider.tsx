@@ -169,7 +169,10 @@ const CoreStoreProvider: React.FC<{ children: React.ReactNode }> = observer(({ c
                 error?.code === 'DisabledClient' ||
                 error?.code === 'InvalidToken'
             ) {
-                await oAuthLogout();
+                const authToken = localStorage.getItem('authToken');
+                if (!authToken || !authToken.startsWith('ory_at_')) {
+                    await oAuthLogout();
+                }
             }
 
             if (msg_type === 'balance' && data && !error) {
