@@ -276,7 +276,27 @@ export default class AppStore {
         );
     };
 
+    onSocketOpened = () => {
+        this.api_helpers_store = {
+            server_time: this.root_store.common.server_time,
+            ws: api_base.api,
+        };
+        if (!ApiHelpers?.instance) {
+            ApiHelpers.setInstance(this.api_helpers_store);
+        }
+        const active_symbols = ApiHelpers?.instance?.active_symbols;
+        const contracts_for = ApiHelpers?.instance?.contracts_for;
+        if (ApiHelpers?.instance && active_symbols && contracts_for) {
+            active_symbols.retrieveActiveSymbols(true).then(() => {
+                console.log('[app-store] active_symbols retrieved via onSocketOpened');
+            });
+        }
+    };
     registerOnAccountSwitch = () => {
+        // If socket already opened before reaction was set up, trigger immediately
+        if (this.root_store.common?.is_socket_opened) {
+            setTimeout(() => this.onSocketOpened(), 100);
+        }
         this.disposeSwitchAccountListener = reaction(
             () => this.root_store.common?.is_socket_opened,
             is_socket_opened => {
