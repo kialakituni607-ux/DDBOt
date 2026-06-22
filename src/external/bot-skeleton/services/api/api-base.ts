@@ -118,7 +118,7 @@ class APIBase {
             }
         }
 
-        if (!this.has_active_symbols && !V2GetActiveToken()) {
+        if (!this.has_active_symbols) {
             this.active_symbols_promise = this.getActiveSymbols();
         }
 
@@ -227,6 +227,9 @@ class APIBase {
             // Skip WebSocket authorize for Bearer tokens (new OAuth2 flow)
             if (this.token && this.token.startsWith('ory_at_')) {
                 setIsAuthorizing(false);
+                if (!this.has_active_symbols) {
+                    this.active_symbols_promise = this.getActiveSymbols();
+                }
                 return;
             }
             const { authorize, error } = await this.api.authorize(this.token);
