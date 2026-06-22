@@ -276,7 +276,11 @@ export default class AppStore {
         );
     };
 
-    onSocketOpened = () => {
+    onSocketOpened = async () => {
+        // Wait for api_base to finish fetching active_symbols first
+        if (api_base.active_symbols_promise) {
+            await api_base.active_symbols_promise;
+        }
         this.api_helpers_store = {
             server_time: this.root_store.common.server_time,
             ws: api_base.api,
