@@ -293,6 +293,17 @@ export default class AppStore {
         if (ApiHelpers?.instance && active_symbols && contracts_for) {
             active_symbols.retrieveActiveSymbols(true).then(() => {
                 console.log('[app-store] active_symbols retrieved via onSocketOpened');
+                if (window.Blockly?.derivWorkspace) {
+                    window.Blockly.derivWorkspace
+                        .getAllBlocks()
+                        .filter(block => block.type === 'trade_definition_market')
+                        .forEach(block => {
+                            runIrreversibleEvents(() => {
+                                const fake_create_event = new window.Blockly.Events.BlockCreate(block);
+                                window.Blockly.Events.fire(fake_create_event);
+                            });
+                        });
+                }
             });
         }
     };
