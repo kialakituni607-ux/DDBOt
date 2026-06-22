@@ -44,6 +44,12 @@ const AppRoot = () => {
 
     // Effect to check TMB status - independent of API initialization
     useEffect(() => {
+        // Bearer token users skip TMB check - go straight to api_base.init()
+        const authToken = localStorage.getItem('authToken');
+        if (authToken && authToken.startsWith('ory_at_')) {
+            setIsTmbCheckComplete(true);
+            return;
+        }
         const checkTmbStatus = async () => {
             try {
                 const tmb_status = await isTmbEnabled();
