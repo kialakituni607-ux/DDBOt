@@ -125,6 +125,12 @@ const CoreStoreProvider: React.FC<{ children: React.ReactNode }> = observer(({ c
         }
 
         // Only setup the interval if the connection is open and we have access to the API
+        // Tell the store the socket is open so registerOnAccountSwitch fires
+        if (common && connectionStatus === CONNECTION_STATUS.OPENED) {
+            common.setSocketOpened(true);
+        } else if (common && connectionStatus !== CONNECTION_STATUS.OPENED) {
+            common.setSocketOpened(false);
+        }
         if (client && connectionStatus === CONNECTION_STATUS.OPENED && api_base?.api) {
             if (!appInitialization.current) {
                 appInitialization.current = true;
