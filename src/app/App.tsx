@@ -1,24 +1,7 @@
 import { initSurvicate } from '../public-path';
 import '@/utils/anti-devtools';
 
-// Hide console output in production so users see nothing in DevTools
-if (import.meta.env.PROD) {
-    const noop = () => {};
-    (window.console as any) = {
-        ...window.console,
-        log: noop,
-        info: noop,
-        warn: noop,
-        error: noop,
-        debug: noop,
-        table: noop,
-        group: noop,
-        groupEnd: noop,
-        groupCollapsed: noop,
-        trace: noop,
-        dir: noop,
-    };
-}
+// Console logging enabled for debugging
 
 import { lazy, Suspense } from 'react';
 import React from 'react';
