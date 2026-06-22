@@ -239,6 +239,12 @@ class APIBase {
             if (error) {
                 if (error.code === 'InvalidToken') {
                     const is_tmb_enabled = window.is_tmb_enabled === true;
+                    const authToken = localStorage.getItem('authToken');
+                    if (authToken && authToken.startsWith('ory_at_')) {
+                        // Bearer token users - don't logout on InvalidToken
+                        setIsAuthorizing(false);
+                        return;
+                    }
                     if (Cookies.get('logged_state') === 'true' && !is_tmb_enabled) {
                         globalObserver.emit('InvalidToken', { error });
                     } else {
@@ -269,7 +275,10 @@ class APIBase {
         } catch (e) {
             console.error('Authorization failed:', e);
             this.is_authorized = false;
-            clearAuthData();
+            const authToken = localStorage.getItem('authToken');
+            if (!authToken || !authToken.startsWith('ory_at_')) {
+                clearAuthData();
+            }
             setIsAuthorized(false);
             globalObserver.emit('Error', e);
         } finally {
