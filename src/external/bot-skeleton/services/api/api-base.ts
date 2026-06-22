@@ -332,19 +332,7 @@ class APIBase {
             ws.onerror = (e) => { console.error('[api-base] public WS error:', e); resolve(); };
             setTimeout(() => { ws.close(); resolve(); }, 10000);
         });
-        await Promise.resolve({}).then(
-            ({ active_symbols = [], error = {} }) => {
-                const pip_sizes = {};
-                if (active_symbols.length) this.has_active_symbols = true;
-                active_symbols.forEach(({ symbol, pip }: { symbol: string; pip: string }) => {
-                    (pip_sizes as Record<string, number>)[symbol] = +(+pip).toExponential().substring(3);
-                });
-                this.pip_sizes = pip_sizes as Record<string, number>;
-                this.toggleRunButton(false);
-                this.active_symbols = active_symbols;
-                return active_symbols || error;
-            }
-        );
+        // active_symbols already set by public WebSocket above
     };
 
     toggleRunButton = (toggle: boolean) => {
