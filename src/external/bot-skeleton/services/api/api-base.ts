@@ -83,6 +83,7 @@ class APIBase {
     }
 
     async init(force_create_connection = false) {
+        console.log('[api-base] init() called');
         this.toggleRunButton(true);
 
         if (this.api) {
@@ -99,6 +100,7 @@ class APIBase {
             }
 
             this.api = await generateDerivApiInstance();
+        console.log('[api-base] WebSocket created, readyState:', this.api?.connection?.readyState);
             this.api?.connection.addEventListener('open', this.onsocketopen.bind(this));
             this.api?.connection.addEventListener('close', this.onsocketclose.bind(this));
 
@@ -118,6 +120,7 @@ class APIBase {
             }
         }
 
+        console.log('[api-base] about to fetch active_symbols');
         if (!this.has_active_symbols) {
             this.active_symbols_promise = this.getActiveSymbols();
         }
