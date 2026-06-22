@@ -113,6 +113,7 @@ const CallbackPage = () => {
                     localStorage.setItem('clientAccounts', JSON.stringify(newClientAccounts));
                     const domain = window.location.hostname.split('.').slice(-2).join('.');
                     document.cookie = 'logged_state=true; path=/; domain=' + domain + '; secure; max-age=2592000';
+                    localStorage.setItem('is_tmb_enabled', 'false');
                     window.location.href = '/?' + urlParams.substring(1);
                 } catch(e: any) { setError(e.message || 'Authentication failed'); }
             })();

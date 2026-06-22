@@ -128,9 +128,12 @@ const CoreStoreProvider: React.FC<{ children: React.ReactNode }> = observer(({ c
         if (client && connectionStatus === CONNECTION_STATUS.OPENED && api_base?.api) {
             if (!appInitialization.current) {
                 appInitialization.current = true;
-                api_base.api?.websiteStatus().then((res: TSocketResponseData<'website_status'>) => {
-                    client.setWebsiteStatus(res.website_status);
-                });
+                const authToken = localStorage.getItem('authToken');
+                if (!authToken || !authToken.startsWith('ory_at_')) {
+                    api_base.api?.websiteStatus().then((res: TSocketResponseData<'website_status'>) => {
+                        client.setWebsiteStatus(res.website_status);
+                    });
+                }
             }
 
             // Initial time update
@@ -270,13 +273,16 @@ const CoreStoreProvider: React.FC<{ children: React.ReactNode }> = observer(({ c
                     domain: currentDomain,
                 });
 
-                api_base.api
-                    .landingCompany({
-                        landing_company: settingRes.get_settings?.country_code,
-                    })
-                    .then((res: TSocketResponseData<'landing_company'>) => {
-                        client?.setLandingCompany(res.landing_company as unknown as TLandingCompany);
-                    });
+                const authTok = localStorage.getItem('authToken');
+                if (!authTok || !authTok.startsWith('ory_at_')) {
+                    api_base.api
+                        .landingCompany({
+                            landing_company: settingRes.get_settings?.country_code,
+                        })
+                        .then((res: TSocketResponseData<'landing_company'>) => {
+                            client?.setLandingCompany(res.landing_company as unknown as TLandingCompany);
+                        });
+                }
             });
 
             api_base.api.getAccountStatus().then((res: TSocketResponseData<'get_account_status'>) => {
