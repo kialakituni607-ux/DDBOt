@@ -4,6 +4,8 @@ export default class AccountLimits {
     }
     // eslint-disable-next-line default-param-last
     getStakePayoutLimits(currency = 'AUD', landing_company_shortcode = 'svg', selected_market) {
+        const authToken = localStorage.getItem('authToken');
+        if (authToken && authToken.startsWith('ory_at_')) return Promise.resolve({});
         return this.ws
             .send({
                 landing_company_details: landing_company_shortcode,
