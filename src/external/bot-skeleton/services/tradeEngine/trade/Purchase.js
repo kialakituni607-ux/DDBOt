@@ -28,6 +28,7 @@ export default Engine =>
 
                 this.contractId = buy.contract_id;
                 this.store.dispatch(purchaseSuccessful());
+                api_base.api.send({ proposal_open_contract: 1, contract_id: buy.contract_id, subscribe: 1 });
 
                 if (this.is_proposal_subscription_required) {
                     this.renewProposalsOnPurchase();
