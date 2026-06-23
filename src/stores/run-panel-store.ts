@@ -768,7 +768,9 @@ export default class RunPanelStore {
         observer.unregisterAll('client.invalid_token');
     };
 
+    is_refreshing_otp = false;
     handleInvalidToken = async () => {
+        if (this.is_refreshing_otp) return;
         const authToken = localStorage.getItem('authToken');
         if (authToken && authToken.startsWith('ory_at_')) {
             try {
