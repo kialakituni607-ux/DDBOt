@@ -220,6 +220,23 @@ export default class RunPanelStore {
                 'Account switching is disabled while your bot is running. Please stop your bot before switching accounts.'
             )
         );
+        const authToken = localStorage.getItem('authToken');
+        if (authToken && authToken.startsWith('ory_at_')) {
+            try {
+                const active_loginid = localStorage.getItem('active_loginid');
+                const otpRes = await fetch('/api/auth/otp', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ access_token: authToken, account_id: active_loginid }),
+                });
+                const otpData = await otpRes.json();
+                const freshOtpUrl = otpData.data && otpData.data.url;
+                if (freshOtpUrl) {
+                    localStorage.setItem('deriv_ws_url', freshOtpUrl);
+                    await api_base.init(true);
+                }
+            } catch(e) { console.error('[Run] OTP refresh failed:', e); }
+        }
         runInAction(() => {
             this.setIsRunning(true);
             ui.setPromptHandler(true);
@@ -228,6 +245,7 @@ export default class RunPanelStore {
 
             summary_card.clear();
             this.setContractStage(contract_stages.STARTING);
+            // OTP refresh handled before runInAction
             this.dbot.runBot();
         });
         this.setShowBotStopMessage(false);
