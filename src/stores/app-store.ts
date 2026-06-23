@@ -304,6 +304,17 @@ export default class AppStore {
                                 const fake_create_event = new window.Blockly.Events.BlockCreate(block);
                                 window.Blockly.Events.fire(fake_create_event);
                             });
+                            window.Blockly.derivWorkspace
+                                .getAllBlocks()
+                                .filter(b => b.type === 'trade_definition_tradeoptions')
+                                .forEach(trade_options_block => {
+                                    trade_options_block.onchange({
+                                        type: window.Blockly.Events.BLOCK_CHANGE,
+                                        name: 'SYMBOL_LIST',
+                                        blockId: block.id,
+                                        group: 'otp-reinit-resync',
+                                    });
+                                });
                         });
                 }
             });
@@ -334,7 +345,7 @@ export default class AppStore {
 
                 if (ApiHelpers?.instance && active_symbols && contracts_for) {
                     if (window.Blockly?.derivWorkspace) {
-                        active_symbols?.retrieveActiveSymbols(true).then(() => {
+                        active_symbols?.retrieveActiveSymbols(localStorage.getItem("otp_reinit_active") !== "true").then(() => {
                             contracts_for.disposeCache();
                             window.Blockly?.derivWorkspace
                                 .getAllBlocks()
@@ -344,6 +355,17 @@ export default class AppStore {
                                         const fake_create_event = new window.Blockly.Events.BlockCreate(block);
                                         window.Blockly.Events.fire(fake_create_event);
                                     });
+                                    window.Blockly?.derivWorkspace
+                                        .getAllBlocks()
+                                        .filter(b => b.type === 'trade_definition_tradeoptions')
+                                        .forEach(trade_options_block => {
+                                            trade_options_block.onchange({
+                                                type: window.Blockly.Events.BLOCK_CHANGE,
+                                                name: 'SYMBOL_LIST',
+                                                blockId: block.id,
+                                                group: 'otp-reinit-resync',
+                                            });
+                                        });
                                 });
                         });
                     }
