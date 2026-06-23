@@ -14,6 +14,7 @@ export const tradeOptionToProposal = (trade_option, purchase_reference) =>
             duration: trade_option.duration,
             duration_unit: trade_option.duration_unit,
             multiplier: trade_option.multiplier,
+            underlying_symbol: trade_option.symbol,
             passthrough: {
                 contract_type: type,
                 purchase_reference,
