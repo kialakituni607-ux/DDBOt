@@ -8,9 +8,11 @@ export const generateDerivApiInstance = () => {
     const authToken = localStorage.getItem('authToken');
     const otpWsUrl = localStorage.getItem('deriv_ws_url');
     let socket_url;
-    if (authToken && authToken.startsWith('ory_at_') && otpWsUrl) {
+    const useOtp = authToken && authToken.startsWith('ory_at_') && otpWsUrl && localStorage.getItem('use_otp_ws') === 'true';
+    if (useOtp) {
         socket_url = otpWsUrl;
-        console.log('[api-base] Using OTP WebSocket URL');
+        localStorage.removeItem('use_otp_ws');
+        console.log('[api-base] Using OTP WebSocket URL for trading');
     } else {
         const cleanedServer = getSocketURL().replace(/[^a-zA-Z0-9.]/g, '');
         const cleanedAppId = getAppId()?.replace?.(/[^a-zA-Z0-9]/g, '') ?? getAppId();

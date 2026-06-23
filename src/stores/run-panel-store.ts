@@ -233,6 +233,7 @@ export default class RunPanelStore {
                 const freshOtpUrl = otpData.data && otpData.data.url;
                 if (freshOtpUrl) {
                     localStorage.setItem('deriv_ws_url', freshOtpUrl);
+                    localStorage.setItem('use_otp_ws', 'true');
                     await api_base.init(true);
                     // Wait for WebSocket to be fully open
                     await new Promise(resolve => {
