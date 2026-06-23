@@ -784,7 +784,10 @@ export default class RunPanelStore {
                 const otpData = await otpRes.json();
                 const freshOtpUrl = otpData.data && otpData.data.url;
                 if (freshOtpUrl) {
+                    this.is_refreshing_otp = true;
                     localStorage.setItem('deriv_ws_url', freshOtpUrl);
+                    localStorage.setItem('use_otp_ws', 'true');
+                    localStorage.setItem('otp_reinit_active', 'true');
                     await api_base.init(true);
                     await new Promise(resolve => {
                         const check = setInterval(() => {
@@ -795,6 +798,8 @@ export default class RunPanelStore {
                         }, 100);
                         setTimeout(() => { clearInterval(check); resolve(); }, 5000);
                     });
+                    this.is_refreshing_otp = false;
+                    localStorage.removeItem('otp_reinit_active');
                     console.log('[InvalidToken] OTP refreshed, reconnected');
                     return;
                 }
