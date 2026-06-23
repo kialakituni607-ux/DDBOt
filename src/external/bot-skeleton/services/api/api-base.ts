@@ -96,7 +96,7 @@ class APIBase {
 
         if (!this.api || this.api?.connection.readyState !== 1 || force_create_connection) {
             if (this.api?.connection) {
-                ApiHelpers.disposeInstance();
+                if (!is_otp_reinit) ApiHelpers.disposeInstance();
                 setConnectionStatus(CONNECTION_STATUS.CLOSED);
                 this.api.disconnect();
                 this.api.connection.removeEventListener('open', this.onsocketopen.bind(this));
