@@ -86,7 +86,7 @@ class APIBase {
         console.log('[api-base] init() called');
         this.toggleRunButton(true);
         const is_otp_reinit = localStorage.getItem('use_otp_ws') === 'true';
-        const had_symbols = is_otp_reinit && this.has_active_symbols;
+        const had_symbols = is_otp_reinit && (this.has_active_symbols || (this.active_symbols && this.active_symbols.length > 0));
         const preserved_symbols = had_symbols ? [...(this.active_symbols || [])] : [];
         const preserved_pip_sizes = had_symbols ? { ...(this.pip_sizes || {}) } : {};
 
