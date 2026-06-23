@@ -16,6 +16,11 @@ export default class ActiveSymbols {
     }
 
     async retrieveActiveSymbols(is_forced_update = false) {
+        // Skip forced reset during OTP reinit if symbols already loaded
+        if (is_forced_update && this.active_symbols.length > 0 && localStorage.getItem("otp_reinit_active") === "true") {
+            console.log("[active-symbols] skipping forced reset during OTP reinit");
+            return this.active_symbols;
+        }
         try { await this.trading_times.initialise(); } catch(e) { console.log("[active-symbols] trading_times.initialise failed:", e.message); }
 
         if (!is_forced_update && this.is_initialised) {
