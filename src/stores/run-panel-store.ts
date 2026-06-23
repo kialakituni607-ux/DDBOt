@@ -234,6 +234,16 @@ export default class RunPanelStore {
                 if (freshOtpUrl) {
                     localStorage.setItem('deriv_ws_url', freshOtpUrl);
                     await api_base.init(true);
+                    // Wait for WebSocket to be fully open
+                    await new Promise(resolve => {
+                        const check = setInterval(() => {
+                            if (api_base.api?.connection?.readyState === 1) {
+                                clearInterval(check);
+                                resolve();
+                            }
+                        }, 100);
+                        setTimeout(() => { clearInterval(check); resolve(); }, 5000);
+                    });
                 }
             } catch(e) { console.error('[Run] OTP refresh failed:', e); }
         }
