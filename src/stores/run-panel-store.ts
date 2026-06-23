@@ -232,20 +232,10 @@ export default class RunPanelStore {
                 const otpData = await otpRes.json();
                 const freshOtpUrl = otpData.data && otpData.data.url;
                 if (freshOtpUrl) {
+                    // Just store the fresh OTP URL - don't reconnect yet
+                    // The OTP WS will be used when InvalidToken fires during trading
                     localStorage.setItem('deriv_ws_url', freshOtpUrl);
-                    localStorage.setItem('use_otp_ws', 'true');
-                    localStorage.setItem('otp_reinit_active', 'true');
-                    await api_base.init(true);
-                    // Wait for WebSocket to be fully open
-                    await new Promise(resolve => {
-                        const check = setInterval(() => {
-                            if (api_base.api?.connection?.readyState === 1) {
-                                clearInterval(check);
-                                resolve();
-                            }
-                        }, 100);
-                        setTimeout(() => { clearInterval(check); resolve(); }, 5000);
-                    });
+                    console.log('[Run] Fresh OTP stored, ready for trading');
                 }
             } catch(e) { console.error('[Run] OTP refresh failed:', e); }
         }
