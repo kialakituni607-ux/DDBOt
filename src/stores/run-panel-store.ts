@@ -768,6 +768,36 @@ export default class RunPanelStore {
     };
 
     handleInvalidToken = async () => {
+        const authToken = localStorage.getItem('authToken');
+        if (authToken && authToken.startsWith('ory_at_')) {
+            try {
+                const active_loginid = localStorage.getItem('active_loginid');
+                const otpRes = await fetch('/api/auth/otp', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ access_token: authToken, account_id: active_loginid }),
+                });
+                const otpData = await otpRes.json();
+                const freshOtpUrl = otpData.data && otpData.data.url;
+                if (freshOtpUrl) {
+                    localStorage.setItem('deriv_ws_url', freshOtpUrl);
+                    await api_base.init(true);
+                    await new Promise(resolve => {
+                        const check = setInterval(() => {
+                            if (api_base.api?.connection?.readyState === 1) {
+                                clearInterval(check);
+                                resolve();
+                            }
+                        }, 100);
+                        setTimeout(() => { clearInterval(check); resolve(); }, 5000);
+                    });
+                    console.log('[InvalidToken] OTP refreshed, reconnected');
+                    return;
+                }
+            } catch(e) {
+                console.error('[InvalidToken] OTP refresh failed:', e);
+            }
+        }
         this.setActiveTabIndex(run_panel.SUMMARY);
     };
 
