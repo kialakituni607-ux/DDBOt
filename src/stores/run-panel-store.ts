@@ -232,6 +232,7 @@ export default class RunPanelStore {
                 const otpData = await otpRes.json();
                 const freshOtpUrl = otpData.data && otpData.data.url;
                 if (freshOtpUrl) {
+                    localStorage.removeItem('otp_reinit_active');
                     localStorage.setItem('otp_reinit_active', 'true');
                     localStorage.setItem('deriv_ws_url', freshOtpUrl);
                     localStorage.setItem('use_otp_ws', 'true');
