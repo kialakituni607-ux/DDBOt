@@ -246,7 +246,6 @@ export default class RunPanelStore {
                         }, 100);
                         setTimeout(() => { clearInterval(check); resolve(); }, 5000);
                     });
-                    localStorage.removeItem('otp_reinit_active');
                 }
             } catch(e) { console.error('[Run] OTP refresh failed:', e); }
         }
