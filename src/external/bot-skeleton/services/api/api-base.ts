@@ -121,7 +121,12 @@ class APIBase {
         }
 
         console.log('[api-base] about to fetch active_symbols');
-        if (!this.has_active_symbols) {
+        if (had_symbols) {
+            this.has_active_symbols = true;
+            this.active_symbols = preserved_symbols;
+            this.pip_sizes = preserved_pip_sizes;
+            console.log('[api-base] preserved active_symbols for OTP reinit');
+        } else if (!this.has_active_symbols) {
             this.active_symbols_promise = this.getActiveSymbols();
         }
 
