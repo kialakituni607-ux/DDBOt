@@ -292,10 +292,7 @@ export default class AppStore {
         const contracts_for = ApiHelpers?.instance?.contracts_for;
         if (ApiHelpers?.instance && active_symbols && contracts_for) {
             const force = localStorage.getItem("otp_reinit_active") !== "true";
-            active_symbols.retrieveActiveSymbols(force).then(() => {
-                console.log('[app-store] active_symbols retrieved via onSocketOpened');
-                localStorage.removeItem('otp_reinit_active');
-                if (window.Blockly?.derivWorkspace) {
+            undefined
                     window.Blockly.derivWorkspace
                         .getAllBlocks()
                         .filter(block => block.type === 'trade_definition_market')
