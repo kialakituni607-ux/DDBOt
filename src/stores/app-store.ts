@@ -346,7 +346,9 @@ export default class AppStore {
 
                 if (ApiHelpers?.instance && active_symbols && contracts_for) {
                     if (window.Blockly?.derivWorkspace) {
-                        active_symbols?.retrieveActiveSymbols(localStorage.getItem("otp_reinit_active") !== "true").then(() => {
+                        const is_otp = localStorage.getItem('otp_reinit_active') === 'true';
+                        active_symbols?.retrieveActiveSymbols(!is_otp).then(() => {
+                            if (is_otp) { localStorage.removeItem('otp_reinit_active'); return; }
                             contracts_for.disposeCache();
                             window.Blockly?.derivWorkspace
                                 .getAllBlocks()
