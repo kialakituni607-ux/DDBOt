@@ -291,7 +291,8 @@ export default class AppStore {
         const active_symbols = ApiHelpers?.instance?.active_symbols;
         const contracts_for = ApiHelpers?.instance?.contracts_for;
         if (ApiHelpers?.instance && active_symbols && contracts_for) {
-            active_symbols.retrieveActiveSymbols(true).then(() => {
+            const force = localStorage.getItem("use_otp_ws") !== "true";
+            active_symbols.retrieveActiveSymbols(force).then(() => {
                 console.log('[app-store] active_symbols retrieved via onSocketOpened');
                 if (window.Blockly?.derivWorkspace) {
                     window.Blockly.derivWorkspace
