@@ -45,15 +45,9 @@ export const useOauth2 = ({
     }, []);
 
     useEffect(() => {
-        const willEventuallySSO = loggedState === 'true' && !isClientAccountsPopulated;
-        const willEventuallySLO = loggedState === 'false' && isClientAccountsPopulated;
-
-        if (!isSilentLoginExcluded && (willEventuallySSO || willEventuallySLO)) {
-            setIsSingleLoggingIn(true);
-        } else {
-            setIsSingleLoggingIn(false);
-        }
-    }, [isClientAccountsPopulated, loggedState, isSilentLoginExcluded]);
+        // No auto SSO/SLO — login only on button click
+        setIsSingleLoggingIn(false);
+    }, []);
 
     const logoutHandler = async () => {
         client?.setIsLoggingOut(true);
