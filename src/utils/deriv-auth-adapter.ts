@@ -6,8 +6,8 @@ const APP_ID = '116874';
 export type LoginOptions = { currency?: string; redirectUri?: string; mode?: string };
 export type AuthMode = 'legacy' | 'oidc' | 'auto';
 
-export const resolveAuthMode = (): AuthMode => 'legacy';
-export const setAuthMode = (_mode: AuthMode): void => {};
+export const resolveAuthMode = (): AuthMode => (localStorage.getItem('auth_mode') as AuthMode) || 'legacy';
+export const setAuthMode = (mode: AuthMode): void => { localStorage.setItem('auth_mode', mode); };
 
 export const derivLogin = async (_options: LoginOptions = {}): Promise<void> => {
     const array = crypto.getRandomValues(new Uint8Array(64));

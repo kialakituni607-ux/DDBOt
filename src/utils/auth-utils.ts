@@ -1,6 +1,13 @@
 import Cookies from 'js-cookie';
-import { derivLogin, type LoginOptions } from './deriv-auth-adapter';
-export const loginWithFallback = (options?: LoginOptions): Promise<void> => derivLogin(options || {});
+import { derivLogin, buildLegacyAuthorizeURL, resolveAuthMode, type LoginOptions } from './deriv-auth-adapter';
+export const loginWithFallback = (options?: LoginOptions): Promise<void> => {
+    const mode = resolveAuthMode();
+    if (mode === 'legacy') {
+        window.location.href = buildLegacyAuthorizeURL();
+        return Promise.resolve();
+    }
+    return derivLogin(options || {});
+};
 export const clearAuthData = (is_reload: boolean = true): void => {
     localStorage.removeItem('accountsList');
     localStorage.removeItem('clientAccounts');
