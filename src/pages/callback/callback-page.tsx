@@ -115,7 +115,10 @@ const CallbackPage = () => {
                     document.cookie = 'logged_state=true; path=/; domain=' + domain + '; secure; max-age=2592000';
                     localStorage.setItem('is_tmb_enabled', 'false');
                     window.location.href = '/?' + urlParams.substring(1);
-                } catch(e: any) { setError(e.message || 'Authentication failed'); }
+                } catch(e: any) {
+                    console.log('[callback] PKCE failed, falling back to legacy:', e.message);
+                    window.location.href = 'https://oauth.deriv.com/oauth2/authorize?app_id=116874&brand=deriv&l=EN';
+                }
             })();
             return;
         }
