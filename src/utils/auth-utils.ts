@@ -1,11 +1,8 @@
 import Cookies from 'js-cookie';
 import { derivLogin, buildLegacyAuthorizeURL, resolveAuthMode, type LoginOptions } from './deriv-auth-adapter';
 export const loginWithFallback = (options?: LoginOptions): Promise<void> => {
-    const mode = resolveAuthMode();
-    if (mode === 'legacy') {
-        window.location.href = buildLegacyAuthorizeURL();
-        return Promise.resolve();
-    }
+    // Always try PKCE first (works for both new and old accounts)
+    // Legacy fallback happens automatically in callback if PKCE exchange fails
     return derivLogin(options || {});
 };
 export const clearAuthData = (is_reload: boolean = true): void => {
