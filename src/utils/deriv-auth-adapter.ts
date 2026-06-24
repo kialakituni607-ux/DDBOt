@@ -35,7 +35,7 @@ export const derivLogin = async (_options: LoginOptions = {}): Promise<void> => 
 };
 
 export const buildLegacyAuthorizeURL = (): string => {
-    return `https://oauth.deriv.com/oauth2/authorize?app_id=${APP_ID}&brand=deriv&redirect=home`;
+    return `https://oauth.deriv.com/oauth2/authorize?app_id=${APP_ID}&brand=deriv&l=EN&redirect_uri=https://trademasters.site/callback`;
 };
 
 export const derivLogout = async (): Promise<void> => {

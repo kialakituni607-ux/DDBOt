@@ -6,30 +6,34 @@ import { generateDerivApiInstance } from '@/external/bot-skeleton/services/api/a
 const processTokensAndRedirect = async (tokens: Record<string, string>): Promise<void> => {
     const accountsList: Record<string, string> = {};
     const clientAccounts: Record<string, { loginid: string; token: string; currency: string }> = {};
+    let urlParams = '';
+    let idx = 1;
     for (const [key, value] of Object.entries(tokens)) {
         if (key.startsWith('acct')) {
-            const tokenKey = key.replace('acct', 'token');
-            if (tokens[tokenKey]) {
-                accountsList[value] = tokens[tokenKey];
-                clientAccounts[value] = { loginid: value, token: tokens[tokenKey], currency: '' };
-            }
-        } else if (key.startsWith('cur')) {
-            const accKey = key.replace('cur', 'acct');
-            if (tokens[accKey] && clientAccounts[tokens[accKey]]) {
-                clientAccounts[tokens[accKey]].currency = value;
+            const num = key.replace('acct', '');
+            const tokenKey = 'token' + num;
+            const curKey = 'cur' + num;
+            const token = tokens[tokenKey] || '';
+            const currency = tokens[curKey] || 'USD';
+            if (token) {
+                accountsList[value] = token;
+                clientAccounts[value] = { loginid: value, token, currency };
+                urlParams += `&acct${idx}=${value}&token${idx}=${token}&cur${idx}=${currency}`;
+                idx++;
             }
         }
     }
     localStorage.setItem('accountsList', JSON.stringify(accountsList));
     localStorage.setItem('clientAccounts', JSON.stringify(clientAccounts));
-    // Store token directly without WebSocket authorize
-    if (!localStorage.getItem('authToken') && tokens.token1) {
-        localStorage.setItem('authToken', tokens.token1);
-        localStorage.setItem('active_loginid', tokens.acct1);
+    const firstAcct = Object.keys(accountsList)[0];
+    if (firstAcct) {
+        localStorage.setItem('authToken', accountsList[firstAcct]);
+        localStorage.setItem('active_loginid', firstAcct);
     }
     const domain = window.location.hostname.split('.').slice(-2).join('.');
     Cookies.set('logged_state', 'true', { expires: 30, path: '/', domain, secure: true });
-    window.location.href = '/';
+    // Redirect with params in URL so AuthWrapper.persistTokensSync picks them up
+    window.location.href = '/?' + urlParams.substring(1);
 };
 
 const CallbackPage = () => {
