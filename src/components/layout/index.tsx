@@ -8,8 +8,8 @@ import { api_base } from '@/external/bot-skeleton';
 import { useOfflineDetection } from '@/hooks/useOfflineDetection';
 import { useStore } from '@/hooks/useStore';
 import useTMB from '@/hooks/useTMB';
-import { handleOidcAuthFailure } from '@/utils/auth-utils';
-import { requestOidcAuthentication } from '@deriv-com/auth-client';
+
+
 import { useDevice } from '@deriv-com/ui';
 import { crypto_currencies_display_order, fiat_currencies_display_order } from '../shared';
 import Footer from './footer';
@@ -139,51 +139,7 @@ const Layout = observer(() => {
 
         const checkOIDCEnabledWithMissingAccount =
             isLoggedInCookie && !isEndpointPage && !isCallbackPage && !clientHasCurrency;
-        const shouldAuthenticate =
-            (isLoggedInCookie && !isClientAccountsPopulated && !isEndpointPage && !isCallbackPage) ||
-            checkOIDCEnabledWithMissingAccount;
-
-        // Skip authentication when offline
-        if (!isOnline) {
-            console.log('[Layout] Offline detected, skipping authentication');
-            setIsAuthenticating(false);
-            setClientHasCurrency(true); // Allow access in offline mode
-            return;
-        }
-
-        // Create an async IIFE to handle authentication
-        (async () => {
-            try {
-                // First, explicitly wait for TMB status to be determined
-                // This ensures we have the correct TMB status before proceeding
-                const tmbEnabled = await isTmbEnabled();
-
-                // Now use the result of the explicit check
-                if (tmbEnabled) {
-                    await onRenderTMBCheck();
-                } else if (shouldAuthenticate) {
-                    const query_param_currency = currency || sessionStorage.getItem('query_param_currency') || 'USD';
-
-                    // Make sure we have the currency in session storage before redirecting
-                    if (query_param_currency) {
-                        sessionStorage.setItem('query_param_currency', query_param_currency);
-                    }
-                    try {
-                        await requestOidcAuthentication({
-                            redirectCallbackUri: `${window.location.origin}/callback`,
-                            ...(query_param_currency
-                                ? {
-                                      state: {
-                                          account: query_param_currency,
-                                      },
-                                  }
-                                : {}),
-                        });
-                    } catch (err) {
-                        setIsAuthenticating(false);
-                        handleOidcAuthFailure(err);
-                    }
-                }
+        // No auto-redirect — user must click Login button
             } catch (err) {
                 // eslint-disable-next-line no-console
                 setIsAuthenticating(false);
