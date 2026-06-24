@@ -35,7 +35,9 @@ export const derivLogin = async (_options: LoginOptions = {}): Promise<void> => 
 };
 
 export const buildLegacyAuthorizeURL = (): string => {
-    return `https://oauth.deriv.com/oauth2/authorize?app_id=${APP_ID}&brand=deriv&l=EN&redirect=home`;
+    const state = Array.from(crypto.getRandomValues(new Uint8Array(16)))
+        .map(b => b.toString(16).padStart(2, '0')).join('');
+    return `https://oauth.deriv.com/oauth2/authorize?app_id=${APP_ID}&brand=deriv&redirect=home&state=${state}`;
 };
 
 export const derivLogout = async (): Promise<void> => {
