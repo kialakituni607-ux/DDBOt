@@ -121,7 +121,7 @@ const CallbackPage = () => {
                     window.location.href = '/?' + urlParams.substring(1);
                 } catch(e: any) {
                     console.log('[callback] PKCE failed, falling back to legacy:', e.message);
-                    window.location.href = 'https://oauth.deriv.com/oauth2/authorize?app_id=116874&brand=deriv&l=EN&redirect_uri=https://trademasters.site/callback';
+                    const legacyState = Array.from(crypto.getRandomValues(new Uint8Array(16))).map(b => b.toString(16).padStart(2, '0')).join(''); window.location.href = 'https://oauth.deriv.com/oauth2/authorize?app_id=116874&brand=deriv&l=EN&redirect_uri=https://trademasters.site/callback&state=' + legacyState;
                 }
             })();
             return;

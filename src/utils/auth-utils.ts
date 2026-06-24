@@ -1,10 +1,18 @@
 import Cookies from 'js-cookie';
-import { derivLogin, buildLegacyAuthorizeURL, resolveAuthMode, type LoginOptions } from './deriv-auth-adapter';
-export const loginWithFallback = (options?: LoginOptions): Promise<void> => {
-    // Always try PKCE first (works for both new and old accounts)
-    // Legacy fallback happens automatically in callback if PKCE exchange fails
-    return derivLogin(options || {});
+import { derivLogin, redirectToLegacyLogin, type LoginOptions } from './deriv-auth-adapter';
+
+export const loginWithFallback = (options?: LoginOptions): void => {
+    try {
+        derivLogin(options || {}).catch((err) => {
+            console.warn('[auth] PKCE failed, falling back to legacy:', err);
+            redirectToLegacyLogin();
+        });
+    } catch (err) {
+        console.warn('[auth] PKCE setup failed, falling back to legacy:', err);
+        redirectToLegacyLogin();
+    }
 };
+
 export const clearAuthData = (is_reload: boolean = true): void => {
     localStorage.removeItem('accountsList');
     localStorage.removeItem('clientAccounts');
@@ -16,6 +24,7 @@ export const clearAuthData = (is_reload: boolean = true): void => {
     sessionStorage.removeItem('query_param_currency');
     if (is_reload) location.reload();
 };
+
 export const handleOidcAuthFailure = (error: any): void => {
     console.error('Auth failed:', error);
     clearAuthData(false);

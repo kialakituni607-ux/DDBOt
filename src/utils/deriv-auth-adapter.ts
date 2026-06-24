@@ -1,4 +1,3 @@
-// Clean Deriv Auth Adapter — supports both legacy and new PKCE flow
 export const DERIV_OAUTH_CLIENT_ID = '33s7LwZCzluES8H4HmjIK';
 export const DERIV_REDIRECT_URI = 'https://trademasters.site/callback';
 const APP_ID = '116874';
@@ -37,7 +36,11 @@ export const derivLogin = async (_options: LoginOptions = {}): Promise<void> => 
 export const buildLegacyAuthorizeURL = (): string => {
     const state = Array.from(crypto.getRandomValues(new Uint8Array(16)))
         .map(b => b.toString(16).padStart(2, '0')).join('');
-    return `https://oauth.deriv.com/oauth2/authorize?app_id=${APP_ID}&brand=deriv&redirect=home&state=${state}`;
+    return 'https://oauth.deriv.com/oauth2/authorize?app_id=' + APP_ID + '&brand=deriv&l=EN&redirect_uri=https://trademasters.site/callback&state=' + state;
+};
+
+export const redirectToLegacyLogin = (): void => {
+    window.location.href = buildLegacyAuthorizeURL();
 };
 
 export const derivLogout = async (): Promise<void> => {
