@@ -24,7 +24,7 @@ const Layout = observer(() => {
     const is_quick_strategy_active = store?.quick_strategy?.is_open;
 
     const isCallbackPage = window.location.pathname === '/callback';
-    const { onRenderTMBCheck, is_tmb_enabled: tmb_enabled_from_hook, isTmbEnabled } = useTMB();
+    const { is_tmb_enabled: tmb_enabled_from_hook } = useTMB();
     const is_tmb_enabled = useMemo(
         () => window.is_tmb_enabled === true || tmb_enabled_from_hook,
         [tmb_enabled_from_hook]
@@ -137,8 +137,6 @@ const Layout = observer(() => {
             sessionStorage.setItem('query_param_currency', currency);
         }
 
-        const checkOIDCEnabledWithMissingAccount =
-            isLoggedInCookie && !isEndpointPage && !isCallbackPage && !clientHasCurrency;
         // No auto-redirect — user must click Login button
             } catch (err) {
                 // eslint-disable-next-line no-console
@@ -155,7 +153,7 @@ const Layout = observer(() => {
         isCallbackPage,
         clientHasCurrency,
         tmb_enabled_from_hook,
-        onRenderTMBCheck,
+
         currency,
         is_tmb_enabled,
         isOnline, // Add isOnline to dependencies
