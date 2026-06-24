@@ -108,7 +108,7 @@ export default class TransactionsStore {
 
     pushTransaction(data: TContractInfo) {
         const is_completed = isEnded(data as ProposalOpenContract);
-        console.log("[txn] contract data:", JSON.stringify({ is_completed, status: (data as any).status, is_expired: (data as any).is_expired, is_sold: (data as any).is_sold, buy_price: (data as any).buy_price, sell_price: (data as any).sell_price, entry_tick: (data as any).entry_tick_display_value, exit_tick: (data as any).exit_tick_display_value }));
+        console.log("[txn] contract data:", JSON.stringify({ is_completed, status: (data as any).status, is_sold: (data as any).is_sold, buy_price: (data as any).buy_price, sell_price: (data as any).sell_price, entry_tick_display_value: (data as any).entry_tick_display_value, exit_tick_display_value: (data as any).exit_tick_display_value, entry_spot: (data as any).entry_spot, exit_spot: (data as any).exit_spot, entry_spot_display_value: (data as any).entry_spot_display_value, exit_spot_display_value: (data as any).exit_spot_display_value }));
         const { run_id } = this.root_store.run_panel;
         const current_account = this.core?.client?.loginid as string;
 
