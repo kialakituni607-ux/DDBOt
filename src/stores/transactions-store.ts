@@ -117,9 +117,9 @@ export default class TransactionsStore {
             is_completed,
             run_id,
             date_start: formatDate(data.date_start, 'YYYY-M-D HH:mm:ss [GMT]'),
-            entry_tick: data.entry_tick_display_value,
+            entry_tick: (data as any).entry_tick_display_value || (data as any).entry_spot,
             entry_tick_time: data.entry_tick_time && formatDate(data.entry_tick_time, 'YYYY-M-D HH:mm:ss [GMT]'),
-            exit_tick: data.exit_tick_display_value,
+            exit_tick: (data as any).exit_tick_display_value || (data as any).exit_spot,
             exit_tick_time: data.exit_tick_time && formatDate(data.exit_tick_time, 'YYYY-M-D HH:mm:ss [GMT]'),
             profit: is_completed ? data.profit : 0,
         };
