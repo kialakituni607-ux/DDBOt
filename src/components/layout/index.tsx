@@ -130,48 +130,11 @@ const Layout = observer(() => {
     }, []);
 
     useEffect(() => {
-        // Always set the currency in session storage, even if the user is not logged in
-        // This ensures the currency is available on the callback page
-        setIsAuthenticating(true);
         if (currency) {
             sessionStorage.setItem('query_param_currency', currency);
         }
-
-        // No auto-redirect — user must click Login button
-            } catch (err) {
-                // eslint-disable-next-line no-console
-                setIsAuthenticating(false);
-                console.error('Authentication error:', err);
-            } finally {
-                setIsAuthenticating(false);
-            }
-        })();
-    }, [
-        isLoggedInCookie,
-        isClientAccountsPopulated,
-        isEndpointPage,
-        isCallbackPage,
-        clientHasCurrency,
-        tmb_enabled_from_hook,
-
-        currency,
-        is_tmb_enabled,
-        isOnline, // Add isOnline to dependencies
-    ]);
-
-    // Add offline timeout to prevent infinite authentication
-    useEffect(() => {
-        if (!isOnline && isAuthenticating) {
-            console.log('[Layout] Setting offline timeout for authentication');
-            const timeout = setTimeout(() => {
-                console.log('[Layout] Offline timeout reached, stopping authentication');
-                setIsAuthenticating(false);
-                setClientHasCurrency(true);
-            }, 2000);
-
-            return () => clearTimeout(timeout);
-        }
-    }, [isOnline, isAuthenticating]);
+        setIsAuthenticating(false);
+    }, [currency, isOnline]);
 
     // Add a state to track if initial authentication check is complete
     const [isInitialAuthCheckComplete, setIsInitialAuthCheckComplete] = useState(false);
