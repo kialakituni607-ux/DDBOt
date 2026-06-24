@@ -4,7 +4,7 @@ import Cookies from 'js-cookie';
 import RootStore from '@/stores/root-store';
 import { handleOidcAuthFailure } from '@/utils/auth-utils';
 import { Analytics } from '@deriv-com/analytics';
-import { OAuth2Logout, requestOidcAuthentication } from '@deriv-com/auth-client';
+import { requestOidcAuthentication } from '@deriv-com/auth-client';
 
 /**
  * Provides an object with properties: `oAuthLogout`, `retriggerOAuth2Login`, and `isSingleLoggingIn`.
@@ -52,14 +52,11 @@ export const useOauth2 = ({
     const logoutHandler = async () => {
         client?.setIsLoggingOut(true);
         try {
-            await OAuth2Logout({
-                redirectCallbackUri: `${window.location.origin}/callback`,
-                WSLogoutAndRedirect: handleLogout ?? (() => Promise.resolve()),
-                postLogoutRedirectUri: window.location.origin,
-            }).catch(err => {
-                // eslint-disable-next-line no-console
-                console.error(err);
-            });
+            // Simple logout - clear auth data and redirect
+            localStorage.removeItem('authToken');
+            localStorage.removeItem('active_loginid');
+            localStorage.removeItem('accountsList');
+            localStorage.removeItem('clientAccounts');
             await client?.logout().catch(err => {
                 // eslint-disable-next-line no-console
                 console.error('Error during TMB logout:', err);
