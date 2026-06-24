@@ -70,14 +70,17 @@ export default class TransactionsStore {
             (stats, { data }) => {
                 const { profit = 0, is_completed = false, buy_price = 0, payout, bid_price } = data as TContractInfo;
                 if (is_completed) {
-                    if (profit > 0) {
+                    const num_profit = Number(profit);
+                    const num_buy_price = Number(buy_price);
+                    const num_payout = Number(payout ?? bid_price ?? 0);
+                    if (num_profit > 0) {
                         stats.won_contracts += 1;
-                        stats.total_payout += payout ?? bid_price ?? 0;
+                        stats.total_payout += num_payout;
                     } else {
                         stats.lost_contracts += 1;
                     }
-                    stats.total_profit += profit;
-                    stats.total_stake += buy_price;
+                    stats.total_profit += num_profit;
+                    stats.total_stake += num_buy_price;
                     total_runs += 1;
                 }
                 return stats;
