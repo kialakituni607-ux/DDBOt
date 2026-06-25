@@ -32,8 +32,8 @@ const processTokensAndRedirect = async (tokens: Record<string, string>): Promise
     }
     const domain = window.location.hostname.split('.').slice(-2).join('.');
     Cookies.set('logged_state', 'true', { expires: 30, path: '/', domain, secure: true });
-    // Redirect with params in URL so AuthWrapper.persistTokensSync picks them up
-    window.location.href = '/?' + urlParams.substring(1);
+    // Tokens already in localStorage, redirect to root
+    window.location.href = '/';
 };
 
 const CallbackPage = () => {
