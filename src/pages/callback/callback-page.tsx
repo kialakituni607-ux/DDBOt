@@ -121,7 +121,7 @@ const CallbackPage = () => {
                     window.location.href = '/?' + urlParams.substring(1);
                 } catch(e: any) {
                     console.log('[callback] PKCE failed, falling back to legacy:', e.message);
-                    alert('PKCE failed: ' + e.message + ' - redirecting to legacy');
+
                     redirectToLegacyLogin();
                 }
             })();
