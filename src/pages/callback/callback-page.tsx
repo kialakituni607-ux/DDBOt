@@ -121,7 +121,12 @@ const CallbackPage = () => {
                     window.location.href = '/?' + urlParams.substring(1);
                 } catch(e: any) {
                     console.log('[callback] PKCE failed, falling back to legacy:', e.message);
-
+                    // Clear PKCE session data before legacy redirect
+                    sessionStorage.removeItem('pkce_code_verifier');
+                    sessionStorage.removeItem('pkce_state');
+                    localStorage.removeItem('authToken');
+                    localStorage.removeItem('accountsList');
+                    localStorage.removeItem('clientAccounts');
                     redirectToLegacyLogin();
                 }
             })();
