@@ -52,6 +52,19 @@ const CallbackPage = () => {
             processTokensAndRedirect(tokens).catch(e => setError(e.message));
             return;
         }
+        if (!code) {
+            const already_tried_legacy = sessionStorage.getItem('tried_legacy_fallback') === 'true';
+            const errorParam = params.get('error');
+            console.log('[callback] No code/acct1/token1 present. error=', errorParam, 'already_tried_legacy=', already_tried_legacy);
+            if (already_tried_legacy) {
+                setError(errorParam || 'Login failed. Please try again.');
+                return;
+            }
+            sessionStorage.setItem('tried_legacy_fallback', 'true');
+            redirectToLegacyLogin();
+            return;
+        }
+        sessionStorage.removeItem('tried_legacy_fallback');
         if (code) {
             const codeVerifier = sessionStorage.getItem('pkce_code_verifier');
             if (!codeVerifier) { setError('Missing code verifier'); return; }
