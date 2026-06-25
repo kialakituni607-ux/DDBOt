@@ -7,6 +7,7 @@ import Button from '@/components/shared_ui/button';
 import useActiveAccount from '@/hooks/api/account/useActiveAccount';
 import { useOauth2 } from '@/hooks/auth/useOauth2';
 import { loginWithFallback } from '@/utils/auth-utils';
+import { useLoginChoice } from '@/components/login-choice-modal/login-choice-modal';
 import { useFirebaseCountriesConfig } from '@/hooks/firebase/useFirebaseCountriesConfig';
 import { useApiBase } from '@/hooks/useApiBase';
 import { useStore } from '@/hooks/useStore';
@@ -48,6 +49,7 @@ const AppHeader = observer(({ isAuthenticating }: TAppHeaderProps) => {
     const { localize } = useTranslations();
 
     const { isSingleLoggingIn } = useOauth2();
+    const { triggerLogin, modal } = useLoginChoice();
 
     const { hubEnabledCountryList } = useFirebaseCountriesConfig();
     const { isTmbEnabled } = useTMB();
@@ -140,7 +142,7 @@ const AppHeader = observer(({ isAuthenticating }: TAppHeaderProps) => {
                             // Try the new Deriv OIDC flow first, fall back to
                             // the legacy oauth.deriv.com URL automatically if
                             // OIDC is not available for this app.
-                            loginWithFallback();
+                            triggerLogin();
                         }}
                     >
                         <Localize i18n_default_text='Log in' />
@@ -181,7 +183,7 @@ const AppHeader = observer(({ isAuthenticating }: TAppHeaderProps) => {
     if (client?.should_hide_header) return null;
 
     return (
-        <Header
+        <>{modal}<Header
             className={clsx('app-header', {
                 'app-header--desktop': isDesktop,
                 'app-header--mobile': !isDesktop,
@@ -209,7 +211,7 @@ const AppHeader = observer(({ isAuthenticating }: TAppHeaderProps) => {
                 isOpen={isTokenDialogOpen}
                 onClose={() => setIsTokenDialogOpen(false)}
             />
-        </Header>
+        </Header></>
     );
 });
 
