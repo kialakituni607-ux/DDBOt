@@ -53,7 +53,7 @@ const CallbackPage = () => {
             return;
         }
         if (code) {
-            const codeVerifier = localStorage.getItem('pkce_code_verifier');
+            const codeVerifier = sessionStorage.getItem('pkce_code_verifier');
             if (!codeVerifier) { setError('Missing code verifier'); return; }
             (async () => {
                 try {
@@ -64,8 +64,8 @@ const CallbackPage = () => {
                     });
                     const data = await res.json();
                     if (!res.ok) throw new Error(data.error || 'Token exchange failed');
-                    localStorage.removeItem('pkce_code_verifier');
-                    localStorage.removeItem('pkce_state');
+                    sessionStorage.removeItem('pkce_code_verifier');
+                    sessionStorage.removeItem('pkce_state');
                     // Step 2: Get accounts
                     const accountsRes = await fetch('/api/auth/accounts', {
                         method: 'POST',
@@ -122,8 +122,8 @@ const CallbackPage = () => {
                 } catch(e: any) {
                     console.log('[callback] PKCE failed, falling back to legacy:', e.message);
                     // Clear PKCE session data before legacy redirect
-                    localStorage.removeItem('pkce_code_verifier');
-                    localStorage.removeItem('pkce_state');
+                    sessionStorage.removeItem('pkce_code_verifier');
+                    sessionStorage.removeItem('pkce_state');
                     localStorage.removeItem('authToken');
                     localStorage.removeItem('accountsList');
                     localStorage.removeItem('clientAccounts');
