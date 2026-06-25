@@ -8,6 +8,7 @@ import React from 'react';
 import { createBrowserRouter, createRoutesFromElements, Route, RouterProvider } from 'react-router-dom';
 import ChunkLoader from '@/components/loader/chunk-loader';
 import RoutePromptDialog from '@/components/route-prompt-dialog';
+import DTrader from '@/pages/dtrader';
 import { crypto_currencies_display_order, fiat_currencies_display_order } from '@/components/shared';
 import { useOfflineDetection } from '@/hooks/useOfflineDetection';
 import { StoreProvider } from '@/hooks/useStore';
@@ -65,6 +66,7 @@ const router = createBrowserRouter(
             <Route path='callback' element={<CallbackPage />} />
             <Route path='auth-debug' element={<AuthDebugPage />} />
             <Route path='free-bots' element={<FreeBots />} />
+            <Route path='dtrader' element={<DTrader />} />
             <Route path='analysis-tool' element={<AnalysisTool />} />
             <Route path='oauth/consent' element={<OAuthConsent />} />
         </Route>

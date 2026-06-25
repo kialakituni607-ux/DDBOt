@@ -97,6 +97,12 @@ export const MenuItems: MenuItemsConfig[] = [
     },
     {
         as: 'a',
+        href: standalone_routes.dtrader,
+        icon: <RobotLogo iconSize='xs' />,
+        label: localize('Deriv Trader'),
+    },
+    {
+        as: 'a',
         href: standalone_routes.analysis_tool,
         icon: <AnalyticsLogo iconSize='xs' />,
         label: localize('Analysis Tool'),
