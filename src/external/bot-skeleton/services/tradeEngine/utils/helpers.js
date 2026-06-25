@@ -20,7 +20,6 @@ export const tradeOptionToProposal = (trade_option, purchase_reference) =>
                 purchase_reference,
             },
             proposal: 1,
-            underlying_symbol: trade_option.symbol,
         };
         if (trade_option.prediction !== undefined) {
             proposal.selected_tick = trade_option.prediction;
