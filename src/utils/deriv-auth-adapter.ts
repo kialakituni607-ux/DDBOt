@@ -9,6 +9,7 @@ export const resolveAuthMode = (): AuthMode => (localStorage.getItem('auth_mode'
 export const setAuthMode = (mode: AuthMode): void => { localStorage.setItem('auth_mode', mode); };
 
 export const derivLogin = async (_options: LoginOptions = {}): Promise<void> => {
+    console.log('[derivLogin] called from:', new Error().stack);
     const array = crypto.getRandomValues(new Uint8Array(64));
     const codeVerifier = Array.from(array)
         .map(v => 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~'[v % 66])
