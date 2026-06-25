@@ -26,7 +26,7 @@ const LoginChoiceModal = ({ onClose }: { onClose: () => void }) => {
                         <span className='login-choice-modal__btn-desc'>Recently created account</span>
                     </button>
                     <button className='login-choice-modal__btn login-choice-modal__btn--legacy' onClick={handleLegacy}>
-                        <span className='login-choice-modal__btn-title'>Existing Deriv Account</span>
+                        <span className='login-choice-modal__btn-title'>Old Deriv Account</span>
                         <span className='login-choice-modal__btn-desc'>Classic Deriv account</span>
                     </button>
                 </div>
