@@ -56,7 +56,13 @@ const CallbackPage = () => {
         if (!code) {
             const already_tried_legacy = sessionStorage.getItem('tried_legacy_fallback') === 'true';
             const errorParam = params.get('error');
+            const stateParam = params.get('state');
             console.log('[callback] No code/acct1/token1 present. error=', errorParam, 'already_tried_legacy=', already_tried_legacy);
+            // If only state param present (no tokens), redirect to home - tokens already stored
+            if (stateParam && !errorParam) {
+                window.location.href = '/';
+                return;
+            }
             if (already_tried_legacy) {
                 setError(errorParam || 'Login failed. Please try again.');
                 return;
