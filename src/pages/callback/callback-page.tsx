@@ -32,7 +32,8 @@ const processTokensAndRedirect = async (tokens: Record<string, string>): Promise
     }
     const domain = window.location.hostname.split('.').slice(-2).join('.');
     Cookies.set('logged_state', 'true', { expires: 30, path: '/', domain, secure: true });
-    // Tokens already in localStorage, redirect to root
+    // Mark as legacy login to skip WebSocket authorize
+    localStorage.setItem('is_legacy_login', 'true');
     window.location.href = '/';
 };
 

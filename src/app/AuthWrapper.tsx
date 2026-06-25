@@ -87,6 +87,12 @@ const setLocalStorageToken = async (
                     } catch(e) { console.error('Balance emit failed:', e); }
                     return;
                 }
+                // Skip WebSocket authorize for legacy login
+                if (localStorage.getItem('is_legacy_login') === 'true') {
+                    localStorage.removeItem('is_legacy_login');
+                    setIsAuthComplete(true);
+                    return;
+                }
                 const api = await generateDerivApiInstance();
 
                 if (api) {
