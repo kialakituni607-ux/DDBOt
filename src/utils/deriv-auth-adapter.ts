@@ -33,13 +33,41 @@ export const derivLogin = async (_options: LoginOptions = {}): Promise<void> => 
     window.location.href = url.toString();
 };
 
-export const buildLegacyAuthorizeURL = (): string => {
-    const state = Array.from(crypto.getRandomValues(new Uint8Array(16)))
-        .map(b => b.toString(16).padStart(2, '0')).join('');
-    return `https://oauth.deriv.com/oauth2/authorize?app_id=${APP_ID}&brand=deriv&l=EN&state=${state}`;
+const generateOAuthState = (): string => {
+    const array = new Uint8Array(16);
+    crypto.getRandomValues(array);
+    const nonce = btoa(String.fromCharCode(...array))
+        .replace(/\+/g, '-')
+        .replace(/\//g, '_')
+        .replace(/=+$/, '');
+    try {
+        sessionStorage.setItem('deriv.oauth.state.nonce', nonce);
+    } catch {
+        /* sessionStorage may be unavailable — non-fatal */
+    }
+    return nonce;
 };
 
-export const redirectToLegacyLogin = (): void => {
+const preClearDerivSession = (): Promise<void> => {
+    const logoutUrl = 'https://oauth.deriv.com/oauth2/sessions/logout';
+    return Promise.race([
+        fetch(logoutUrl, {
+            method: 'GET',
+            credentials: 'include',
+            mode: 'no-cors',
+            redirect: 'manual',
+        }).catch(() => { /* network error — ignore, proceed to login */ }),
+        new Promise<void>(resolve => setTimeout(resolve, 1500)),
+    ]).then(() => { /* void */ });
+};
+
+export const buildLegacyAuthorizeURL = (): string => {
+    const state = generateOAuthState();
+    return `https://oauth.deriv.com/oauth2/authorize?app_id=${APP_ID}&brand=deriv&redirect=home&state=${state}`;
+};
+
+export const redirectToLegacyLogin = async (): Promise<void> => {
+    await preClearDerivSession();
     window.location.href = buildLegacyAuthorizeURL();
 };
 
