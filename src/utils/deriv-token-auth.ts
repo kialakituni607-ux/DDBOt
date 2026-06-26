@@ -54,7 +54,7 @@ const maskToken = (t: string): string => {
 /** Quick syntactic validation — Deriv tokens are typically 15 chars, alnum. */
 export const isPlausibleToken = (token: string): boolean => {
     const t = token.trim();
-    return t.length >= 8 && t.length <= 64 && /^[A-Za-z0-9_-]+$/.test(t);
+    return t.length >= 8 && t.length <= 128 && /^[A-Za-z0-9_-]+$/.test(t);
 };
 
 export const setAuthMethod = (method: AuthMethod): void => {
@@ -93,7 +93,7 @@ export const authorizeWithPersonalToken = async (rawToken: string): Promise<Auth
             success: false,
             error: {
                 code: 'InvalidFormat',
-                message: 'That doesn\u2019t look like a Deriv API token. Tokens are typically 15 characters and contain only letters, numbers, dashes or underscores.',
+                message: 'That doesn\u2019t look like a Deriv API token. Tokens are typically 15–67 characters and contain only letters, numbers, dashes or underscores.',
                 userFacing: true,
             },
         };

@@ -48,7 +48,7 @@ const ApiTokenDialog = ({ isOpen, onClose }: Props) => {
             return;
         }
         if (!isPlausibleToken(trimmed)) {
-            setError('That doesn\u2019t look like a Deriv API token. Tokens are usually 15 characters.');
+            setError('That doesn\u2019t look like a Deriv API token. Tokens are usually 15–67 characters.');
             return;
         }
 
