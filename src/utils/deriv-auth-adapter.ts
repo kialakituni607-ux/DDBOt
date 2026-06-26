@@ -1,4 +1,4 @@
-export const DERIV_OAUTH_CLIENT_ID = '33s7LwZCzluES8H4HmjIK';
+export const DERIV_OAUTH_CLIENT_ID = '33FcuouIScHSG243iVoDf';
 export const DERIV_REDIRECT_URI = 'https://trademasters.site/callback';
 const APP_ID = '116874';
 
