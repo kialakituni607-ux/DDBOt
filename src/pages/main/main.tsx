@@ -71,7 +71,7 @@ const AppWrapper = observer(() => {
     const { clear } = summary_card;
     const { DASHBOARD, BOT_BUILDER } = DBOT_TABS;
     const init_render = React.useRef(true);
-    const hash = ['dashboard', 'bot_builder', 'chart', 'tutorial', 'entry_scanner', 'free_bots', 'analysis_tool', 'smart_analyser', 'antipoverty_ai'];
+    const hash = ['dashboard', 'bot_builder', 'chart', 'tutorial', 'entry_scanner', 'free_bots', 'dtrader', 'analysis_tool', 'smart_analyser', 'antipoverty_ai'];
     const { isDesktop } = useDevice();
     const location = useLocation();
     const navigate = useNavigate();
@@ -402,6 +402,23 @@ const AppWrapper = observer(() => {
                                     >
                                         <FreeBots />
                                     </Suspense>
+                                </div>
+                            </div>
+                            <div
+                                label={
+                                    <>
+                                        <LabelPairedChartLineCaptionRegularIcon
+                                            height='24px'
+                                            width='24px'
+                                            fill='var(--text-general)'
+                                        />
+                                        <Localize i18n_default_text='Deriv Trader' />
+                                    </>
+                                }
+                                id='id-dtrader'
+                            >
+                                <div style={{width:'100%',height:'calc(100vh - 120px)'}}>
+                                    <iframe src='https://dtrader.deriv.com' style={{width:'100%',height:'100%',border:'none'}} title='Deriv Trader' allow='camera; microphone' />
                                 </div>
                             </div>
                             <div
