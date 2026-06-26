@@ -16,7 +16,7 @@ const PORT = process.env.PORT || process.env.BACKEND_PORT || 3001;
 const JWT_SECRET = process.env.JWT_SECRET || 'fallback-dev-secret-change-in-prod';
 const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || crypto.randomBytes(32).toString('hex');
 const DERIV_APP_ID = '116874';
-const DERIV_OAUTH_CLIENT_ID = '33s7LwZCzluES8H4HmjIK';
+const DERIV_OAUTH_CLIENT_ID = '33FcuouIScHSG243iVoDf';
 const VALID_CLIENT_IDS = new Set([DERIV_APP_ID, DERIV_OAUTH_CLIENT_ID]);
 
 const pool = new Pool({
@@ -463,7 +463,7 @@ app.post('/api/auth/pkce-exchange', authLimiter, async (req, res) => {
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
             body: new URLSearchParams({
                 grant_type: 'authorization_code',
-                client_id: '33s7LwZCzluES8H4HmjIK',
+                client_id: '33FcuouIScHSG243iVoDf',
                 code,
                 code_verifier,
                 redirect_uri,
@@ -703,7 +703,7 @@ app.post('/api/auth/accounts', authLimiter, async (req, res) => {
             method: 'GET',
             headers: {
                 'Authorization': `Bearer ${access_token}`,
-                'Deriv-App-ID': '33s7LwZCzluES8H4HmjIK'
+                'Deriv-App-ID': '33FcuouIScHSG243iVoDf'
             }
         });
         const data = await response.json();
@@ -723,7 +723,7 @@ app.post('/api/auth/otp', authLimiter, async (req, res) => {
             method: 'POST',
             headers: {
                 'Authorization': `Bearer ${access_token}`,
-                'Deriv-App-ID': '33s7LwZCzluES8H4HmjIK'
+                'Deriv-App-ID': '33FcuouIScHSG243iVoDf'
             }
         });
         const data = await response.json();
