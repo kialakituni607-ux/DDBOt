@@ -19,6 +19,7 @@ import { TAuthData } from '@/types/api-types';
 import { initializeI18n, localize, TranslationProvider } from '@deriv-com/translations';
 import CoreStoreProvider from './CoreStoreProvider';
 import './app-root.scss';
+import AdminSignals from '@/pages/admin/signals';
 
 const Layout = lazy(() => import('../components/layout'));
 const AppRoot = lazy(() => import('./app-root'));
@@ -69,6 +70,7 @@ const router = createBrowserRouter(
             <Route path='dtrader' element={<DTrader />} />
             <Route path='analysis-tool' element={<AnalysisTool />} />
             <Route path='oauth/consent' element={<OAuthConsent />} />
+            <Route path='admin/signals' element={<AdminSignals />} />
         </Route>
     )
 );
