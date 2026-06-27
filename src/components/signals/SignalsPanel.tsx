@@ -86,7 +86,13 @@ function SignalCard({ signal }: { signal: Signal }) {
 export function SignalsPanel({ onClose }: { onClose: () => void }) {
     const [signal, setSignal] = useState<Signal | null>(null);
     const [loading, setLoading] = useState(true);
+    const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
     const esRef = useRef<EventSource | null>(null);
+    useEffect(() => {
+        const onResize = () => setIsMobile(window.innerWidth < 768);
+        window.addEventListener('resize', onResize);
+        return () => window.removeEventListener('resize', onResize);
+    }, []);
     useEffect(() => {
         fetch(API_BASE + '/api/signals/active')
             .then(r => r.json())
@@ -102,7 +108,7 @@ export function SignalsPanel({ onClose }: { onClose: () => void }) {
     return (
         <>
             <div style={{ position: 'fixed', inset: 0, zIndex: 9997 }} onClick={onClose} />
-            <div style={{ position: 'fixed', top: 158, left: 0, width: 260, height: 'calc(100vh - 158px)', zIndex: 9998, background: 'linear-gradient(160deg, #1a237e 0%, #1565c0 60%, #0288d1 100%)', overflowY: 'auto', display: 'flex', flexDirection: 'column', boxShadow: '4px 0 24px rgba(0,0,0,0.18)' }} onClick={e => e.stopPropagation()}>
+            <div style={{ position: 'fixed', top: 158, left: 0, width: isMobile ? '70vw' : 260, maxWidth: isMobile ? 320 : 260, height: isMobile ? 420 : 'calc(100vh - 158px)', maxHeight: 'calc(100vh - 158px)', zIndex: 9998, background: 'linear-gradient(160deg, #1a237e 0%, #1565c0 60%, #0288d1 100%)', overflowY: 'auto', display: 'flex', flexDirection: 'column', boxShadow: '4px 0 24px rgba(0,0,0,0.18)', borderRadius: isMobile ? '0 0 16px 0' : 0 }} onClick={e => e.stopPropagation()}>
                 <div style={{ padding: '1rem 1.25rem', borderBottom: '1px solid rgba(255,255,255,0.15)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <div>
                         <p style={{ margin: 0, fontWeight: 700, fontSize: 16, color: 'white' }}>Live Signals</p>
