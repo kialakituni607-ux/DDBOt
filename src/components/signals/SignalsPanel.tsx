@@ -139,7 +139,7 @@ export function useBellIcon() {
     const openPanel = () => { setOpen(true); setHasNew(false); };
     const bell = (
         <div style={{ position: 'relative', cursor: 'pointer' }} onClick={openPanel}>
-            <i className='ti ti-bell' style={{ fontSize: 20, color: 'var(--color-text-secondary)' }} />
+            <span style={{ fontSize: 20 }}>🔔</span>
             {hasNew && <span style={{ position: 'absolute', top: -4, right: -4, width: 8, height: 8, background: '#e24b4a', borderRadius: '50%' }} />}
         </div>
     );
