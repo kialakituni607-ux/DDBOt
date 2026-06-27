@@ -202,9 +202,9 @@ const AppHeader = observer(({ isAuthenticating }: TAppHeaderProps) => {
                         />
                         <span className='app-header__brand-name'>TRADEMASTERS</span>
                     </div>
-                </div>
+                </div>{bell}
                 <div className='app-header__top-right'>
-                    {!isDesktop && <PWAInstallButton variant='primary' size='medium' />}{bell}
+                    {!isDesktop && <PWAInstallButton variant='primary' size='medium' />}
                     {renderAccountSection()}
                 </div>
             </div>
