@@ -39,7 +39,7 @@ function SignalCard({ signal }: { signal: Signal }) {
         'Matches/Differs': { bg: '#faeeda', color: '#854f0b' },
     };
     const tc = typeColor[signal.market_type] || { bg: '#f1efe8', color: '#5f5e5a' };
-    const confColor: Record<string, string> = { High: '#3b6d11', Medium: '#ba7517', Low: '#a32d2d' };
+    const confColor: Record<string, string> = { High: '#69f0ae', Medium: '#ffd740', Low: '#ff5252' };
     if (isExpired) {
         return (
             <div style={{ padding: '1.5rem', textAlign: 'center' }}>
@@ -47,11 +47,11 @@ function SignalCard({ signal }: { signal: Signal }) {
                 <p style={{ margin: '0 0 4px', fontWeight: 500, fontSize: 15 }}>Signal expired</p>
                 {signal.next_signal_at && nextCountdown.secs > 0 ? (
                     <>
-                        <p style={{ margin: '0 0 8px', fontSize: 13, color: 'var(--color-text-secondary)' }}>Next signal in</p>
-                        <p style={{ margin: 0, fontSize: 28, fontWeight: 500, color: '#185fa5' }}>{nextCountdown.label}</p>
+                        <p style={{ margin: '0 0 8px', fontSize: 13, color: 'rgba(255,255,255,0.7)' }}>Next signal in</p>
+                        <p style={{ margin: 0, fontSize: 28, fontWeight: 700, color: '#ffffff' }}>{nextCountdown.label}</p>
                     </>
                 ) : (
-                    <p style={{ margin: 0, fontSize: 13, color: 'var(--color-text-secondary)' }}>Next signal coming soon...</p>
+                    <p style={{ margin: 0, fontSize: 13, color: 'rgba(255,255,255,0.7)' }}>Next signal coming soon...</p>
                 )}
             </div>
         );
@@ -60,24 +60,24 @@ function SignalCard({ signal }: { signal: Signal }) {
         <div style={{ padding: '1rem 1.25rem' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
                 <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)' }}>{signal.market_type}</span>
-                <span style={{ fontSize: 11, color: expiry.secs < 60 ? '#e24b4a' : 'var(--color-text-secondary)', fontWeight: 500 }}>Expires in {expiry.label}</span>
+                <span style={{ fontSize: 11, color: expiry.secs < 60 ? '#ff5252' : '#ffd740', fontWeight: 700 }}>Expires in {expiry.label}</span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
                 <span style={{ background: tc.bg, color: tc.color, fontSize: 14, fontWeight: 500, padding: '4px 14px', borderRadius: 20 }}>{signal.call}</span>
-                <span style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>{signal.duration}</span>
+                <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)' }}>{signal.duration}</span>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 10 }}>
                 <div>
-                    <p style={{ margin: 0, fontSize: 11, color: 'var(--color-text-secondary)' }}>Confidence</p>
+                    <p style={{ margin: 0, fontSize: 11, color: 'rgba(255,255,255,0.6)' }}>Confidence</p>
                     <p style={{ margin: 0, fontSize: 13, fontWeight: 500, color: confColor[signal.confidence] || 'inherit' }}>{signal.confidence}</p>
                 </div>
                 <div>
-                    <p style={{ margin: 0, fontSize: 11, color: 'var(--color-text-secondary)' }}>Posted at</p>
-                    <p style={{ margin: 0, fontSize: 13, fontWeight: 500 }}>{new Date(signal.posted_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} GMT</p>
+                    <p style={{ margin: 0, fontSize: 11, color: 'rgba(255,255,255,0.6)' }}>Posted at</p>
+                    <p style={{ margin: 0, fontSize: 13, fontWeight: 500, color: 'white' }}>{new Date(signal.posted_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} GMT</p>
                 </div>
             </div>
             {signal.notes && (
-                <p style={{ margin: 0, fontSize: 12, color: 'var(--color-text-secondary)', background: 'var(--color-background-secondary)', padding: '8px 10px', borderRadius: 6 }}>{signal.notes}</p>
+                <p style={{ margin: 0, fontSize: 12, color: 'white', background: 'rgba(255,255,255,0.12)', padding: '8px 10px', borderRadius: 6 }}>{signal.notes}</p>
             )}
         </div>
     );
