@@ -59,7 +59,7 @@ function SignalCard({ signal }: { signal: Signal }) {
     return (
         <div style={{ padding: '1rem 1.25rem' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-                <span style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>{signal.market_type}</span>
+                <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)' }}>{signal.market_type}</span>
                 <span style={{ fontSize: 11, color: expiry.secs < 60 ? '#e24b4a' : 'var(--color-text-secondary)', fontWeight: 500 }}>Expires in {expiry.label}</span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
