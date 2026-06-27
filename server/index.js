@@ -1141,7 +1141,10 @@ app.get("/api/signals/stream", (req, res) => {
     res.setHeader("Connection", "keep-alive");
     res.flushHeaders();
     signalClients.add(res);
-    req.on("close", () => signalClients.delete(res));
+    const heartbeat = setInterval(() => {
+        try { res.write(": heartbeat\n\n"); } catch (e) { clearInterval(heartbeat); }
+    }, 20000);
+    req.on("close", () => { clearInterval(heartbeat); signalClients.delete(res); });
 });
 app.get("/api/signals/active", async (req, res) => {
     try {
