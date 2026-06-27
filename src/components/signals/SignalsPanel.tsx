@@ -125,3 +125,24 @@ export function SignalsPanel({ onClose }: { onClose: () => void }) {
             </div>
         </>
     );
+}
+export function useBellIcon() {
+    const [open, setOpen] = useState(false);
+    const [hasNew, setHasNew] = useState(false);
+    useEffect(() => {
+        const es = new EventSource(API_BASE + '/api/signals/stream');
+        es.onmessage = (e) => {
+            try { const data = JSON.parse(e.data); if (data.type === 'new_signal') setHasNew(true); } catch {}
+        };
+        return () => es.close();
+    }, []);
+    const openPanel = () => { setOpen(true); setHasNew(false); };
+    const bell = (
+        <div onClick={openPanel} style={{ cursor: 'pointer', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', width: 36, height: 36, borderRadius: '50%', background: hasNew ? '#e8f4fd' : 'transparent' }}>
+            <span style={{ fontSize: 18 }}>🔔</span>
+            {hasNew && <span style={{ position: 'absolute', top: 4, right: 4, width: 8, height: 8, background: '#e53935', borderRadius: '50%', border: '1.5px solid white' }} />}
+        </div>
+    );
+    const panel = open ? <SignalsPanel onClose={() => setOpen(false)} /> : null;
+    return { bell, panel };
+}
