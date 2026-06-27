@@ -100,49 +100,28 @@ export function SignalsPanel({ onClose }: { onClose: () => void }) {
         return () => { esRef.current?.close(); };
     }, []);
     return (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 9999, display: 'flex', justifyContent: 'flex-end' }} onClick={onClose}>
-            <div style={{ width: 320, background: 'var(--color-background-primary)', borderLeft: '0.5px solid var(--color-border-tertiary)', height: '100%', overflowY: 'auto', display: 'flex', flexDirection: 'column' }} onClick={e => e.stopPropagation()}>
-                <div style={{ padding: '1rem 1.25rem', borderBottom: '0.5px solid var(--color-border-tertiary)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <>
+            <div style={{ position: 'fixed', inset: 0, zIndex: 9997 }} onClick={onClose} />
+            <div style={{ position: 'fixed', top: 158, left: 0, width: 260, height: 'calc(100vh - 158px)', zIndex: 9998, background: 'linear-gradient(160deg, #1a237e 0%, #1565c0 60%, #0288d1 100%)', overflowY: 'auto', display: 'flex', flexDirection: 'column', boxShadow: '4px 0 24px rgba(0,0,0,0.18)' }} onClick={e => e.stopPropagation()}>
+                <div style={{ padding: '1rem 1.25rem', borderBottom: '1px solid rgba(255,255,255,0.15)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <div>
-                        <p style={{ margin: 0, fontWeight: 500, fontSize: 15 }}>Live Signals</p>
-                        <p style={{ margin: 0, fontSize: 12, color: 'var(--color-text-secondary)' }}>Real-time trading signals</p>
+                        <p style={{ margin: 0, fontWeight: 700, fontSize: 16, color: 'white' }}>Live Signals</p>
+                        <p style={{ margin: 0, fontSize: 11, color: 'rgba(255,255,255,0.7)' }}>Real-time trading signals</p>
                     </div>
-                    <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 20, color: 'var(--color-text-secondary)', padding: 4 }}>x</button>
+                    <button onClick={onClose} style={{ background: 'rgba(255,255,255,0.15)', border: 'none', cursor: 'pointer', fontSize: 16, color: 'white', width: 28, height: 28, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>x</button>
                 </div>
-                <div style={{ flex: 1 }}>
+                <div style={{ flex: 1, padding: '0.5rem' }}>
                     {loading ? (
-                        <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--color-text-secondary)', fontSize: 13 }}>Loading...</div>
+                        <div style={{ padding: '2rem', textAlign: 'center', color: 'rgba(255,255,255,0.7)', fontSize: 13 }}>Loading...</div>
                     ) : signal ? (
                         <SignalCard signal={signal} />
                     ) : (
                         <div style={{ padding: '2rem', textAlign: 'center' }}>
-                            <p style={{ margin: '0 0 4px', fontWeight: 500, fontSize: 15 }}>No active signal</p>
-                            <p style={{ margin: 0, fontSize: 13, color: 'var(--color-text-secondary)' }}>Next signal coming soon...</p>
+                            <p style={{ margin: '0 0 4px', fontWeight: 600, fontSize: 15, color: 'white' }}>No Active Signal</p>
+                            <p style={{ margin: 0, fontSize: 13, color: 'rgba(255,255,255,0.7)' }}>Next signal coming soon...</p>
                         </div>
                     )}
                 </div>
             </div>
-        </div>
+        </>
     );
-}
-
-export function useBellIcon() {
-    const [open, setOpen] = useState(false);
-    const [hasNew, setHasNew] = useState(false);
-    useEffect(() => {
-        const es = new EventSource(API_BASE + '/api/signals/stream');
-        es.onmessage = (e) => {
-            try { const data = JSON.parse(e.data); if (data.type === 'new_signal') setHasNew(true); } catch {}
-        };
-        return () => es.close();
-    }, []);
-    const openPanel = () => { setOpen(true); setHasNew(false); };
-    const bell = (
-        <div style={{ position: 'relative', cursor: 'pointer' }} onClick={openPanel}>
-            <span style={{ fontSize: 20 }}>🔔</span>
-            {hasNew && <span style={{ position: 'absolute', top: -4, right: -4, width: 8, height: 8, background: '#e24b4a', borderRadius: '50%' }} />}
-        </div>
-    );
-    const panel = open ? <SignalsPanel onClose={() => setOpen(false)} /> : null;
-    return { bell, panel };
-}
