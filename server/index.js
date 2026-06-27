@@ -12,6 +12,13 @@ const fs = require('fs');
 const app = express();
 const server = http.createServer(app);
 
+const webpush = require("web-push");
+if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
+    webpush.setVapidDetails("mailto:admin@trademasters.site", process.env.VAPID_PUBLIC_KEY, process.env.VAPID_PRIVATE_KEY);
+    console.log("[push] VAPID configured");
+} else {
+    console.warn("[push] VAPID keys missing — push notifications disabled");
+}
 const PORT = process.env.PORT || process.env.BACKEND_PORT || 3001;
 const JWT_SECRET = process.env.JWT_SECRET || 'fallback-dev-secret-change-in-prod';
 const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || crypto.randomBytes(32).toString('hex');
@@ -1129,12 +1136,61 @@ const signalClients = new Set();
     try {
         await pool.query("CREATE TABLE IF NOT EXISTS signals (id SERIAL PRIMARY KEY, market_type TEXT NOT NULL, call TEXT NOT NULL, duration TEXT NOT NULL, confidence TEXT NOT NULL, notes TEXT, posted_at TIMESTAMPTZ DEFAULT NOW(), expires_at TIMESTAMPTZ NOT NULL, next_signal_at TIMESTAMPTZ, is_active BOOLEAN DEFAULT TRUE)");
         console.log("[schema] signals table ready");
+        await pool.query("CREATE TABLE IF NOT EXISTS push_subscriptions (id SERIAL PRIMARY KEY, endpoint TEXT NOT NULL UNIQUE, p256dh TEXT NOT NULL, auth TEXT NOT NULL, created_at TIMESTAMPTZ DEFAULT NOW())");
+        console.log("[schema] push_subscriptions table ready");
     } catch (e) { console.warn("[schema] signals error:", e.message); }
 })();
 function broadcastSignal(data) {
     const msg = JSON.stringify(data);
     for (const res of signalClients) { try { res.write("data: " + msg + "\n\n"); } catch (e) {} }
+    sendPushToAllSubscribers(data).catch(e => console.error("[push] broadcast error:", e.message));
 }
+async function sendPushToAllSubscribers(data) {
+    if (!process.env.VAPID_PUBLIC_KEY || !process.env.VAPID_PRIVATE_KEY) return;
+    if (data.type !== "new_signal") return;
+    const payload = JSON.stringify({
+        title: "New Trading Signal",
+        body: (data.signal.market_type + ": " + data.signal.call),
+        url: "/",
+    });
+    const result = await pool.query("SELECT * FROM push_subscriptions");
+    for (const row of result.rows) {
+        const subscription = { endpoint: row.endpoint, keys: { p256dh: row.p256dh, auth: row.auth } };
+        try {
+            await webpush.sendNotification(subscription, payload);
+        } catch (e) {
+            if (e.statusCode === 404 || e.statusCode === 410) {
+                await pool.query("DELETE FROM push_subscriptions WHERE endpoint = $1", [row.endpoint]).catch(() => {});
+            } else {
+                console.error("[push] send error:", e.message);
+            }
+        }
+    }
+}
+app.post("/api/push/subscribe", async (req, res) => {
+    const { endpoint, keys } = req.body || {};
+    if (!endpoint || !keys || !keys.p256dh || !keys.auth) {
+        return res.status(400).json({ error: "invalid subscription" });
+    }
+    try {
+        await pool.query(
+            "INSERT INTO push_subscriptions (endpoint, p256dh, auth) VALUES ($1, $2, $3) ON CONFLICT (endpoint) DO UPDATE SET p256dh = $2, auth = $3",
+            [endpoint, keys.p256dh, keys.auth]
+        );
+        res.status(201).json({ ok: true });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+app.post("/api/push/unsubscribe", async (req, res) => {
+    const { endpoint } = req.body || {};
+    if (!endpoint) return res.status(400).json({ error: "endpoint required" });
+    try {
+        await pool.query("DELETE FROM push_subscriptions WHERE endpoint = $1", [endpoint]);
+        res.json({ ok: true });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+app.get("/api/push/vapid-public-key", (req, res) => {
+    res.json({ publicKey: process.env.VAPID_PUBLIC_KEY || null });
+});
 app.get("/api/signals/stream", (req, res) => {
     res.setHeader("Content-Type", "text/event-stream");
     res.setHeader("Cache-Control", "no-cache");
