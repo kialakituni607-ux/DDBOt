@@ -8,6 +8,7 @@ import useActiveAccount from '@/hooks/api/account/useActiveAccount';
 import { useOauth2 } from '@/hooks/auth/useOauth2';
 import { loginWithFallback } from '@/utils/auth-utils';
 import { useLoginChoice } from '@/components/login-choice-modal/login-choice-modal';
+import { useBellIcon } from '@/components/signals/SignalsPanel';
 import { useFirebaseCountriesConfig } from '@/hooks/firebase/useFirebaseCountriesConfig';
 import { useApiBase } from '@/hooks/useApiBase';
 import { useStore } from '@/hooks/useStore';
@@ -50,6 +51,7 @@ const AppHeader = observer(({ isAuthenticating }: TAppHeaderProps) => {
 
     const { isSingleLoggingIn } = useOauth2();
     const { triggerLogin, modal } = useLoginChoice();
+    const { bell, panel } = useBellIcon();
 
     const { hubEnabledCountryList } = useFirebaseCountriesConfig();
     const { isTmbEnabled } = useTMB();
@@ -183,7 +185,7 @@ const AppHeader = observer(({ isAuthenticating }: TAppHeaderProps) => {
     if (client?.should_hide_header) return null;
 
     return (
-        <>{modal}<Header
+        <>{modal}{panel}<Header
             className={clsx('app-header', {
                 'app-header--desktop': isDesktop,
                 'app-header--mobile': !isDesktop,
@@ -202,7 +204,7 @@ const AppHeader = observer(({ isAuthenticating }: TAppHeaderProps) => {
                     </div>
                 </div>
                 <div className='app-header__top-right'>
-                    {!isDesktop && <PWAInstallButton variant='primary' size='medium' />}
+                    {!isDesktop && <PWAInstallButton variant='primary' size='medium' />}{bell}
                     {renderAccountSection()}
                 </div>
             </div>

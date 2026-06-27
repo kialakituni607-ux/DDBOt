@@ -1122,3 +1122,48 @@ setInterval(() => {
         .then(() => console.log('[ping] alive'))
         .catch(e => console.error('[ping] failed:', e.message));
 }, 600000);
+
+// SIGNALS
+const signalClients = new Set();
+(async function ensureSignalsSchema() {
+    try {
+        await pool.query("CREATE TABLE IF NOT EXISTS signals (id SERIAL PRIMARY KEY, market_type TEXT NOT NULL, call TEXT NOT NULL, duration TEXT NOT NULL, confidence TEXT NOT NULL, notes TEXT, posted_at TIMESTAMPTZ DEFAULT NOW(), expires_at TIMESTAMPTZ NOT NULL, next_signal_at TIMESTAMPTZ, is_active BOOLEAN DEFAULT TRUE)");
+        console.log("[schema] signals table ready");
+    } catch (e) { console.warn("[schema] signals error:", e.message); }
+})();
+function broadcastSignal(data) {
+    const msg = JSON.stringify(data);
+    for (const res of signalClients) { try { res.write("data: " + msg + "\n\n"); } catch (e) {} }
+}
+app.get("/api/signals/stream", (req, res) => {
+    res.setHeader("Content-Type", "text/event-stream");
+    res.setHeader("Cache-Control", "no-cache");
+    res.setHeader("Connection", "keep-alive");
+    res.flushHeaders();
+    signalClients.add(res);
+    req.on("close", () => signalClients.delete(res));
+});
+app.get("/api/signals/active", async (req, res) => {
+    try {
+        const result = await pool.query("SELECT * FROM signals WHERE is_active = TRUE ORDER BY posted_at DESC LIMIT 1");
+        res.json({ signal: result.rows[0] || null });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+app.post("/api/signals", async (req, res) => {
+    const adminSecret = req.headers["x-admin-secret"];
+    if (!adminSecret || adminSecret !== (process.env.ADMIN_SECRET || "trademasters-admin")) {
+        return res.status(403).json({ error: "Forbidden" });
+    }
+    const { market_type, call, duration, confidence, notes, expires_minutes, next_signal_minutes } = req.body;
+    if (!market_type || !call || !duration || !confidence || !expires_minutes) {
+        return res.status(400).json({ error: "required fields missing" });
+    }
+    try {
+        await pool.query("UPDATE signals SET is_active = FALSE WHERE is_active = TRUE");
+        const expires_at = new Date(Date.now() + expires_minutes * 60000);
+        const next_signal_at = next_signal_minutes ? new Date(expires_at.getTime() + next_signal_minutes * 60000) : null;
+        const result = await pool.query("INSERT INTO signals (market_type, call, duration, confidence, notes, expires_at, next_signal_at) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *", [market_type, call, duration, confidence, notes || null, expires_at, next_signal_at]);
+        broadcastSignal({ type: "new_signal", signal: result.rows[0] });
+        res.status(201).json({ signal: result.rows[0] });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
