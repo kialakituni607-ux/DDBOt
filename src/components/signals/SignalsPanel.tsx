@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
+import { isPushSupported, isLikelySubscribed, subscribeToPush, unsubscribeFromPush } from '@/utils/push-notifications';
 
 type Signal = {
     id: number;
@@ -87,12 +88,26 @@ export function SignalsPanel({ onClose }: { onClose: () => void }) {
     const [signal, setSignal] = useState<Signal | null>(null);
     const [loading, setLoading] = useState(true);
     const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+    const [subscribed, setSubscribed] = useState(isLikelySubscribed());
+    const [subBusy, setSubBusy] = useState(false);
+    const [subError, setSubError] = useState('');
     const esRef = useRef<EventSource | null>(null);
     useEffect(() => {
         const onResize = () => setIsMobile(window.innerWidth < 768);
         window.addEventListener('resize', onResize);
         return () => window.removeEventListener('resize', onResize);
     }, []);
+    const handleToggleSubscribe = async () => {
+        setSubBusy(true);
+        setSubError('');
+        const result = subscribed ? await unsubscribeFromPush() : await subscribeToPush();
+        if (result.ok) {
+            setSubscribed(!subscribed);
+        } else {
+            setSubError(result.error || 'Something went wrong.');
+        }
+        setSubBusy(false);
+    };
     useEffect(() => {
         fetch(API_BASE + '/api/signals/active')
             .then(r => r.json())
@@ -114,7 +129,19 @@ export function SignalsPanel({ onClose }: { onClose: () => void }) {
                         <p style={{ margin: 0, fontWeight: 700, fontSize: 16, color: 'white' }}>Live Signals</p>
                         <p style={{ margin: 0, fontSize: 11, color: 'rgba(255,255,255,0.7)' }}>Real-time trading signals</p>
                     </div>
-                    <button onClick={onClose} style={{ background: 'rgba(255,255,255,0.15)', border: 'none', cursor: 'pointer', fontSize: 16, color: 'white', width: 28, height: 28, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>x</button>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        {isPushSupported() && (
+                            <button
+                                onClick={handleToggleSubscribe}
+                                disabled={subBusy}
+                                title={subscribed ? 'Notifications enabled' : 'Enable notifications'}
+                                style={{ background: subscribed ? 'rgba(105,240,174,0.25)' : 'rgba(255,255,255,0.15)', border: 'none', cursor: subBusy ? 'wait' : 'pointer', fontSize: 11, fontWeight: 600, color: 'white', padding: '6px 10px', borderRadius: 14, display: 'flex', alignItems: 'center', gap: 4 }}
+                            >
+                                {subscribed ? '🔔 On' : '🔕 Off'}
+                            </button>
+                        )}
+                        <button onClick={onClose} style={{ background: 'rgba(255,255,255,0.15)', border: 'none', cursor: 'pointer', fontSize: 16, color: 'white', width: 28, height: 28, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>x</button>
+                    </div>
                 </div>
                 <div style={{ flex: 1, padding: '0.5rem' }}>
                     {loading ? (
