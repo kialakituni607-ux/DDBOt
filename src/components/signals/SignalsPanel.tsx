@@ -1,5 +1,4 @@
 import { useEffect, useState, useRef } from 'react';
-import { isPushSupported, isLikelySubscribed, subscribeToPush, unsubscribeFromPush } from '@/utils/push-notifications';
 
 type Signal = {
     id: number;
@@ -88,32 +87,12 @@ export function SignalsPanel({ onClose }: { onClose: () => void }) {
     const [signal, setSignal] = useState<Signal | null>(null);
     const [loading, setLoading] = useState(true);
     const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
-    const [subscribed, setSubscribed] = useState(isLikelySubscribed());
-    const [subBusy, setSubBusy] = useState(false);
-    const [subError, setSubError] = useState('');
     const esRef = useRef<EventSource | null>(null);
     useEffect(() => {
         const onResize = () => setIsMobile(window.innerWidth < 768);
         window.addEventListener('resize', onResize);
         return () => window.removeEventListener('resize', onResize);
     }, []);
-    const handleToggleSubscribe = async () => {
-        setSubBusy(true);
-        setSubError('DEBUG: starting, isPushSupported=' + isPushSupported());
-        try {
-            const result = subscribed ? await unsubscribeFromPush() : await subscribeToPush();
-            if (result.ok) {
-                setSubscribed(!subscribed);
-                setSubError('DEBUG: success');
-            } else {
-                setSubError('DEBUG: ' + (result.error || 'Something went wrong.'));
-            }
-        } catch (e: unknown) {
-            const msg = e instanceof Error ? e.message : String(e);
-            setSubError('DEBUG: threw — ' + msg);
-        }
-        setSubBusy(false);
-    };
     useEffect(() => {
         fetch(API_BASE + '/api/signals/active')
             .then(r => r.json())
@@ -135,25 +114,8 @@ export function SignalsPanel({ onClose }: { onClose: () => void }) {
                         <p style={{ margin: 0, fontWeight: 700, fontSize: 16, color: 'white' }}>Live Signals</p>
                         <p style={{ margin: 0, fontSize: 11, color: 'rgba(255,255,255,0.7)' }}>Real-time trading signals</p>
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        {isPushSupported() && (
-                            <button
-                                onClick={handleToggleSubscribe}
-                                disabled={subBusy}
-                                title={subscribed ? 'Notifications enabled' : 'Enable notifications'}
-                                style={{ background: subscribed ? 'rgba(105,240,174,0.25)' : 'rgba(255,255,255,0.15)', border: 'none', cursor: subBusy ? 'wait' : 'pointer', fontSize: 11, fontWeight: 600, color: 'white', padding: '6px 10px', borderRadius: 14, display: 'flex', alignItems: 'center', gap: 4 }}
-                            >
-                                {subscribed ? '🔔 On' : '🔕 Off'}
-                            </button>
-                        )}
-                        <button onClick={onClose} style={{ background: 'rgba(255,255,255,0.15)', border: 'none', cursor: 'pointer', fontSize: 16, color: 'white', width: 28, height: 28, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>x</button>
-                    </div>
+                    <button onClick={onClose} style={{ background: 'rgba(255,255,255,0.15)', border: 'none', cursor: 'pointer', fontSize: 16, color: 'white', width: 28, height: 28, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>x</button>
                 </div>
-                {subError && (
-                    <div style={{ margin: '0.5rem', padding: '8px 10px', background: 'rgba(255,82,82,0.2)', border: '1px solid rgba(255,82,82,0.4)', borderRadius: 8, fontSize: 11, color: '#ffcdd2' }}>
-                        {subError}
-                    </div>
-                )}
                 <div style={{ flex: 1, padding: '0.5rem' }}>
                     {loading ? (
                         <div style={{ padding: '2rem', textAlign: 'center', color: 'rgba(255,255,255,0.7)', fontSize: 13 }}>Loading...</div>
