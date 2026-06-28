@@ -99,12 +99,18 @@ export function SignalsPanel({ onClose }: { onClose: () => void }) {
     }, []);
     const handleToggleSubscribe = async () => {
         setSubBusy(true);
-        setSubError('');
-        const result = subscribed ? await unsubscribeFromPush() : await subscribeToPush();
-        if (result.ok) {
-            setSubscribed(!subscribed);
-        } else {
-            setSubError(result.error || 'Something went wrong.');
+        setSubError('DEBUG: starting, isPushSupported=' + isPushSupported());
+        try {
+            const result = subscribed ? await unsubscribeFromPush() : await subscribeToPush();
+            if (result.ok) {
+                setSubscribed(!subscribed);
+                setSubError('DEBUG: success');
+            } else {
+                setSubError('DEBUG: ' + (result.error || 'Something went wrong.'));
+            }
+        } catch (e: unknown) {
+            const msg = e instanceof Error ? e.message : String(e);
+            setSubError('DEBUG: threw — ' + msg);
         }
         setSubBusy(false);
     };
