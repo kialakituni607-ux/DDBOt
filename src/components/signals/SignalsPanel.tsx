@@ -143,6 +143,11 @@ export function SignalsPanel({ onClose }: { onClose: () => void }) {
                         <button onClick={onClose} style={{ background: 'rgba(255,255,255,0.15)', border: 'none', cursor: 'pointer', fontSize: 16, color: 'white', width: 28, height: 28, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>x</button>
                     </div>
                 </div>
+                {subError && (
+                    <div style={{ margin: '0.5rem', padding: '8px 10px', background: 'rgba(255,82,82,0.2)', border: '1px solid rgba(255,82,82,0.4)', borderRadius: 8, fontSize: 11, color: '#ffcdd2' }}>
+                        {subError}
+                    </div>
+                )}
                 <div style={{ flex: 1, padding: '0.5rem' }}>
                     {loading ? (
                         <div style={{ padding: '2rem', textAlign: 'center', color: 'rgba(255,255,255,0.7)', fontSize: 13 }}>Loading...</div>
