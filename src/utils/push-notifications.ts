@@ -32,7 +32,7 @@ export const subscribeToPush = async (): Promise<{ ok: boolean; error?: string }
         }
         console.log('[push] step 3: registering service worker');
         const registration = await navigator.serviceWorker.register('/push-sw.js', {
-            scope: '/push-sw-scope/',
+            scope: '/',
         });
         console.log('[push] step 4: sw registered, waiting for ready');
         await navigator.serviceWorker.ready;
@@ -81,7 +81,7 @@ export const unsubscribeFromPush = async (): Promise<{ ok: boolean; error?: stri
         return { ok: false, error: 'Push notifications are not supported in this browser.' };
     }
     try {
-        const registration = await navigator.serviceWorker.getRegistration('/push-sw-scope/');
+        const registration = await navigator.serviceWorker.getRegistration('/push-sw.js');
         if (!registration) {
             try {
                 localStorage.removeItem('push_subscribed');
