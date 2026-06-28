@@ -24,25 +24,36 @@ export const subscribeToPush = async (): Promise<{ ok: boolean; error?: string }
         return { ok: false, error: 'Push notifications are not supported in this browser.' };
     }
     try {
+        console.log('[push] step 1: requesting permission');
         const permission = await Notification.requestPermission();
+        console.log('[push] step 2: permission =', permission);
         if (permission !== 'granted') {
             return { ok: false, error: 'Notification permission was not granted.' };
         }
+        console.log('[push] step 3: registering service worker');
         const registration = await navigator.serviceWorker.register('/push-sw.js', {
             scope: '/push-sw-scope/',
         });
+        console.log('[push] step 4: sw registered, waiting for ready');
         await navigator.serviceWorker.ready;
+        console.log('[push] step 5: sw ready, fetching vapid key');
         const keyRes = await fetch(`${API_BASE}/api/push/vapid-public-key`);
+        console.log('[push] step 6: vapid fetch status', keyRes.status);
         const keyData = await keyRes.json();
+        console.log('[push] step 7: vapid key received', !!keyData.publicKey);
         if (!keyData.publicKey) {
             return { ok: false, error: 'Push is not configured on the server yet.' };
         }
+        console.log('[push] step 8: checking existing subscription');
         let subscription = await registration.pushManager.getSubscription();
+        console.log('[push] step 9: existing sub =', !!subscription);
         if (!subscription) {
+            console.log('[push] step 10: subscribing to pushManager');
             subscription = await registration.pushManager.subscribe({
                 userVisibleOnly: true,
                 applicationServerKey: urlBase64ToUint8Array(keyData.publicKey) as BufferSource,
             });
+            console.log('[push] step 11: pushManager.subscribe resolved');
         }
         const subJson = subscription.toJSON();
         const res = await fetch(`${API_BASE}/api/push/subscribe`, {
