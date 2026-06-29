@@ -117,6 +117,21 @@ class APIBase {
                     if (!data) return;
                     if (data.msg_type === 'balance' && !data.error) {
                         globalObserver.emit('balance.update', data.balance);
+                        try {
+                            const incoming = data.balance as { accounts?: Record<string, unknown>; loginid?: string; balance?: number };
+                            const stored = JSON.parse(localStorage.getItem('all_accounts_balance') || '{}');
+                            if (incoming?.accounts) {
+                                localStorage.setItem('all_accounts_balance', JSON.stringify(incoming));
+                            } else if (incoming?.loginid && stored?.accounts) {
+                                stored.accounts[incoming.loginid] = {
+                                    ...stored.accounts[incoming.loginid],
+                                    balance: incoming.balance,
+                                };
+                                localStorage.setItem('all_accounts_balance', JSON.stringify(stored));
+                            }
+                        } catch (e) {
+                            console.error('[api-base] failed to persist live balance update:', e);
+                        }
                     }
                 });
             } catch (e) {
