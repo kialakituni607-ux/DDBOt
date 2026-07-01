@@ -622,6 +622,7 @@ export default class ContractsFor {
 
     disposeCache() {
         this.contracts_for = {};
+        this.retrieving_contracts_for = {};
     }
 
     getContractTypes = trade_type => {
