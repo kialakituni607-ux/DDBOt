@@ -296,7 +296,7 @@ export default class AppStore {
                 console.log('[app-store] active_symbols retrieved via onSocketOpened');
                 const was_otp_reinit = localStorage.getItem('otp_reinit_active') === 'true';
                 localStorage.removeItem('otp_reinit_active');
-                if (window.Blockly?.derivWorkspace && was_otp_reinit) {
+                if (window.Blockly?.derivWorkspace && !was_otp_reinit) {
                     window.Blockly.derivWorkspace
                         .getAllBlocks()
                         .filter(block => block.type === 'trade_definition_market')
@@ -312,17 +312,6 @@ export default class AppStore {
                                     trade_options_block.onchange({
                                         type: window.Blockly.Events.BLOCK_CHANGE,
                                         name: 'SYMBOL_LIST',
-                                        blockId: block.id,
-                                        group: 'otp-reinit-resync',
-                                    });
-                                });
-                            window.Blockly.derivWorkspace
-                                .getAllBlocks()
-                                .filter(b => b.type === 'trade_definition_contracttype')
-                                .forEach(contract_type_block => {
-                                    contract_type_block.onchange({
-                                        type: window.Blockly.Events.BLOCK_CHANGE,
-                                        name: 'TRADETYPE_LIST',
                                         blockId: block.id,
                                         group: 'otp-reinit-resync',
                                     });
