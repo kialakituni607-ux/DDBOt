@@ -257,8 +257,6 @@ class APIBase {
                 if (!this.has_active_symbols) {
                     this.active_symbols_promise = this.getActiveSymbols();
                 }
-                this.is_authorized = true;
-                setIsAuthorized(true);
                 return;
             }
             const { authorize, error } = await this.api.authorize(this.token);
