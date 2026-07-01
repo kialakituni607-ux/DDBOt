@@ -316,17 +316,24 @@ export default class AppStore {
                                         group: 'otp-reinit-resync',
                                     });
                                 });
-                            window.Blockly.derivWorkspace
+                            const trade_type_block = window.Blockly.derivWorkspace
                                 .getAllBlocks()
-                                .filter(b => b.type === 'trade_definition_contracttype')
-                                .forEach(contract_type_block => {
-                                    contract_type_block.onchange({
-                                        type: window.Blockly.Events.BLOCK_CHANGE,
-                                        name: 'TRADETYPE_LIST',
-                                        blockId: block.id,
-                                        group: 'otp-reinit-resync',
+                                .find(b => b.type === 'trade_definition_tradetype');
+                            const current_trade_type = trade_type_block?.getFieldValue('TRADETYPE_LIST');
+                            if (current_trade_type) {
+                                window.Blockly.derivWorkspace
+                                    .getAllBlocks()
+                                    .filter(b => b.type === 'trade_definition_contracttype')
+                                    .forEach(contract_type_block => {
+                                        contract_type_block.onchange({
+                                            type: window.Blockly.Events.BLOCK_CHANGE,
+                                            name: 'TRADETYPE_LIST',
+                                            newValue: current_trade_type,
+                                            blockId: trade_type_block.id,
+                                            group: 'otp-reinit-resync',
+                                        });
                                     });
-                                });
+                            }
                         });
                 }
             });
