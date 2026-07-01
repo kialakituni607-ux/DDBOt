@@ -307,6 +307,17 @@ export default class AppStore {
                             });
                             window.Blockly.derivWorkspace
                                 .getAllBlocks()
+                                .filter(b => b.type === 'trade_definition_tradetype')
+                                .forEach(trade_type_block => {
+                                    trade_type_block.onchange({
+                                        type: window.Blockly.Events.BLOCK_CHANGE,
+                                        name: 'SYMBOL_LIST',
+                                        blockId: block.id,
+                                        group: 'otp-reinit-resync',
+                                    });
+                                });
+                            window.Blockly.derivWorkspace
+                                .getAllBlocks()
                                 .filter(b => b.type === 'trade_definition_tradeoptions')
                                 .forEach(trade_options_block => {
                                     trade_options_block.onchange({
