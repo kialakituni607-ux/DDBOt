@@ -197,21 +197,7 @@ export default class ContractsFor {
             }
 
             this.retrieving_contracts_for[symbol] = new PendingPromise();
-            // Use public WebSocket for contracts_for to support PKCE users
-            const authToken = localStorage.getItem('authToken');
-            const usePublicWs = authToken && authToken.startsWith('ory_at_');
-            let response;
-            if (usePublicWs) {
-                response = await new Promise((resolve) => {
-                    const ws = new WebSocket('wss://api.derivws.com/trading/v1/options/ws/public');
-                    ws.onopen = () => ws.send(JSON.stringify({ contracts_for: symbol, currency: 'USD', landing_company: 'svg', product_type: 'basic' }));
-                    ws.onmessage = (msg) => { resolve(JSON.parse(msg.data)); ws.close(); };
-                    ws.onerror = () => { resolve({ error: 'WS error' }); };
-                    setTimeout(() => { resolve({ error: 'timeout' }); ws.close(); }, 10000);
-                });
-            } else {
-                response = await api_base.api.send({ contracts_for: symbol });
-            }
+            const response = await api_base.api.send({ contracts_for: symbol });
 
             if (response.error) {
                 return [];
