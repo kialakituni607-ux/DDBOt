@@ -348,8 +348,8 @@ export default class AppStore {
                     if (window.Blockly?.derivWorkspace) {
                         const is_otp = localStorage.getItem('otp_reinit_active') === 'true';
                         active_symbols?.retrieveActiveSymbols(!is_otp).then(() => {
-                            if (is_otp) localStorage.removeItem('otp_reinit_active');
-                            if (!is_otp) contracts_for.disposeCache();
+                            if (is_otp) { localStorage.removeItem('otp_reinit_active'); return; }
+                            contracts_for.disposeCache();
                             window.Blockly?.derivWorkspace
                                 .getAllBlocks()
                                 .filter(block => block.type === 'trade_definition_market')
@@ -365,17 +365,6 @@ export default class AppStore {
                                             trade_options_block.onchange({
                                                 type: window.Blockly.Events.BLOCK_CHANGE,
                                                 name: 'SYMBOL_LIST',
-                                                blockId: block.id,
-                                                group: 'otp-reinit-resync',
-                                            });
-                                        });
-                                    window.Blockly?.derivWorkspace
-                                        .getAllBlocks()
-                                        .filter(b => b.type === 'trade_definition_contracttype')
-                                        .forEach(contract_type_block => {
-                                            contract_type_block.onchange({
-                                                type: window.Blockly.Events.BLOCK_CHANGE,
-                                                name: 'TRADETYPE_LIST',
                                                 blockId: block.id,
                                                 group: 'otp-reinit-resync',
                                             });
