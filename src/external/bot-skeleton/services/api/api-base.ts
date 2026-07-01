@@ -257,6 +257,27 @@ class APIBase {
                 if (!this.has_active_symbols) {
                     this.active_symbols_promise = this.getActiveSymbols();
                 }
+                // Set up balance subscription via OTP WebSocket for PKCE users
+                const otpWsUrl = localStorage.getItem('deriv_ws_url');
+                if (otpWsUrl) {
+                    try {
+                        const otpSocket = new WebSocket(otpWsUrl);
+                        otpSocket.onopen = () => {
+                            otpSocket.send(JSON.stringify({ balance: 1, subscribe: 1, account: 'all' }));
+                        };
+                        otpSocket.onmessage = (event) => {
+                            try {
+                                const data = JSON.parse(event.data);
+                                if (data.msg_type === 'balance' && !data.error) {
+                                    globalObserver.emit('balance.update', data.balance);
+                                }
+                            } catch (e) {}
+                        };
+                        otpSocket.onerror = () => { try { otpSocket.close(); } catch(e) {} };
+                    } catch(e) {
+                        console.warn('[api-base] OTP balance subscription failed:', e);
+                    }
+                }
                 return;
             }
             const { authorize, error } = await this.api.authorize(this.token);
