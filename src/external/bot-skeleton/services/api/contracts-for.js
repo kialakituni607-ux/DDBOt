@@ -201,6 +201,7 @@ export default class ContractsFor {
                 const response = await api_base.api.send({ contracts_for: symbol });
 
                 if (response.error) {
+                    console.error('[contracts-for] getContractsForFromApi error for symbol:', symbol, response.error);
                     return [];
                 }
 
