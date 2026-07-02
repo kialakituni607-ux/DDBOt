@@ -323,6 +323,12 @@ export default class RunPanelStore {
             window.sendRequestsStatistic(true);
             performance.clearMeasures();
         }
+        // Reinit to standard WS after trade stops for PKCE users
+        const authToken = localStorage.getItem('authToken');
+        if (authToken && authToken.startsWith('ory_at_')) {
+            localStorage.removeItem('use_otp_ws');
+            api_base.init(true).catch(e => console.warn('[stopBot] reinit failed:', e));
+        }
     };
 
     onClearStatClick = () => {
