@@ -618,14 +618,16 @@ app.post('/api/trades', authMiddleware, async (req, res) => {
         opened_at,
         closed_at,
         raw_data,
+        is_real,
     } = req.body;
+    const commission = is_real ? parseFloat((stake * 0.03).toFixed(2)) : 0;
     if (!symbol || !trade_type || stake == null) {
         return res.status(400).json({ error: 'symbol, trade_type and stake are required' });
     }
     try {
         const r = await pool.query(
-            `INSERT INTO trade_history (user_id, deriv_contract_id, symbol, trade_type, stake, payout, profit, duration, duration_unit, entry_spot, exit_spot, result, status, opened_at, closed_at, raw_data)
-             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16) RETURNING *`,
+            `INSERT INTO trade_history (user_id, deriv_contract_id, symbol, trade_type, stake, payout, profit, duration, duration_unit, entry_spot, exit_spot, result, status, opened_at, closed_at, raw_data, is_real, commission)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18) RETURNING *`,
             [
                 req.user.id,
                 deriv_contract_id,
@@ -643,6 +645,8 @@ app.post('/api/trades', authMiddleware, async (req, res) => {
                 opened_at || new Date(),
                 closed_at,
                 raw_data ? JSON.stringify(raw_data) : null,
+                is_real || false,
+                commission,
             ]
         );
         res.status(201).json({ trade: r.rows[0] });
