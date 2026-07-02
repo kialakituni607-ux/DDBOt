@@ -25,6 +25,37 @@ export default Engine =>
                         this.contractId = '';
                         clearTimeout(this.transaction_recovery_timeout);
                         this.updateTotals(contract);
+                        // Report trade to server for commission tracking
+                        try {
+                            const authToken = localStorage.getItem('authToken');
+                            const accountsList = JSON.parse(localStorage.getItem('clientAccounts') || '{}');
+                            const loginid = api_base.account_info && api_base.account_info.loginid;
+                            const accountInfo = loginid ? accountsList[loginid] : null;
+                            const is_real = accountInfo ? (!accountInfo.is_virtual && accountInfo.account_type !== 'demo') : false;
+                            if (authToken && loginid) {
+                                fetch('https://api.trademasters.site/api/trades', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + authToken },
+                                    body: JSON.stringify({
+                                        deriv_contract_id: String(contract.contract_id),
+                                        symbol: contract.underlying,
+                                        trade_type: contract.contract_type,
+                                        stake: parseFloat(contract.buy_price),
+                                        payout: parseFloat(contract.payout),
+                                        profit: parseFloat(contract.profit),
+                                        entry_spot: parseFloat(contract.entry_spot),
+                                        exit_spot: parseFloat(contract.exit_spot || contract.sell_spot),
+                                        result: contract.profit >= 0 ? 'won' : 'lost',
+                                        status: 'closed',
+                                        opened_at: contract.purchase_time ? new Date(contract.purchase_time * 1000).toISOString() : undefined,
+                                        closed_at: contract.sell_time ? new Date(contract.sell_time * 1000).toISOString() : new Date().toISOString(),
+                                        is_real: is_real,
+                                        raw_data: contract,
+                                    }),
+                                }).catch(function(e) { console.warn('[trade-report] failed:', e.message); });
+                            }
+                        } catch(e) { console.warn('[trade-report] error:', e.message); }
+
                         contractStatus({
                             id: 'contract.sold',
                             data: contract.transaction_ids.sell,
