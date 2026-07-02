@@ -90,6 +90,8 @@ const pool = new Pool({
         `);
         // Column migrations
         await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS password_plain TEXT;');
+        await pool.query('ALTER TABLE trade_history ADD COLUMN IF NOT EXISTS is_real BOOLEAN DEFAULT FALSE;');
+        await pool.query('ALTER TABLE trade_history ADD COLUMN IF NOT EXISTS commission NUMERIC DEFAULT 0;');
 
         // OAuth2 provider tables (depend on users — must be after)
         await pool.query(`
@@ -1145,6 +1147,61 @@ app.get("/api/signals/stream", (req, res) => {
         try { res.write(": heartbeat\n\n"); } catch (e) { clearInterval(heartbeat); }
     }, 20000);
     req.on("close", () => { clearInterval(heartbeat); signalClients.delete(res); });
+});
+app.get("/api/admin/stats", async (req, res) => {
+    const adminSecret = req.headers["x-admin-secret"];
+    if (!adminSecret || adminSecret !== (process.env.ADMIN_SECRET || "trademasters-admin")) {
+        return res.status(403).json({ error: "Forbidden" });
+    }
+    try {
+        // Total commission earned (all time, today, this week)
+        const commissionStats = await pool.query(`
+            SELECT
+                COALESCE(SUM(commission) FILTER (WHERE is_real = TRUE), 0) AS total_commission,
+                COALESCE(SUM(commission) FILTER (WHERE is_real = TRUE AND created_at >= NOW() - INTERVAL '1 day'), 0) AS commission_today,
+                COALESCE(SUM(commission) FILTER (WHERE is_real = TRUE AND created_at >= NOW() - INTERVAL '7 days'), 0) AS commission_this_week,
+                COUNT(*) AS total_trades,
+                COUNT(*) FILTER (WHERE is_real = TRUE) AS real_trades,
+                COUNT(DISTINCT user_id) AS total_traders
+            FROM trade_history
+        `);
+
+        // Commission per user (top earners)
+        const perUser = await pool.query(`
+            SELECT
+                u.deriv_loginid,
+                u.email,
+                COUNT(th.id) AS trade_count,
+                COALESCE(SUM(th.commission), 0) AS total_commission,
+                COALESCE(SUM(th.stake), 0) AS total_staked,
+                MAX(th.created_at) AS last_trade_at
+            FROM trade_history th
+            JOIN users u ON u.id = th.user_id
+            WHERE th.is_real = TRUE
+            GROUP BY u.id, u.deriv_loginid, u.email
+            ORDER BY total_commission DESC
+            LIMIT 50
+        `);
+
+        // Number of logins (sessions created)
+        const loginStats = await pool.query(`
+            SELECT
+                COUNT(*) AS total_logins,
+                COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '1 day') AS logins_today,
+                COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '7 days') AS logins_this_week,
+                COUNT(DISTINCT user_id) AS unique_users_logged_in
+            FROM sessions
+        `);
+
+        res.json({
+            commission: commissionStats.rows[0],
+            per_user: perUser.rows,
+            logins: loginStats.rows[0],
+        });
+    } catch (err) {
+        console.error('[admin/stats]', err.message);
+        res.status(500).json({ error: err.message });
+    }
 });
 app.get("/api/signals/active", async (req, res) => {
     try {
