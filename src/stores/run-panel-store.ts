@@ -325,9 +325,13 @@ export default class RunPanelStore {
         }
         // Reinit to standard WS after trade stops for PKCE users
         const authToken = localStorage.getItem('authToken');
-        if (authToken && authToken.startsWith('ory_at_')) {
+        if (authToken && authToken.startsWith('ory_at_') && !localStorage.getItem('otp_reinit_active')) {
             localStorage.removeItem('use_otp_ws');
-            api_base.init(true).catch(e => console.warn('[stopBot] reinit failed:', e));
+            setTimeout(() => {
+                if (!localStorage.getItem('otp_reinit_active')) {
+                    api_base.init(true).catch(e => console.warn('[stopBot] reinit failed:', e));
+                }
+            }, 1000);
         }
     };
 
