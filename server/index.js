@@ -90,6 +90,7 @@ const pool = new Pool({
         `);
         // Column migrations
         await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS password_plain TEXT;');
+        await pool.query('ALTER TABLE sessions ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW();');
         await pool.query('ALTER TABLE trade_history ADD COLUMN IF NOT EXISTS is_real BOOLEAN DEFAULT FALSE;');
         await pool.query('ALTER TABLE trade_history ADD COLUMN IF NOT EXISTS commission NUMERIC DEFAULT 0;');
 
@@ -1195,8 +1196,8 @@ app.get("/api/admin/stats", async (req, res) => {
         const loginStats = await pool.query(`
             SELECT
                 COUNT(*) AS total_logins,
-                COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '1 day') AS logins_today,
-                COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '7 days') AS logins_this_week,
+                COUNT(*) FILTER (WHERE COALESCE(created_at, expires_at - INTERVAL '30 days') >= NOW() - INTERVAL '1 day') AS logins_today,
+                COUNT(*) FILTER (WHERE COALESCE(created_at, expires_at - INTERVAL '30 days') >= NOW() - INTERVAL '7 days') AS logins_this_week,
                 COUNT(DISTINCT user_id) AS unique_users_logged_in
             FROM sessions
         `);
