@@ -20,6 +20,7 @@ import { initializeI18n, localize, TranslationProvider } from '@deriv-com/transl
 import CoreStoreProvider from './CoreStoreProvider';
 import './app-root.scss';
 import AdminSignals from '@/pages/admin/signals';
+import AdminStats from '@/pages/admin/stats';
 
 const Layout = lazy(() => import('../components/layout'));
 const AppRoot = lazy(() => import('./app-root'));
@@ -71,6 +72,7 @@ const router = createBrowserRouter(
             <Route path='analysis-tool' element={<AnalysisTool />} />
             <Route path='oauth/consent' element={<OAuthConsent />} />
             <Route path='admin/signals' element={<AdminSignals />} />
+            <Route path='admin/stats' element={<AdminStats />} />
         </Route>
     )
 );
