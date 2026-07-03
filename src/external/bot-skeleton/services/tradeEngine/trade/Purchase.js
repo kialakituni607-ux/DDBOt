@@ -27,6 +27,8 @@ export default Engine =>
                 });
 
                 this.contractId = buy.contract_id;
+                this.purchase_payout = buy.payout ? parseFloat(buy.payout) : 0;
+                this.purchase_stake = buy.buy_price ? parseFloat(buy.buy_price) : 0;
                 this.store.dispatch(purchaseSuccessful());
                 api_base.api.send({ proposal_open_contract: 1, contract_id: buy.contract_id, subscribe: 1 });
                 const poll = setInterval(() => {

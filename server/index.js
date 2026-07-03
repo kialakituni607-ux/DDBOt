@@ -620,7 +620,11 @@ app.post('/api/trades', authMiddleware, async (req, res) => {
         raw_data,
         is_real,
     } = req.body;
-    const commission = is_real ? parseFloat((stake * 0.03).toFixed(2)) : 0;
+    const MARKUP_PERCENT = parseFloat(process.env.MARKUP_PERCENT || '0.03');
+    const trade_type_lower = (trade_type || '').toLowerCase();
+    const is_multiplier_or_accumulator = trade_type_lower.includes('multip') || trade_type_lower.includes('accum');
+    const commission_base = is_multiplier_or_accumulator ? parseFloat(stake) : (parseFloat(payout) || parseFloat(stake));
+    const commission = is_real ? parseFloat((commission_base * MARKUP_PERCENT).toFixed(4)) : 0;
     if (!symbol || !trade_type || stake == null) {
         return res.status(400).json({ error: 'symbol, trade_type and stake are required' });
     }
