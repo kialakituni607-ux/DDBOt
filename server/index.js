@@ -1167,8 +1167,8 @@ app.get("/api/admin/stats", async (req, res) => {
         const commissionStats = await pool.query(`
             SELECT
                 COALESCE(SUM(commission) FILTER (WHERE is_real = TRUE), 0) AS total_commission,
-                COALESCE(SUM(commission) FILTER (WHERE is_real = TRUE AND created_at >= NOW() - INTERVAL '1 day'), 0) AS commission_today,
-                COALESCE(SUM(commission) FILTER (WHERE is_real = TRUE AND created_at >= NOW() - INTERVAL '7 days'), 0) AS commission_this_week,
+                COALESCE(SUM(commission) FILTER (WHERE is_real = TRUE AND opened_at >= NOW() - INTERVAL '1 day'), 0) AS commission_today,
+                COALESCE(SUM(commission) FILTER (WHERE is_real = TRUE AND opened_at >= NOW() - INTERVAL '7 days'), 0) AS commission_this_week,
                 COUNT(*) AS total_trades,
                 COUNT(*) FILTER (WHERE is_real = TRUE) AS real_trades,
                 COUNT(DISTINCT user_id) AS total_traders
@@ -1183,7 +1183,7 @@ app.get("/api/admin/stats", async (req, res) => {
                 COUNT(th.id) AS trade_count,
                 COALESCE(SUM(th.commission), 0) AS total_commission,
                 COALESCE(SUM(th.stake), 0) AS total_staked,
-                MAX(th.created_at) AS last_trade_at
+                MAX(th.opened_at) AS last_trade_at
             FROM trade_history th
             JOIN users u ON u.id = th.user_id
             WHERE th.is_real = TRUE
