@@ -1196,8 +1196,8 @@ app.get("/api/admin/stats", async (req, res) => {
         const loginStats = await pool.query(`
             SELECT
                 COUNT(*) AS total_logins,
-                COUNT(*) FILTER (WHERE COALESCE(created_at, expires_at - INTERVAL '30 days') >= NOW() - INTERVAL '1 day') AS logins_today,
-                COUNT(*) FILTER (WHERE COALESCE(created_at, expires_at - INTERVAL '30 days') >= NOW() - INTERVAL '7 days') AS logins_this_week,
+                COUNT(*) FILTER (WHERE expires_at >= NOW() - INTERVAL '1 day') AS logins_today,
+                COUNT(*) FILTER (WHERE expires_at >= NOW() - INTERVAL '7 days') AS logins_this_week,
                 COUNT(DISTINCT user_id) AS unique_users_logged_in
             FROM sessions
         `);
