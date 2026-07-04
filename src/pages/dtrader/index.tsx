@@ -28,7 +28,8 @@ const TRADE_TYPES = [
     { label: 'Vanillas', choices: ['Call', 'Put'], hasDigit: false },
     { label: 'Turbos', choices: ['Long', 'Short'], hasDigit: false },
 ];
-const CONTRACT_TYPE_MAP = {
+
+const CM: any = {
     'Rise/Fall': { Rise: 'CALL', Fall: 'PUT' },
     'Higher/Lower': { Higher: 'CALL', Lower: 'PUT' },
     'Matches/Differs': { Matches: 'DIGITMATCH', Differs: 'DIGITDIFF' },
@@ -41,7 +42,7 @@ const CONTRACT_TYPE_MAP = {
     'Turbos': { Long: 'TURBOSLONG', Short: 'TURBOSSHORT' },
 };
 
-const DTrader = observer(() => {
+const DTrader = () => {
     const [symbol, setSymbol] = React.useState('1HZ100V');
     const [symbolLabel, setSymbolLabel] = React.useState('Volatility 100 (1s) Index');
     const [activeTab, setActiveTab] = React.useState(0);
@@ -62,10 +63,9 @@ const DTrader = observer(() => {
     const proposalId = React.useRef(null);
 
     const drawChart = React.useCallback((prices) => {
-        if (!svgRef.current || prices.length < 2) return;
         const svg = svgRef.current;
         const w = svg.clientWidth || 700;
-        const h = svg.clientHeight || 300;
+        const h = svg.clientHeight || 400;
         const min = Math.min(...prices) - 0.5;
         const max = Math.max(...prices) + 0.5;
         const xs = w / (prices.length - 1);
@@ -75,11 +75,11 @@ const DTrader = observer(() => {
         const ly = h - (prices[prices.length - 1] - min) * ys;
         const up = prices[prices.length - 1] >= prices[prices.length - 2];
         const col = up ? '#4cd964' : '#e74c3c';
-        svg.innerHTML = '<defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="' + col + '" stop-opacity="0.2"/><stop offset="100%" stop-color="' + col + '" stop-opacity="0"/></linearGradient></defs><path d="' + path + ' L' + lx + ',' + h + ' L0,' + h + ' Z" fill="url(#g)"/><path d="' + path + '" fill="none" stroke="' + col + '" stroke-width="2"/><circle cx="' + lx + '" cy="' + ly + '" r="4" fill="' + col + '"/>';
+        svg.innerHTML = '<defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="' + col + '" stop-opacity="0.25"/><stop offset="100%" stop-color="' + col + '" stop-opacity="0"/></linearGradient></defs><path d="' + path + ' L' + lx + ',' + h + ' L0,' + h + ' Z" fill="url(#g)"/><path d="' + path + '" fill="none" stroke="' + col + '" stroke-width="1.5"/><circle cx="' + lx + '" cy="' + ly + '" r="4" fill="' + col + '"/>';
     }, []);
 
     const subscribeTicks = React.useCallback((sym) => {
-        if (tickSub.current) { try { tickSub.current.unsubscribe(); } catch(e) {} }
+        if (tickSub.current) tickSub.current.unsubscribe && tickSub.current.unsubscribe();
         priceHistory.current = [];
         setDigitStats(Array(10).fill(0));
         const digits = [];
@@ -101,24 +101,15 @@ const DTrader = observer(() => {
     }, [drawChart]);
 
     const getProposal = React.useCallback(() => {
-        if (proposalSub.current) { try { proposalSub.current.unsubscribe(); } catch(e) {} }
+        if (proposalSub.current) proposalSub.current.unsubscribe && proposalSub.current.unsubscribe();
         proposalId.current = null;
         setPayout(null);
         const tradeType = TRADE_TYPES[activeTab];
         const choice = tradeType.choices[activeChoice];
-        const contractType = CONTRACT_TYPE_MAP[tradeType.label] && CONTRACT_TYPE_MAP[tradeType.label][choice];
-        if (!contractType) return;
-        const proposal = {
-            proposal: 1,
-            subscribe: 1,
-            amount: stake,
-            basis: 'stake',
-            contract_type: contractType,
-            currency: 'USD',
-            duration: duration,
-            duration_unit: durationUnit,
-            symbol: symbol,
-        };
+        const contractType = CM[tradeType.label] && CM[tradeType.label][choice];
+        const isOTP = localStorage.getItem('deriv_ws_url');
+        const proposal = { proposal: 1, subscribe: 1, amount: stake, basis: 'stake', contract_type: contractType, currency: 'USD', duration: duration, duration_unit: durationUnit };
+        if (isOTP) { proposal.underlying_symbol = symbol; } else { proposal.symbol = symbol; }
         if (tradeType.hasDigit) { proposal.barrier = digit; }
         proposalSub.current = api_base.api.onMessage().subscribe(({ data }) => {
             if (data.msg_type === 'proposal' && data.proposal) {
@@ -133,14 +124,12 @@ const DTrader = observer(() => {
     React.useEffect(() => { if (api_base.api) getProposal(); }, [activeTab, activeChoice, symbol, stake, duration, durationUnit, digit]);
 
     const handleBuy = async () => {
-        if (!proposalId.current) return;
-        setBuying(true);
-        setMessage('');
+        setBuying(true); setMessage('');
         try {
             const res = await api_base.api.send({ buy: proposalId.current, price: stake });
-            if (res.buy) { setMessage('Bought! Contract ID: ' + res.buy.contract_id); }
+            if (res.buy) { setMessage('Bought! Contract: ' + res.buy.contract_id); }
             else if (res.error) { setMessage('Error: ' + res.error.message); }
-        } catch (e) { setMessage('Error: ' + e.message); }
+        } catch(e) { setMessage('Error: ' + e.message); }
         setBuying(false);
         setTimeout(() => setMessage(''), 5000);
     };
@@ -148,79 +137,36 @@ const DTrader = observer(() => {
     const tradeType = TRADE_TYPES[activeTab];
 
     return (
-        <div className="dtrader-page">
-            <div className="dtrader-tabs">
+        <div className='dtrader-page'>
+            <div className='dtrader-tabs'>
                 {TRADE_TYPES.map((t, i) => (
-                    <div key={t.label} className={"dtrader-tab" + (activeTab === i ? " active" : "")} onClick={() => { setActiveTab(i); setActiveChoice(0); }}>
-                        {t.label}
-                    </div>
+                    <div key={t.label} className={'dtrader-tab' + (activeTab === i ? ' active' : '')} onClick={() => { setActiveTab(i); setActiveChoice(0); }}>{t.label}</div>
                 ))}
             </div>
-            <div className="dtrader-body">
-                <div className="dtrader-left">
-                    <div className="dtrader-market-bar">
-                        <div>
-                            <div className="dtrader-mname">{symbolLabel}</div>
-                            <div className="dtrader-mprice">{price ? price.toFixed(2) : '---'}</div>
-                        </div>
-                        <select className="dtrader-select" value={symbol} onChange={e => { setSymbol(e.target.value); setSymbolLabel(SYMBOLS.find(s => s.value === e.target.value)?.label ?? ''); }}>
+            <div className='dtrader-body'>
+                <div className='dtrader-left'>
+                    <div className='dtrader-market-bar'>
+                        <div><div className='dtrader-mname'>{symbolLabel}</div><div className='dtrader-mprice'>{price ? price.toFixed(2) : '---'}</div></div>
+                        <select className='dtrader-select' value={symbol} onChange={e => { setSymbol(e.target.value); setSymbolLabel(SYMBOLS.find(s => s.value === e.target.value)?.label ?? ''); }}>
                             {SYMBOLS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
                         </select>
                     </div>
-                    <div className="dtrader-chart-area">
-                        <svg ref={svgRef} className="dtrader-svg" />
-                        {price && <div className="dtrader-ptag">{price.toFixed(2)}</div>}
-                    </div>
+                    <div className='dtrader-chart-area'><svg ref={svgRef} className='dtrader-svg' />{price && <div className='dtrader-ptag'>{price.toFixed(2)}</div>}</div>
                 </div>
-                <div className="dtrader-form">
-                    <div className="dtrader-form-title">How to trade {tradeType.label}?</div>
-                    <div className={"dtrader-choices" + (tradeType.choices.length === 1 ? " single" : "")}>
-                        {tradeType.choices.map((c, i) => (
-                            <div key={c} className={"dtrader-choice" + (activeChoice === i ? " active" : "")} onClick={() => setActiveChoice(i)}>{c}</div>
-                        ))}
+                <div className='dtrader-form'>
+                    <div className='dtrader-form-title'>How to trade {tradeType.label}?</div>
+                    <div className={'dtrader-choices' + (tradeType.choices.length === 1 ? ' single' : '')}>
+                        {tradeType.choices.map((ch, i) => (<div key={ch} className={'dtrader-choice' + (activeChoice === i ? ' active' : '')} onClick={() => setActiveChoice(i)}>{ch}</div>))}
                     </div>
-                    {tradeType.hasDigit && (
-                        <div className="dtrader-digits">
-                            <div className="dtrader-digits-label">Last digit prediction</div>
-                            <div className="dtrader-digit-grid">
-                                {Array.from({ length: 10 }, (_, i) => (
-                                    <div key={i} className={"dtrader-digit" + (digit === i ? " active" : "")} onClick={() => setDigit(i)}>
-                                        <span className="dtrader-digit-num">{i}</span>
-                                        <span className="dtrader-digit-pct">{(digitStats[i] || 0) + '%'}</span>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    )}
-                    <div className="dtrader-field">
-                        <div className="dtrader-field-label">Duration</div>
-                        <div className="dtrader-field-row">
-                            <input className="dtrader-input" type="number" value={duration} min={1} onChange={e => setDuration(Number(e.target.value))} style={{width: 60}} />
-                            <select className="dtrader-input" value={durationUnit} onChange={e => setDurationUnit(e.target.value)}>
-                                <option value="t">ticks</option>
-                                <option value="s">seconds</option>
-                                <option value="m">minutes</option>
-                                <option value="h">hours</option>
-                                <option value="d">days</option>
-                            </select>
-                        </div>
-                    </div>
-                    <div className="dtrader-field">
-                        <div className="dtrader-field-label">Stake</div>
-                        <div className="dtrader-field-row">
-                            <input className="dtrader-input" type="number" value={stake} min={0.35} step={0.01} onChange={e => setStake(Number(e.target.value))} />
-                            <span className="dtrader-currency">USD</span>
-                        </div>
-                    </div>
-                    {message && <div className="dtrader-message">{message}</div>}
-                    <button className="dtrader-buy-btn" onClick={handleBuy} disabled={buying || !proposalId.current}>
-                        <div>{buying ? 'Buying...' : 'Buy'}</div>
-                        <div className="dtrader-buy-sub">Payout {payout ? payout.toFixed(2) : '---'} USD</div>
-                    </button>
+                    {tradeType.hasDigit && <div className='dtrader-digits'><div className='dtrader-digits-label'>Last digit prediction</div><div className='dtrader-digit-grid'>{Array.from({length:10},(_,i)=>(<div key={i} className={'dtrader-digit'+(digit===i?' active':'')} onClick={()=>setDigit(i)}><span className='dtrader-digit-num'>{i}</span><span className={'dtrader-digit-pct'+(digitStats[i]&&digitStats[i]===Math.min(...digitStats.filter(Boolean))?' hot':'')}>{(digitStats[i]||0)+'%'}</span></div>))}</div></div>}
+                    <div className='dtrader-field'><div className='dtrader-field-label'>Duration</div><div className='dtrader-field-row'><input className='dtrader-input' type='number' value={duration} min={1} onChange={e=>setDuration(Number(e.target.value))} style={{width:60}} /><select className='dtrader-input' value={durationUnit} onChange={e=>setDurationUnit(e.target.value)}><option value='t'>ticks</option><option value='s'>seconds</option><option value='m'>minutes</option><option value='h'>hours</option><option value='d'>days</option></select></div></div>
+                    <div className='dtrader-field'><div className='dtrader-field-label'>Stake</div><div className='dtrader-field-row'><input className='dtrader-input' type='number' value={stake} min={0.35} step={0.01} onChange={e=>setStake(Number(e.target.value))} /><span className='dtrader-currency'>USD</span></div></div>
+                    {message && <div className='dtrader-message'>{message}</div>}
+                    <button className='dtrader-buy-btn' onClick={handleBuy} disabled={buying || !proposalId.current}><div>{buying ? 'Buying...' : 'Buy'}</div><div className='dtrader-buy-sub'>Payout {payout ? payout.toFixed(2) : '---'} USD</div></button>
                 </div>
             </div>
         </div>
     );
-});
+};
 
 export default DTrader;
