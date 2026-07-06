@@ -192,6 +192,9 @@ const CoreStoreProvider: React.FC<{ children: React.ReactNode }> = observer(({ c
                 const balance = data.balance;
                 if (balance?.accounts) {
                     client.setAllAccountsBalance(balance);
+                    try {
+                        localStorage.setItem('all_accounts_balance', JSON.stringify({ ...balance, _ts: Date.now() }));
+                    } catch (e) { /* ignore storage errors */ }
                 } else if (balance?.loginid) {
                     if (!client?.all_accounts_balance?.accounts || !balance?.loginid) return;
                     const accounts = { ...client.all_accounts_balance.accounts };
@@ -206,6 +209,9 @@ const CoreStoreProvider: React.FC<{ children: React.ReactNode }> = observer(({ c
                         },
                     };
                     client.setAllAccountsBalance(updatedAccounts);
+                    try {
+                        localStorage.setItem('all_accounts_balance', JSON.stringify({ ...updatedAccounts, _ts: Date.now() }));
+                    } catch (e) { /* ignore storage errors */ }
                 }
             }
         },
@@ -219,12 +225,19 @@ const CoreStoreProvider: React.FC<{ children: React.ReactNode }> = observer(({ c
             if (!b) return;
             if (b.accounts) {
                 client.setAllAccountsBalance(b as never);
+                try {
+                    localStorage.setItem('all_accounts_balance', JSON.stringify({ ...b, _ts: Date.now() }));
+                } catch (e) { /* ignore storage errors */ }
             } else if (b.loginid && client.all_accounts_balance?.accounts) {
                 const accounts = { ...client.all_accounts_balance.accounts };
                 const current = { ...(accounts[b.loginid] || {}) } as { balance?: number };
                 current.balance = b.balance;
                 accounts[b.loginid] = current as never;
-                client.setAllAccountsBalance({ ...client.all_accounts_balance, accounts } as never);
+                const updated = { ...client.all_accounts_balance, accounts };
+                client.setAllAccountsBalance(updated as never);
+                try {
+                    localStorage.setItem('all_accounts_balance', JSON.stringify({ ...updated, _ts: Date.now() }));
+                } catch (e) { /* ignore storage errors */ }
             }
         };
         globalObserver.register('balance.update', handler);

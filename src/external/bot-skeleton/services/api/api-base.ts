@@ -127,7 +127,7 @@ class APIBase {
                                     ...stored.accounts[incoming.loginid],
                                     balance: incoming.balance,
                                 };
-                                localStorage.setItem('all_accounts_balance', JSON.stringify(stored));
+                                localStorage.setItem('all_accounts_balance', JSON.stringify({ ...stored, _ts: Date.now() }));
                             }
                         } catch (e) {
                             console.error('[api-base] failed to persist live balance update:', e);
