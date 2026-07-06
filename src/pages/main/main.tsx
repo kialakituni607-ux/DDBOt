@@ -3,6 +3,7 @@ import classNames from 'classnames';
 import { observer } from 'mobx-react-lite';
 import { useLocation, useNavigate } from 'react-router-dom';
 import ChunkLoader from '@/components/loader/chunk-loader';
+import DTrader from '@/pages/dtrader';
 import { generateOAuthURL } from '@/components/shared';
 import DesktopWrapper from '@/components/shared_ui/desktop-wrapper';
 import Dialog from '@/components/shared_ui/dialog';
@@ -423,8 +424,8 @@ const AppWrapper = observer(() => {
                                 }
                                 id='id-dtrader'
                             >
-                                <div style={{width:'100%',height:'calc(100vh - 120px)'}}>
-                                    <iframe src='https://dtrader.deriv.com' style={{width:'100%',height:'100%',border:'none'}} title='Deriv Trader' allow='camera; microphone' />
+                                <div style={{width:'100%',height:'calc(100vh - 120px)', overflow: 'auto'}}>
+                                    <DTrader />
                                 </div>
                             </div>
                             <div
