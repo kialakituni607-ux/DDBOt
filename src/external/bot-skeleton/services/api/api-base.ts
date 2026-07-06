@@ -268,21 +268,27 @@ class APIBase {
                     });
                     const otpData = await otpRes.json();
                     const otpWsUrl = otpData?.data?.url;
+                    console.log('[api-base] OTP fetch response:', otpData);
                     if (otpWsUrl) {
+                        console.log('[api-base] Fresh OTP url obtained, opening socket:', otpWsUrl.slice(0, 60));
                         localStorage.setItem('deriv_ws_url', otpWsUrl);
                         const otpSocket = new WebSocket(otpWsUrl);
                         otpSocket.onopen = () => {
+                            console.log('[api-base] OTP socket OPEN, sending balance subscribe');
                             otpSocket.send(JSON.stringify({ balance: 1, subscribe: 1, account: 'all' }));
                         };
                         otpSocket.onmessage = (event) => {
                             try {
                                 const data = JSON.parse(event.data);
+                                console.log('[api-base] OTP socket message:', data.msg_type, data.error || data.balance);
                                 if (data.msg_type === 'balance' && !data.error) {
                                     globalObserver.emit('balance.update', data.balance);
                                 }
                             } catch (e) {}
                         };
-                        otpSocket.onerror = () => { try { otpSocket.close(); } catch(e) {} };
+                        otpSocket.onerror = (err) => { console.log('[api-base] OTP socket ERROR', err); try { otpSocket.close(); } catch(e) {} };
+                    } else {
+                        console.log('[api-base] No OTP url returned from /api/auth/otp');
                     }
                 } catch(e) {
                     console.warn('[api-base] OTP balance subscription failed:', e);
