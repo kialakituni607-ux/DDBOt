@@ -98,6 +98,19 @@ const DTrader = () => {
             }
         });
         api_base.api.send({ ticks: sym, subscribe: 1 });
+        api_base.api.send({ ticks_history: sym, count: 1000, end: 'latest', style: 'ticks' }).then((res) => {
+            if (res && res.history && res.history.prices) {
+                const prices = res.history.prices;
+                prices.forEach((p) => {
+                    const d = parseInt(p.toString().split('.').pop().slice(-1));
+                    digits.push(d);
+                });
+                if (digits.length > 1000) digits.splice(0, digits.length - 1000);
+                const stats = Array(10).fill(0);
+                digits.forEach(d => stats[d]++);
+                setDigitStats(stats.map(s => parseFloat(((s / digits.length) * 100).toFixed(1))));
+            }
+        }).catch(() => {});
     }, [drawChart]);
 
     const getProposal = React.useCallback(() => {
