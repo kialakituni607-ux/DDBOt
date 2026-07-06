@@ -257,10 +257,19 @@ class APIBase {
                 if (!this.has_active_symbols) {
                     this.active_symbols_promise = this.getActiveSymbols();
                 }
-                // Set up balance subscription via OTP WebSocket for PKCE users
-                const otpWsUrl = localStorage.getItem('deriv_ws_url');
-                if (otpWsUrl) {
-                    try {
+                // Set up balance subscription via OTP WebSocket for PKCE users.
+                // Always mint a FRESH OTP url instead of reusing a possibly-expired
+                // cached one from localStorage, since OTP tokens are single-use/short-lived.
+                try {
+                    const otpRes = await fetch('/api/auth/otp', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ access_token: this.token, account_id: this.account_id }),
+                    });
+                    const otpData = await otpRes.json();
+                    const otpWsUrl = otpData?.data?.url;
+                    if (otpWsUrl) {
+                        localStorage.setItem('deriv_ws_url', otpWsUrl);
                         const otpSocket = new WebSocket(otpWsUrl);
                         otpSocket.onopen = () => {
                             otpSocket.send(JSON.stringify({ balance: 1, subscribe: 1, account: 'all' }));
@@ -274,9 +283,9 @@ class APIBase {
                             } catch (e) {}
                         };
                         otpSocket.onerror = () => { try { otpSocket.close(); } catch(e) {} };
-                    } catch(e) {
-                        console.warn('[api-base] OTP balance subscription failed:', e);
                     }
+                } catch(e) {
+                    console.warn('[api-base] OTP balance subscription failed:', e);
                 }
                 return;
             }
