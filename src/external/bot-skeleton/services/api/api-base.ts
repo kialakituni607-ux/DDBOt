@@ -121,7 +121,7 @@ class APIBase {
                             const incoming = data.balance as { accounts?: Record<string, unknown>; loginid?: string; balance?: number };
                             const stored = JSON.parse(localStorage.getItem('all_accounts_balance') || '{}');
                             if (incoming?.accounts) {
-                                localStorage.setItem('all_accounts_balance', JSON.stringify(incoming));
+                                localStorage.setItem('all_accounts_balance', JSON.stringify({ ...incoming, _ts: Date.now() }));
                             } else if (incoming?.loginid && stored?.accounts) {
                                 stored.accounts[incoming.loginid] = {
                                     ...stored.accounts[incoming.loginid],

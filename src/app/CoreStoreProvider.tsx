@@ -61,7 +61,13 @@ const CoreStoreProvider: React.FC<{ children: React.ReactNode }> = observer(({ c
             try {
                 const storedBalance = JSON.parse(localStorage.getItem('all_accounts_balance') || '{}');
                 if (storedBalance.accounts) {
-                    client.setAllAccountsBalance(storedBalance);
+                    // Only use cached balance if it's less than 5 minutes old
+                    const age = Date.now() - (storedBalance._ts || 0);
+                    if (age < 5 * 60 * 1000) {
+                        client.setAllAccountsBalance(storedBalance);
+                    } else {
+                        localStorage.removeItem('all_accounts_balance');
+                    }
                 }
             } catch(e) { console.error('Balance init failed:', e); }
         }
