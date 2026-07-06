@@ -65,6 +65,18 @@ const CoreStoreProvider: React.FC<{ children: React.ReactNode }> = observer(({ c
                 }
             } catch(e) { console.error('Balance init failed:', e); }
         }
+        // Cross-tab balance sync: when another tab writes a fresh balance, pick it up immediately
+        const onStorage = (e: StorageEvent) => {
+            if (e.key !== 'all_accounts_balance' || !e.newValue) return;
+            try {
+                const updated = JSON.parse(e.newValue);
+                if (updated.accounts) {
+                    client.setAllAccountsBalance(updated);
+                }
+            } catch(e) { /* ignore */ }
+        };
+        window.addEventListener('storage', onStorage);
+        return () => window.removeEventListener('storage', onStorage);
     }, [client]);
 
     const activeAccount = useMemo(
