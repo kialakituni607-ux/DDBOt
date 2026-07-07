@@ -131,6 +131,11 @@ function App() {
 
             // Handle real account with valid currency
             if (account_currency?.toUpperCase() !== 'DEMO' && is_valid_currency) {
+                const existing_loginid = localStorage.getItem('active_loginid');
+                const existing_account = existing_loginid && parsed_client_accounts[existing_loginid];
+                if (existing_account && !existing_loginid.startsWith('VR') && 'currency' in existing_account && existing_account.currency.toUpperCase() === account_currency?.toUpperCase()) {
+                    return;
+                }
                 const real_account = Object.entries(parsed_client_accounts).find(
                     ([loginid, account]) =>
                         !loginid.startsWith('VR') && account.currency.toUpperCase() === account_currency?.toUpperCase()
