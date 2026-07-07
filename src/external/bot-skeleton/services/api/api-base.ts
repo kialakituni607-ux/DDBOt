@@ -242,7 +242,12 @@ class APIBase {
         const token = V2GetActiveToken();
         if (!token || !this.api) return;
         this.token = token;
-        this.account_id = V2GetActiveClientId() ?? '';
+        // NOTE: V2GetActiveClientId() is unreliable for OAuth2/Bearer users, since a single
+        // access token can map to multiple accounts in 'accountsList' (all sharing the same token
+        // value) — it always resolves to whichever account key happens to come first, regardless
+        // of which account is actually selected. Use 'active_loginid' directly instead, which is
+        // correctly maintained by every account-switch handler in the app.
+        this.account_id = localStorage.getItem('active_loginid') || V2GetActiveClientId() || '';
         setIsAuthorized(false);
         // Hard fallback: even if the WebSocket never responds, flip isAuthorizing
         // to false after 4 seconds so the header doesn't stay stuck on the skeleton.
