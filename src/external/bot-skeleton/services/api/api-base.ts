@@ -275,7 +275,9 @@ class APIBase {
                         const otpSocket = new WebSocket(otpWsUrl);
                         otpSocket.onopen = () => {
                             console.log('[api-base] OTP socket OPEN, sending balance subscribe');
-                            otpSocket.send(JSON.stringify({ balance: 1, subscribe: 1, account: 'all' }));
+                            // Note: this OTP-scoped endpoint rejects the 'account' property
+                            // (it's already scoped to a single account via the OTP token itself)
+                            otpSocket.send(JSON.stringify({ balance: 1, subscribe: 1 }));
                         };
                         otpSocket.onmessage = (event) => {
                             try {
