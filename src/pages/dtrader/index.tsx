@@ -125,7 +125,7 @@ const DTrader = () => {
         if (isOTP) { proposal.underlying_symbol = symbol; } else { proposal.symbol = symbol; }
         if (tradeType.hasDigit) { proposal.barrier = digit; }
         proposalSub.current = api_base.api.onMessage().subscribe(({ data }) => {
-            if (data.msg_type === 'proposal' && data.proposal) {
+            if (data.msg_type === 'proposal' && data.proposal) { console.log('PROPOSAL RECEIVED', data.proposal);
                 setPayout(parseFloat(data.proposal.payout));
                 proposalId.current = data.proposal.id;
             }
