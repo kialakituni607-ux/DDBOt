@@ -447,6 +447,27 @@ class APIBase {
             clearTimeout(i);
         });
     }
+    sendOTP(request) {
+        return new Promise((resolve, reject) => {
+            if (!this.otp_socket || this.otp_socket.readyState !== WebSocket.OPEN) {
+                reject(new Error('OTP socket not connected'));
+                return;
+            }
+            const req_id = Math.floor(Math.random() * 1000000);
+            const payload = { ...request, req_id };
+            const handleMessage = (event) => {
+                try {
+                    const data = JSON.parse(event.data);
+                    if (data.req_id === req_id) {
+                        this.otp_socket.removeEventListener('message', handleMessage);
+                        resolve(data);
+                    }
+                } catch (e) {}
+            };
+            this.otp_socket.addEventListener('message', handleMessage);
+            this.otp_socket.send(JSON.stringify(payload));
+        });
+    }
 }
 
 export const api_base = new APIBase();
