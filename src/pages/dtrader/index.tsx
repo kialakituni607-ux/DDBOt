@@ -182,4 +182,4 @@ const DTrader = () => {
     );
 };
 
-export default DTrader;
+export default observer(DTrader);
