@@ -120,12 +120,11 @@ const DTrader = () => {
         const tradeType = TRADE_TYPES[activeTab];
         const choice = tradeType.choices[activeChoice];
         const contractType = CM[tradeType.label] && CM[tradeType.label][choice];
-        const isOTP = localStorage.getItem('deriv_ws_url');
         const proposal = { proposal: 1, subscribe: 1, amount: stake, basis: 'stake', contract_type: contractType, currency: 'USD', duration: duration, duration_unit: durationUnit };
-        if (isOTP) { proposal.underlying_symbol = symbol; } else { proposal.symbol = symbol; }
+        proposal.symbol = symbol;
         if (tradeType.hasDigit) { proposal.barrier = digit; }
         proposalSub.current = api_base.api.onMessage().subscribe(({ data }) => {
-            if (data.msg_type === 'proposal' && data.proposal) { console.log('PROPOSAL RECEIVED', data.proposal);
+            if (data.msg_type === 'proposal' && data.proposal) {
                 setPayout(parseFloat(data.proposal.payout));
                 proposalId.current = data.proposal.id;
             }
