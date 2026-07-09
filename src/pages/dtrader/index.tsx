@@ -138,7 +138,7 @@ const DTrader = () => {
     const handleBuy = async () => {
         setBuying(true); setMessage('');
         try {
-            const res = await api_base.api.send({ buy: proposalId.current, price: stake });
+            const res = await api_base.api.send({ buy: proposalId.current, price: stake }); console.log('BUY RESPONSE', res);
             if (res.buy) { setMessage('Bought! Contract: ' + res.buy.contract_id); }
             else if (res.error) { setMessage('Error: ' + res.error.message); }
         } catch(e) { setMessage('Error: ' + e.message); }
