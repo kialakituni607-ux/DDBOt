@@ -136,7 +136,7 @@ const DTrader = () => {
     React.useEffect(() => { if (api_base.api) getProposal(); }, [activeTab, activeChoice, symbol, stake, duration, durationUnit, digit]);
 
     const handleBuy = async () => {
-        setBuying(true); setMessage('');
+        console.log('BUY CLICKED'); setBuying(true); setMessage('');
         try {
             const res = await api_base.api.send({ buy: proposalId.current, price: stake }); console.log('BUY RESPONSE', res);
             if (res.buy) { setMessage('Bought! Contract: ' + res.buy.contract_id); }
