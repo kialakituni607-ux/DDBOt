@@ -89,7 +89,7 @@ const DTrader = () => {
                 setPrice(p);
                 priceHistory.current = [...priceHistory.current.slice(-79), p];
                 drawChart(priceHistory.current);
-                const lastDigit = parseInt(data.tick.quote.toString().slice(-1));
+                const lastDigit = parseInt(Number(data.tick.quote).toFixed(api_base.pip_sizes && api_base.pip_sizes[sym] !== undefined ? api_base.pip_sizes[sym] : 2).slice(-1));
                 digits.push(lastDigit);
                 if (digits.length > 1000) digits.shift();
                 const stats = Array(10).fill(0);
@@ -102,7 +102,7 @@ const DTrader = () => {
             if (res && res.history && res.history.prices) {
                 const prices = res.history.prices;
                 prices.forEach((p) => {
-                    const d = parseInt(p.toString().split('.').pop().slice(-1));
+                    const d = parseInt(Number(p).toFixed(api_base.pip_sizes && api_base.pip_sizes[sym] !== undefined ? api_base.pip_sizes[sym] : 2).slice(-1));
                     digits.push(d);
                 });
                 if (digits.length > 1000) digits.splice(0, digits.length - 1000);
