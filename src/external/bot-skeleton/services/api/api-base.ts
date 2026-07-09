@@ -278,6 +278,7 @@ class APIBase {
                         console.log('[api-base] Fresh OTP url obtained, opening socket:', otpWsUrl.slice(0, 60));
                         localStorage.setItem('deriv_ws_url', otpWsUrl);
                         const otpSocket = new WebSocket(otpWsUrl);
+                        this.otp_socket = otpSocket;
                         otpSocket.onopen = () => {
                             console.log('[api-base] OTP socket OPEN, sending balance subscribe');
                             // Note: this OTP-scoped endpoint rejects the 'account' property
