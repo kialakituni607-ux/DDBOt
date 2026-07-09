@@ -1,11 +1,11 @@
 .dtrader-page {
     display: flex;
     flex-direction: column;
-    height: calc(100vh - 60px);
+    min-height: calc(100vh - 60px);
     background: #0e0e1e;
     color: #fff;
     font-family: sans-serif;
-    overflow: hidden;
+    overflow: auto;
 }
 .dtrader-tabs {
     display: flex;
