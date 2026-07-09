@@ -141,7 +141,7 @@ const DTrader = () => {
             const res = await api_base.api.send({ buy: proposalId.current, price: stake }); console.log('BUY RESPONSE', res);
             if (res.buy) { setMessage('Bought! Contract: ' + res.buy.contract_id); }
             else if (res.error) { setMessage('Error: ' + res.error.message); }
-        } catch(e) { setMessage('Error: ' + e.message); }
+        } catch(e) { console.log('BUY ERROR RAW', e); setMessage('Error: ' + e.message); }
         setBuying(false);
         setTimeout(() => setMessage(''), 5000);
     };
