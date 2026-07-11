@@ -468,6 +468,26 @@ class APIBase {
             this.otp_socket.send(JSON.stringify(payload));
         });
     }
+    subscribeOTP(request, onMessage) {
+        if (!this.otp_socket || this.otp_socket.readyState !== WebSocket.OPEN) {
+            return () => {};
+        }
+        const req_id = Math.floor(Math.random() * 1000000);
+        const payload = { ...request, req_id };
+        const handler = (event) => {
+            try {
+                const data = JSON.parse(event.data);
+                if (data.req_id === req_id) {
+                    onMessage(data);
+                }
+            } catch (e) {}
+        };
+        this.otp_socket.addEventListener('message', handler);
+        this.otp_socket.send(JSON.stringify(payload));
+        return () => {
+            if (this.otp_socket) this.otp_socket.removeEventListener('message', handler);
+        };
+    }
 }
 
 export const api_base = new APIBase();

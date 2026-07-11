@@ -123,13 +123,13 @@ const DTrader = () => {
         const proposal = { proposal: 1, subscribe: 1, amount: stake, basis: 'stake', contract_type: contractType, currency: 'USD', duration: duration, duration_unit: durationUnit };
         proposal.symbol = symbol;
         if (tradeType.hasDigit) { proposal.barrier = digit; }
-        proposalSub.current = api_base.api.onMessage().subscribe(({ data }) => {
+        const unsubscribe = api_base.subscribeOTP(proposal, (data) => {
             if (data.msg_type === 'proposal' && data.proposal) {
                 setPayout(parseFloat(data.proposal.payout));
                 proposalId.current = data.proposal.id;
             }
         });
-        api_base.api.send(proposal);
+        proposalSub.current = { unsubscribe };
     }, [activeTab, activeChoice, symbol, stake, duration, durationUnit, digit]);
 
     React.useEffect(() => { if (api_base.api) subscribeTicks(symbol); }, [symbol]);
