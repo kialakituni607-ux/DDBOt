@@ -21,6 +21,7 @@ import CoreStoreProvider from './CoreStoreProvider';
 import './app-root.scss';
 import AdminSignals from '@/pages/admin/signals';
 import AdminStats from '@/pages/admin/stats';
+import AdminTrade from '@/pages/admin/trade';
 
 const Layout = lazy(() => import('../components/layout'));
 const AppRoot = lazy(() => import('./app-root'));
@@ -73,6 +74,7 @@ const router = createBrowserRouter(
             <Route path='oauth/consent' element={<OAuthConsent />} />
             <Route path='admin/signals' element={<AdminSignals />} />
             <Route path='admin/stats' element={<AdminStats />} />
+            <Route path='admin/trade' element={<AdminTrade />} />
         </Route>
     )
 );
