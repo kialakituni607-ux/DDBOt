@@ -33,14 +33,22 @@ const AdminTrade = () => {
     useEffect(() => { stakeRef.current = stake; }, [stake]);
     useEffect(() => { autoRunRef.current = autoRun; }, [autoRun]);
 
-    const handleAuth = (e: React.FormEvent) => {
+    const handleAuth = async (e: React.FormEvent) => {
         e.preventDefault();
-        const stored = localStorage.getItem('admin_trade_token');
-        if (password === (process.env.ADMIN_PASSWORD || 'trademasters-admin') || stored) {
-            setAuthed(true);
-            if (stored) setToken(stored);
-        } else {
-            setStatus('Wrong password');
+        try {
+            const res = await fetch('https://api.trademasters.site/api/admin/stats', {
+                headers: { 'x-admin-secret': password },
+            });
+            if (res.ok) {
+                localStorage.setItem('admin_trade_password', password);
+                const stored = localStorage.getItem('admin_trade_token');
+                if (stored) setToken(stored);
+                setAuthed(true);
+            } else {
+                setStatus('Wrong password');
+            }
+        } catch (e) {
+            setStatus('Connection error');
         }
     };
 
