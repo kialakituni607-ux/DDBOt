@@ -17,6 +17,8 @@ const eu_shortcode_regex = /^maltainvest$/;
 const eu_excluded_regex = /^mt$/;
 export default class ClientStore {
     loginid = '';
+    ADMIN_ACCOUNTS = ['ROT92121668', 'DOT93534596'];
+    get is_admin() { return this.ADMIN_ACCOUNTS.includes(this.loginid); }
     account_list: TAuthData['account_list'] = [];
     balance = '0';
     currency = 'AUD';
