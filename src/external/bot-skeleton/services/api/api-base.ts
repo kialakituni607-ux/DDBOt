@@ -388,8 +388,8 @@ class APIBase {
     getActiveSymbols = async () => {
         // Use public WebSocket for market data - no auth needed
         await new Promise<void>((resolve) => {
-            const ws = new WebSocket('wss://ws.derivws.com/websockets/v3?app_id=116874');
-            ws.onopen = () => ws.send(JSON.stringify({ active_symbols: 'brief', product_type: 'basic' }));
+            const ws = new WebSocket('wss://api.derivws.com/trading/v1/options/ws/public');
+            ws.onopen = () => ws.send(JSON.stringify({ active_symbols: 'brief' }));
             ws.onmessage = (msg: MessageEvent) => {
                 const data = JSON.parse(msg.data);
                 const raw_symbols = data.active_symbols || [];
