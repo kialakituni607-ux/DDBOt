@@ -398,6 +398,24 @@ class APIBase {
                 console.error('[api-base] getActiveSymbols: this.api not ready');
                 return;
             }
+            // Wait for the connection to actually be OPEN before sending — this.api may
+            // still be CONNECTING at this point (readyState 0), in which case send()
+            // would fail silently.
+            if (this.api.connection && this.api.connection.readyState !== 1) {
+                await new Promise<void>((resolve) => {
+                    const conn = this.api!.connection;
+                    const onOpen = () => {
+                        conn.removeEventListener('open', onOpen);
+                        resolve();
+                    };
+                    if (conn.readyState === 1) {
+                        resolve();
+                    } else {
+                        conn.addEventListener('open', onOpen);
+                        setTimeout(() => { conn.removeEventListener('open', onOpen); resolve(); }, 10000);
+                    }
+                });
+            }
             const response = await this.api.send({ active_symbols: 'brief' });
             if (response.error) {
                 console.error('[api-base] getActiveSymbols error:', response.error);
