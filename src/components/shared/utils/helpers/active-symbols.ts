@@ -80,13 +80,10 @@ const getFavoriteOpenSymbol = async (active_symbols: ActiveSymbols) => {
     }
 };
 
-const getDefaultOpenSymbol = async (active_symbols: ActiveSymbols) => {
-    const default_open_symbol =
-        (await findSymbol(active_symbols, 'R_100')) ||
-        (await findFirstSymbol(active_symbols, /random_index/)) ||
-        (await findFirstSymbol(active_symbols, /major_pairs/));
-    if (default_open_symbol) return default_open_symbol.symbol;
-    return active_symbols.find(symbol_info => symbol_info.submarket === 'major_pairs')?.symbol;
+const getDefaultOpenSymbol = async (active_symbols = []) => {
+    if (!active_symbols.length) return "";
+    const firstAvailable = active_symbols[0]?.symbol || "";
+    return active_symbols.find(s => s.symbol === "R_100" && s.exchange_is_open)?.symbol || firstAvailable;
 };
 
 const findSymbol = async (active_symbols: ActiveSymbols, symbol: string) => {
