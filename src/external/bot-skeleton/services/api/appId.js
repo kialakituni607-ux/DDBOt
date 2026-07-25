@@ -4,20 +4,42 @@ import DerivAPIBasic from '@deriv/deriv-api/dist/DerivAPIBasic';
 import { getInitialLanguage } from '@deriv-com/translations';
 import APIMiddleware from './api-middleware';
 
-export const generateDerivApiInstance = () => {
+export const generateDerivApiInstance = async () => {
     const authToken = localStorage.getItem('authToken');
-    const otpWsUrl = localStorage.getItem('deriv_ws_url');
     let socket_url;
-    const useOtp = authToken && authToken.startsWith('ory_at_') && otpWsUrl && localStorage.getItem('use_otp_ws') === 'true';
-    if (useOtp) {
-        socket_url = otpWsUrl;
-        localStorage.removeItem('use_otp_ws');
-        console.log('[api-base] Using OTP WebSocket URL for trading');
-    } else {
+
+    // Per Deriv's new API: Bearer/OAuth2 (PKCE) users must trade over the WebSocket
+    // URL returned by POST /trading/v1/options/accounts/{accountId}/otp — always
+    // freshly requested (OTP URLs are short-lived), never hard-coded or reused from
+    // a previous session.
+    if (authToken && authToken.startsWith('ory_at_')) {
+        const active_loginid = localStorage.getItem('active_loginid');
+        try {
+            const otpRes = await fetch('/api/auth/otp', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ access_token: authToken, account_id: active_loginid }),
+            });
+            const otpData = await otpRes.json();
+            const otpWsUrl = otpData?.data?.url;
+            if (otpWsUrl) {
+                localStorage.setItem('deriv_ws_url', otpWsUrl);
+                socket_url = otpWsUrl;
+                console.log('[api-base] Using fresh OTP trading WebSocket URL');
+            } else {
+                console.error('[api-base] No OTP url returned from /api/auth/otp:', otpData);
+            }
+        } catch (e) {
+            console.error('[api-base] Failed to obtain OTP trading URL:', e);
+        }
+    }
+
+    if (!socket_url) {
         const cleanedServer = getSocketURL().replace(/[^a-zA-Z0-9.]/g, '');
         const cleanedAppId = getAppId()?.replace?.(/[^a-zA-Z0-9]/g, '') ?? getAppId();
         socket_url = `wss://${cleanedServer}/websockets/v3?app_id=${cleanedAppId}&l=${getInitialLanguage()}&brand=${website_name.toLowerCase()}`;
     }
+
     const deriv_socket = new WebSocket(socket_url);
     const deriv_api = new DerivAPIBasic({
         connection: deriv_socket,
