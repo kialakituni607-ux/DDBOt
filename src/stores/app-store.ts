@@ -290,7 +290,7 @@ export default class AppStore {
         }
         const active_symbols = ApiHelpers?.instance?.active_symbols;
         const contracts_for = ApiHelpers?.instance?.contracts_for;
-        if (ApiHelpers?.instance && active_symbols && contracts_for) {
+        if (ApiHelpers?.instance && active_symbols && contracts_for && typeof active_symbols.retrieveActiveSymbols === 'function') {
             const force = localStorage.getItem("otp_reinit_active") !== "true";
             active_symbols.retrieveActiveSymbols(force).then(() => {
                 console.log('[app-store] active_symbols retrieved via onSocketOpened');
@@ -373,7 +373,7 @@ export default class AppStore {
                 const active_symbols = ApiHelpers?.instance?.active_symbols;
                 const contracts_for = ApiHelpers?.instance?.contracts_for;
 
-                if (ApiHelpers?.instance && active_symbols && contracts_for) {
+                if (ApiHelpers?.instance && active_symbols && contracts_for && typeof active_symbols.retrieveActiveSymbols === 'function') {
                     if (window.Blockly?.derivWorkspace) {
                         const is_otp = localStorage.getItem('otp_reinit_active') === 'true';
                         active_symbols?.retrieveActiveSymbols(!is_otp).then(() => {
