@@ -399,8 +399,11 @@ class APIBase {
                 // Map public WS field names to expected field names
                 const active_symbols = raw_symbols.map((s: any) => ({
                     ...s,
-                    symbol: s.symbol ?? s.underlying_symbol,
-                    display_name: s.display_name ?? s.underlying_symbol_name,
+                    // Per Deriv's new API: always use underlying_symbol, not the legacy
+                    // 'symbol' field — they can differ, and 'symbol' is not reliable for
+                    // contracts_for/ticks_history lookups on the public WS.
+                    symbol: s.underlying_symbol ?? s.symbol,
+                    display_name: s.underlying_symbol_name ?? s.display_name,
                     market_display_name: s.market_display_name ?? s.market,
                     submarket_display_name: s.submarket_display_name ?? s.submarket,
                     pip: s.pip ?? s.pip_size,
