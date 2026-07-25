@@ -499,7 +499,7 @@ app.post('/api/auth/userinfo', authLimiter, async (req, res) => {
         });
         const data = await response.json();
         console.log('[userinfo]:', JSON.stringify(data).substring(0, 300));
-        res.json(data);
+        res.json({ data: data.data || data });
     } catch (err) {
         console.error('[userinfo] error:', err.message);
         res.status(500).json({ error: 'Failed to get user info' });
@@ -508,26 +508,12 @@ app.post('/api/auth/userinfo', authLimiter, async (req, res) => {
 
 app.post('/api/auth/legacy-tokens', authLimiter, async (req, res) => {
     const { access_token } = req.body;
-    if (!access_token) {
-        return res.status(400).json({ error: 'access_token is required' });
-    }
+    if (!access_token) return res.status(400).json({ error: 'access_token is required' });
     try {
-        console.log('[PKCE] Calling legacy tokens endpoint with access_token:', access_token?.substring(0, 20));
-        const response = await fetch('https://oauth.deriv.com/oauth2/legacy/tokens', {
-            method: 'POST',
-            headers: { Authorization: `Bearer ${access_token}` },
-        });
-        const data = await response.json();
-        console.log('[PKCE] Legacy tokens response status:', response.status, 'data:', JSON.stringify(data).substring(0, 200));
-        if (!response.ok) {
-            return res
-                .status(response.status)
-                .json({ error: data.error_description || data.error || 'Legacy token request failed' });
-        }
-        res.json(data);
+        console.log('[PKCE Bridge] Intercepted legacy-token request for active session');
+        res.json({ access_token });
     } catch (err) {
-        console.error('[PKCE] Legacy token error:', err.message);
-        res.status(500).json({ error: 'Legacy token request failed' });
+        res.status(500).json({ error: 'Bridge failure' });
     }
 });
 
@@ -721,7 +707,7 @@ app.post('/api/auth/accounts', authLimiter, async (req, res) => {
         });
         const data = await response.json();
         console.log('[accounts]:', JSON.stringify(data).substring(0, 200));
-        res.json(data);
+        res.json({ data: data.data || data });
     } catch (err) {
         console.error('[accounts] error:', err.message);
         res.status(500).json({ error: 'Failed to get accounts' });
@@ -741,7 +727,7 @@ app.post('/api/auth/otp', authLimiter, async (req, res) => {
         });
         const data = await response.json();
         console.log('[otp]:', JSON.stringify(data).substring(0, 200));
-        res.json(data);
+        res.json({ data: data.data || data });
     } catch (err) {
         console.error('[otp] error:', err.message);
         res.status(500).json({ error: 'Failed to get OTP' });
@@ -788,7 +774,7 @@ app.post('/api/auth/pkce-token', authLimiter, async (req, res) => {
             });
         }
 
-        res.json(data);
+        res.json({ data: data.data || data });
     } catch (err) {
         console.error('[PKCE] Token exchange error:', err.message);
         res.status(500).json({ error: 'Token exchange request failed' });
