@@ -200,7 +200,7 @@ const AppContent = observer(() => {
         init();
 
         const retrieveActiveSymbols = () => {
-            const { active_symbols } = { active_symbols: async () => fetch("https://derivws.com").then(r => r.json()) };
+            const { active_symbols } = { active_symbols: async () => ApiHelpers?.instance?.active_symbols };
 
             // Handle offline scenario
             if (!isOnline) {
