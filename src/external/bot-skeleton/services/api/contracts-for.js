@@ -198,7 +198,25 @@ export default class ContractsFor {
 
             this.retrieving_contracts_for[symbol] = new PendingPromise();
             try {
-                const response = await api_base.api.send({ contracts_for: symbol });
+                // Per Deriv's new API: contracts_for must go through the PUBLIC WebSocket
+                // (wss://api.derivws.com/trading/v1/options/ws/public), not the legacy
+                // app_id-based connection (api_base.api) — that path is not valid for
+                // market/contract data under the new API and returns OfferingsInvalidSymbol.
+                const response = await new Promise((resolve) => {
+                    const ws = new WebSocket('wss://api.derivws.com/trading/v1/options/ws/public');
+                    ws.onopen = () => ws.send(JSON.stringify({ contracts_for: symbol }));
+                    ws.onmessage = (msg) => {
+                        const data = JSON.parse(msg.data);
+                        ws.close();
+                        resolve(data);
+                    };
+                    ws.onerror = (e) => {
+                        console.error('[contracts-for] public WS error for symbol:', symbol, e);
+                        ws.close();
+                        resolve({ error: { message: 'WebSocket error' } });
+                    };
+                    setTimeout(() => { ws.close(); resolve({ error: { message: 'timeout' } }); }, 10000);
+                });
 
                 if (response.error) {
                     console.error('[contracts-for] getContractsForFromApi error for symbol:', symbol, response.error);

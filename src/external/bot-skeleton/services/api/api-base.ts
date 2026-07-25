@@ -386,63 +386,41 @@ class APIBase {
     }
 
     getActiveSymbols = async () => {
-        // Use the app's own connection (this.api) so active_symbols is scoped to the
-        // same app_id/brand context as contracts_for/ticks_history. Previously this used
-        // a separate generic public WebSocket (wss://api.derivws.com/.../public), which
-        // returns Deriv's platform-wide symbol list — including symbols not actually
-        // offered under this app_id — causing "OfferingsInvalidSymbol"/"InvalidSymbol"
-        // errors later when contracts_for/ticks_history rejected symbols that
-        // active_symbols had listed as available.
-        try {
-            if (!this.api) {
-                console.error('[api-base] getActiveSymbols: this.api not ready');
-                return;
-            }
-            // Wait for the connection to actually be OPEN before sending — this.api may
-            // still be CONNECTING at this point (readyState 0), in which case send()
-            // would fail silently.
-            if (this.api.connection && this.api.connection.readyState !== 1) {
-                await new Promise<void>((resolve) => {
-                    const conn = this.api!.connection;
-                    const onOpen = () => {
-                        conn.removeEventListener('open', onOpen);
-                        resolve();
-                    };
-                    if (conn.readyState === 1) {
-                        resolve();
-                    } else {
-                        conn.addEventListener('open', onOpen);
-                        setTimeout(() => { conn.removeEventListener('open', onOpen); resolve(); }, 10000);
-                    }
+        // Per Deriv's new API: markets/contracts must come from the PUBLIC WebSocket
+        // (wss://api.derivws.com/trading/v1/options/ws/public) — no auth needed, and this
+        // is NOT scoped to any app_id. Do not use this.api (the legacy app_id-based
+        // connection) for this — it is not valid for market data under the new API.
+        await new Promise<void>((resolve) => {
+            const ws = new WebSocket('wss://api.derivws.com/trading/v1/options/ws/public');
+            ws.onopen = () => ws.send(JSON.stringify({ active_symbols: 'brief' }));
+            ws.onmessage = (msg: MessageEvent) => {
+                const data = JSON.parse(msg.data);
+                const raw_symbols = data.active_symbols || [];
+                // Map public WS field names to expected field names
+                const active_symbols = raw_symbols.map((s: any) => ({
+                    ...s,
+                    symbol: s.symbol ?? s.underlying_symbol,
+                    display_name: s.display_name ?? s.underlying_symbol_name,
+                    market_display_name: s.market_display_name ?? s.market,
+                    submarket_display_name: s.submarket_display_name ?? s.submarket,
+                    pip: s.pip ?? s.pip_size,
+                    exchange_is_open: s.exchange_is_open === 1 || s.exchange_is_open === true,
+                }));
+                const pip_sizes: Record<string, number> = {};
+                if (active_symbols.length) this.has_active_symbols = true;
+                active_symbols.forEach(({ symbol, pip }: { symbol: string; pip: string }) => {
+                    pip_sizes[symbol] = +(+pip).toExponential().substring(3);
                 });
-            }
-            const response = await this.api.send({ active_symbols: 'brief' });
-            if (response.error) {
-                console.error('[api-base] getActiveSymbols error:', response.error);
-                return;
-            }
-            const raw_symbols = response.active_symbols || [];
-            const active_symbols = raw_symbols.map((s: any) => ({
-                ...s,
-                symbol: s.symbol ?? s.underlying_symbol,
-                display_name: s.display_name ?? s.underlying_symbol_name,
-                market_display_name: s.market_display_name ?? s.market,
-                submarket_display_name: s.submarket_display_name ?? s.submarket,
-                pip: s.pip ?? s.pip_size,
-                exchange_is_open: s.exchange_is_open === 1 || s.exchange_is_open === true,
-            }));
-            const pip_sizes: Record<string, number> = {};
-            if (active_symbols.length) this.has_active_symbols = true;
-            active_symbols.forEach(({ symbol, pip }: { symbol: string; pip: string }) => {
-                pip_sizes[symbol] = +(+pip).toExponential().substring(3);
-            });
-            this.pip_sizes = pip_sizes;
-            this.toggleRunButton(false);
-            this.active_symbols = active_symbols;
-            console.log('[api-base] active_symbols loaded:', active_symbols.length);
-        } catch (e) {
-            console.error('[api-base] getActiveSymbols failed:', e);
-        }
+                this.pip_sizes = pip_sizes;
+                this.toggleRunButton(false);
+                this.active_symbols = active_symbols;
+                console.log('[api-base] active_symbols loaded:', active_symbols.length);
+                ws.close();
+                resolve();
+            };
+            ws.onerror = (e) => { console.error('[api-base] public WS error:', e); resolve(); };
+            setTimeout(() => { ws.close(); resolve(); }, 10000);
+        });
     };
 
     toggleRunButton = (toggle: boolean) => {
