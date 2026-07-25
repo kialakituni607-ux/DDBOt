@@ -200,11 +200,17 @@ const AppContent = observer(() => {
         init();
 
         const retrieveActiveSymbols = () => {
-            const { active_symbols } = { active_symbols: async () => ApiHelpers?.instance?.active_symbols };
+            const active_symbols = ApiHelpers?.instance?.active_symbols;
 
             // Handle offline scenario
             if (!isOnline) {
                 console.log('[Offline] Skipping active symbols retrieval, showing dashboard');
+                setIsLoading(false);
+                return;
+            }
+
+            if (!active_symbols || typeof active_symbols.retrieveActiveSymbols !== 'function') {
+                console.error('[API] active_symbols instance not ready or malformed');
                 setIsLoading(false);
                 return;
             }
