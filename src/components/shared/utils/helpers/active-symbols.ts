@@ -82,7 +82,7 @@ const getFavoriteOpenSymbol = async (active_symbols: ActiveSymbols) => {
 
 const getDefaultOpenSymbol = async (active_symbols: ActiveSymbols) => {
     const default_open_symbol =
-        (await findSymbol(active_symbols, '1HZ100V')) ||
+        (await findSymbol(active_symbols, 'R_100')) ||
         (await findFirstSymbol(active_symbols, /random_index/)) ||
         (await findFirstSymbol(active_symbols, /major_pairs/));
     if (default_open_symbol) return default_open_symbol.symbol;
