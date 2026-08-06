@@ -386,44 +386,17 @@ class APIBase {
     }
 
     getActiveSymbols = async () => {
-        // Per Deriv's new API: markets/contracts must come from the PUBLIC WebSocket
-        // (wss://api.derivws.com/trading/v1/options/ws/public) — no auth needed, and this
-        // is NOT scoped to any app_id. Do not use this.api (the legacy app_id-based
-        // connection) for this — it is not valid for market data under the new API.
-        await new Promise<void>((resolve) => {
-            const ws = new WebSocket('wss://api.derivws.com/trading/v1/options/ws/public');
-            ws.onopen = () => ws.send(JSON.stringify({ active_symbols: 'brief' }));
-            ws.onmessage = (msg: MessageEvent) => {
-                const data = JSON.parse(msg.data);
-                const raw_symbols = data.active_symbols || [];
-                // Map public WS field names to expected field names
-                const active_symbols = raw_symbols.map((s: any) => ({
-                    ...s,
-                    // Per Deriv's new API: always use underlying_symbol, not the legacy
-                    // 'symbol' field — they can differ, and 'symbol' is not reliable for
-                    // contracts_for/ticks_history lookups on the public WS.
-                    symbol: s.underlying_symbol ?? s.symbol,
-                    display_name: s.underlying_symbol_name ?? s.display_name,
-                    market_display_name: s.market_display_name ?? s.market,
-                    submarket_display_name: s.submarket_display_name ?? s.submarket,
-                    pip: s.pip ?? s.pip_size,
-                    exchange_is_open: s.exchange_is_open === 1 || s.exchange_is_open === true,
-                }));
-                const pip_sizes: Record<string, number> = {};
-                if (active_symbols.length) this.has_active_symbols = true;
-                active_symbols.forEach(({ symbol, pip }: { symbol: string; pip: string }) => {
-                    pip_sizes[symbol] = +(+pip).toExponential().substring(3);
-                });
-                this.pip_sizes = pip_sizes;
-                this.toggleRunButton(false);
-                this.active_symbols = active_symbols;
-                console.log('[api-base] active_symbols loaded:', active_symbols.length);
-                ws.close();
-                resolve();
-            };
-            ws.onerror = (e) => { console.error('[api-base] public WS error:', e); resolve(); };
-            setTimeout(() => { ws.close(); resolve(); }, 10000);
+        const response = await this.api?.send({ active_symbols: 'brief' });
+        const active_symbols = response?.active_symbols || [];
+        const pip_sizes: Record<string, number> = {};
+        if (active_symbols.length) this.has_active_symbols = true;
+        active_symbols.forEach(({ symbol, pip }: { symbol: string; pip: string }) => {
+            pip_sizes[symbol] = +(+pip).toExponential().substring(3);
         });
+        this.pip_sizes = pip_sizes;
+        this.toggleRunButton(false);
+        this.active_symbols = active_symbols;
+        console.log('[api-base] active_symbols loaded:', active_symbols.length);
     };
 
     toggleRunButton = (toggle: boolean) => {
