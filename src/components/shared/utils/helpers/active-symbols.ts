@@ -83,7 +83,7 @@ const getFavoriteOpenSymbol = async (active_symbols: ActiveSymbols) => {
 const getDefaultOpenSymbol = async (active_symbols = []) => {
     if (!active_symbols || !active_symbols.length) return "";
     const firstAvailable = active_symbols[0]?.symbol || "";
-    return active_symbols.find(s => s.symbol === "R_100")?.symbol || firstAvailable;
+    return active_symbols.find(s => s.symbol === "1HZ100V")?.symbol || firstAvailable;
 };
 
 const findSymbol = async (active_symbols: ActiveSymbols, symbol: string) => {

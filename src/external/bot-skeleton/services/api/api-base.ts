@@ -256,53 +256,6 @@ class APIBase {
         }, 4000);
 
         try {
-            // Skip WebSocket authorize for Bearer tokens (new OAuth2 flow)
-            if (this.token && this.token.startsWith('ory_at_')) {
-                setIsAuthorizing(false);
-                if (!this.has_active_symbols) {
-                    this.active_symbols_promise = this.getActiveSymbols();
-                }
-                // Set up balance subscription via OTP WebSocket for PKCE users.
-                // Always mint a FRESH OTP url instead of reusing a possibly-expired
-                // cached one from localStorage, since OTP tokens are single-use/short-lived.
-                try {
-                    const otpRes = await fetch('/api/auth/otp', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ access_token: this.token, account_id: this.account_id }),
-                    });
-                    const otpData = await otpRes.json();
-                    const otpWsUrl = otpData?.data?.url;
-                    console.log('[api-base] OTP fetch response:', otpData);
-                    if (otpWsUrl) {
-                        console.log('[api-base] Fresh OTP url obtained, opening socket:', otpWsUrl.slice(0, 60));
-                        localStorage.setItem('deriv_ws_url', otpWsUrl);
-                        const otpSocket = new WebSocket(otpWsUrl);
-                        this.otp_socket = otpSocket;
-                        otpSocket.onopen = () => {
-                            console.log('[api-base] OTP socket OPEN, sending balance subscribe');
-                            // Note: this OTP-scoped endpoint rejects the 'account' property
-                            // (it's already scoped to a single account via the OTP token itself)
-                            otpSocket.send(JSON.stringify({ balance: 1, subscribe: 1 }));
-                        };
-                        otpSocket.onmessage = (event) => {
-                            try {
-                                const data = JSON.parse(event.data);
-                                console.log('[api-base] OTP socket message:', data.msg_type, data.error || data.balance);
-                                if (data.msg_type === 'balance' && !data.error) {
-                                    globalObserver.emit('balance.update', data.balance);
-                                }
-                            } catch (e) {}
-                        };
-                        otpSocket.onerror = (err) => { console.log('[api-base] OTP socket ERROR', err); try { otpSocket.close(); } catch(e) {} };
-                    } else {
-                        console.log('[api-base] No OTP url returned from /api/auth/otp');
-                    }
-                } catch(e) {
-                    console.warn('[api-base] OTP balance subscription failed:', e);
-                }
-                return;
-            }
             const { authorize, error } = await this.api.authorize(this.token);
             if (error) {
                 if (error.code === 'InvalidToken') {

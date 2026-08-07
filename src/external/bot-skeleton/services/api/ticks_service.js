@@ -257,7 +257,7 @@ export default class TicksService {
     requestTicks(options) {
         const { symbol, granularity, style } = options;
         const request_object = {
-            ticks_history: symbol === 'na' ? 'R_100' : symbol,
+            ticks_history: symbol === 'na' ? '1HZ100V' : symbol,
             subscribe: 1,
             end: 'latest',
             count: 1000,
