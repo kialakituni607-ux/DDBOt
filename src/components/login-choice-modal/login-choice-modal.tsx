@@ -1,8 +1,8 @@
-import { derivLogin } from '@/utils/deriv-auth-adapter';
+import { redirectToLegacyLogin } from '@/utils/deriv-auth-adapter';
 
 export const useLoginChoice = () => {
     const triggerLogin = () => {
-        derivLogin();
+        redirectToLegacyLogin();
     };
     const modal = null;
     return { triggerLogin, modal };
