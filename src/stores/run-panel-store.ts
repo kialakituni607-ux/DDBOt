@@ -220,37 +220,6 @@ export default class RunPanelStore {
                 'Account switching is disabled while your bot is running. Please stop your bot before switching accounts.'
             )
         );
-        const authToken = localStorage.getItem('authToken');
-        if (authToken && authToken.startsWith('ory_at_')) {
-            try {
-                const active_loginid = localStorage.getItem('active_loginid');
-                const otpRes = await fetch('/api/auth/otp', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ access_token: authToken, account_id: active_loginid }),
-                });
-                const otpData = await otpRes.json();
-                const freshOtpUrl = otpData.data && otpData.data.url;
-                if (freshOtpUrl) {
-                    localStorage.removeItem('otp_reinit_active');
-                    localStorage.setItem('otp_reinit_active', 'true');
-                    localStorage.setItem('deriv_ws_url', freshOtpUrl);
-                    localStorage.setItem('use_otp_ws', 'true');
-                    await api_base.init(true);
-                    await new Promise(resolve => {
-                        const check = setInterval(() => {
-                            if (api_base.api?.connection?.readyState === 1) {
-                                clearInterval(check);
-                                resolve();
-                            }
-                        }, 100);
-                        setTimeout(() => { clearInterval(check); resolve(); }, 5000);
-                    });
-                    localStorage.removeItem('otp_reinit_active');
-                    console.log('[Run] OTP reconnect complete');
-                }
-            } catch(e) { console.error('[Run] OTP refresh failed:', e); }
-        }
         runInAction(() => {
             this.setIsRunning(true);
             ui.setPromptHandler(true);
@@ -322,16 +291,6 @@ export default class RunPanelStore {
         if (window.sendRequestsStatistic) {
             window.sendRequestsStatistic(true);
             performance.clearMeasures();
-        }
-        // Reinit to standard WS after trade stops for PKCE users
-        const authToken = localStorage.getItem('authToken');
-        if (authToken && authToken.startsWith('ory_at_') && !localStorage.getItem('otp_reinit_active')) {
-            localStorage.removeItem('use_otp_ws');
-            setTimeout(() => {
-                if (!localStorage.getItem('otp_reinit_active')) {
-                    api_base.init(true).catch(e => console.warn('[stopBot] reinit failed:', e));
-                }
-            }, 1000);
         }
     };
 
@@ -784,41 +743,6 @@ export default class RunPanelStore {
     is_refreshing_otp = false;
     handleInvalidToken = async () => {
         if (this.is_refreshing_otp) return;
-        const authToken = localStorage.getItem('authToken');
-        if (authToken && authToken.startsWith('ory_at_')) {
-            try {
-                const active_loginid = localStorage.getItem('active_loginid');
-                const otpRes = await fetch('/api/auth/otp', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ access_token: authToken, account_id: active_loginid }),
-                });
-                const otpData = await otpRes.json();
-                const freshOtpUrl = otpData.data && otpData.data.url;
-                if (freshOtpUrl) {
-                    this.is_refreshing_otp = true;
-                    localStorage.setItem('deriv_ws_url', freshOtpUrl);
-                    localStorage.setItem('use_otp_ws', 'true');
-                    localStorage.setItem('otp_reinit_active', 'true');
-                    await api_base.init(true);
-                    await new Promise(resolve => {
-                        const check = setInterval(() => {
-                            if (api_base.api?.connection?.readyState === 1) {
-                                clearInterval(check);
-                                resolve();
-                            }
-                        }, 100);
-                        setTimeout(() => { clearInterval(check); resolve(); }, 5000);
-                    });
-                    this.is_refreshing_otp = false;
-                    localStorage.removeItem('otp_reinit_active');
-                    console.log('[InvalidToken] OTP refreshed, reconnected');
-                    return;
-                }
-            } catch(e) {
-                console.error('[InvalidToken] OTP refresh failed:', e);
-            }
-        }
         this.setActiveTabIndex(run_panel.SUMMARY);
     };
 
