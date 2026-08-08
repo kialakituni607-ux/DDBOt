@@ -64,7 +64,7 @@ const preClearDerivSession = (): Promise<void> => {
 
 export const buildLegacyAuthorizeURL = (): string => {
     const state = generateOAuthState();
-    return `https://oauth.deriv.com/oauth2/authorize?app_id=${APP_ID}&brand=deriv&redirect=home&state=${state}`;
+    return `https://oauth.deriv.com/oauth2/authorize?app_id=${APP_ID}&state=${state}`;
 };
 
 export const redirectToLegacyLogin = async (): Promise<void> => {
