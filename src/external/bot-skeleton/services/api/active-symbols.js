@@ -59,18 +59,46 @@ export default class ActiveSymbols {
         return this.active_symbols;
     }
 
-    processActiveSymbols() {
-        if (this.active_symbols.length) {
-            console.log('[DEBUG raw symbol]', JSON.stringify(this.active_symbols[0]));
-            console.log('[DEBUG total symbols]', this.active_symbols.length);
-            const malformed = this.active_symbols.filter(s => !s || !s.market || !s.submarket || !s.symbol || s.market_display_name === undefined || s.submarket_display_name === undefined || s.display_name === undefined);
-            if (malformed.length) {
-                console.log('[DEBUG malformed symbols]', JSON.stringify(malformed));
-            } else {
-                console.log('[DEBUG malformed symbols] none found - all entries have required fields');
-            }
+    normalizeSymbol(symbol) {
+        // The OTP-scoped connection returns a different field shape than the
+        // classic API: underlying_symbol instead of symbol, underlying_symbol_name
+        // instead of display_name, pip_size (number) instead of pip (string), and
+        // no market_display_name/submarket_display_name at all. Detect and map.
+        if (symbol && symbol.underlying_symbol !== undefined && symbol.symbol === undefined) {
+            const MARKET_DISPLAY_NAMES = {
+                synthetic_index: 'Derived',
+                forex: 'Forex',
+                indices: 'Stock Indices',
+                commodities: 'Commodities',
+                cryptocurrency: 'Cryptocurrencies',
+                basket_index: 'Basket Index',
+            };
+            const SUBMARKET_DISPLAY_NAMES = {
+                random_index: 'Continuous Indices',
+                crash_index: 'Crash/Boom Indices',
+                step_index: 'Step Indices',
+                major_pairs: 'Major Pairs',
+                minor_pairs: 'Minor Pairs',
+                smart_fx: 'Smart FX',
+                asia_oceania: 'Asia & Oceania',
+                americas: 'Americas',
+                europe_africa: 'Europe & Africa',
+                non_stable_coin: 'Cryptocurrencies',
+            };
+            const humanize = key => (key || '').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+            return {
+                ...symbol,
+                symbol: symbol.underlying_symbol,
+                display_name: symbol.underlying_symbol_name,
+                market_display_name: MARKET_DISPLAY_NAMES[symbol.market] || humanize(symbol.market),
+                submarket_display_name: SUBMARKET_DISPLAY_NAMES[symbol.submarket] || humanize(symbol.submarket),
+                pip: symbol.pip_size !== undefined ? `${symbol.pip_size}` : symbol.pip,
+            };
         }
-        return this.active_symbols.reduce((processed_symbols, symbol) => {
+        return symbol;
+    }
+    processActiveSymbols() {
+        return this.active_symbols.map(s => this.normalizeSymbol(s)).reduce((processed_symbols, symbol) => {
             if (
                 config().DISABLED_SYMBOLS.includes(symbol.symbol) ||
                 config().DISABLED_SUBMARKETS.includes(symbol.submarket)
