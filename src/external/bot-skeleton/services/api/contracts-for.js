@@ -179,7 +179,7 @@ export default class ContractsFor {
 
         return contracts.filter(contract => {
             const has_matching_category = contract.contract_category === contract_category;
-            const has_matching_barrier = contract.barrier_category === barrier_category;
+            const has_matching_barrier = contract.barrier_category === undefined ? true : contract.barrier_category === barrier_category;
 
             return has_matching_category && has_matching_barrier;
         });
@@ -613,7 +613,6 @@ export default class ContractsFor {
             }
         }
 
-        console.log("[DEBUG getTradeTypes]", JSON.stringify({ symbol, trade_type_category, subcategories, trade_types_found: trade_types.length }));
         return trade_types.length > 0 ? trade_types : config().NOT_AVAILABLE_DROPDOWN_OPTIONS;
     }
 
