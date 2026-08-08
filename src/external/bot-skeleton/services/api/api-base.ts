@@ -57,6 +57,7 @@ class APIBase {
     current_auth_subscriptions: SubscriptionPromise[] = [];
     is_authorized = false;
     otp_reconnect_in_progress = false;
+    is_initializing = false;
     otp_socket: WebSocket | undefined;
     active_symbols_promise: Promise<void> | null = null;
     common_store: CommonStore | undefined;
@@ -85,6 +86,16 @@ class APIBase {
     }
 
     async init(force_create_connection = false) {
+        // Guard against concurrent init() calls: several independent triggers
+        // (account switching, TMB hooks, authorizeAndSubscribe's own internal
+        // reconnect) can call init() around the same time. Without this guard,
+        // each call independently tears down and recreates the connection,
+        // producing a reconnect storm where sockets close before finishing.
+        if (this.is_initializing) {
+            console.log('[api-base] init() already in progress, skipping duplicate call');
+            return;
+        }
+        this.is_initializing = true;
         console.log('[api-base] init() called');
         this.toggleRunButton(true);
         const is_otp_reinit = localStorage.getItem('use_otp_ws') === 'true';
@@ -170,6 +181,7 @@ class APIBase {
         }
 
         chart_api.init(force_create_connection);
+        this.is_initializing = false;
     }
 
     hydrateFromLocalStorage(): boolean {
