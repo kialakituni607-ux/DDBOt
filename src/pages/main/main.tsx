@@ -30,6 +30,7 @@ import { useDevice } from '@deriv-com/ui';
 import RiskDisclaimer from '@/components/risk-disclaimer/risk-disclaimer';
 import RunPanel from '../../components/run-panel';
 import ChartModal from '../chart/chart-modal';
+import AdminPanel from '../admin-panel';
 import Dashboard from '../dashboard';
 import RunStrategy from '../dashboard/run-strategy';
 import './main.scss';
@@ -44,7 +45,7 @@ const AntiPovertyAI = lazy(() => import('../antipoverty-ai'));
 
 const AppWrapper = observer(() => {
     const { connectionStatus } = useApiBase();
-    const { dashboard, load_modal, run_panel, quick_strategy, summary_card } = useStore();
+    const { client, dashboard, load_modal, run_panel, quick_strategy, summary_card } = useStore();
     const {
         active_tab,
         active_tour,
@@ -341,6 +342,18 @@ const AppWrapper = observer(() => {
                                     <ChartWrapper show_digits_stats={false} />
                                 </Suspense>
                             </div>
+                            {client?.is_admin ? (
+                                <div
+                                    label={
+                                        <>
+                                            <Localize i18n_default_text='Admin' />
+                                        </>
+                                    }
+                                    id='id-admin'
+                                >
+                                    <AdminPanel />
+                                </div>
+                            ) : <></>}
                             <div
                                 label={
                                     <>
