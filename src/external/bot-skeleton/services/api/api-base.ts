@@ -56,6 +56,8 @@ class APIBase {
     active_symbols = [];
     current_auth_subscriptions: SubscriptionPromise[] = [];
     is_authorized = false;
+    otp_reconnect_in_progress = false;
+    otp_socket: WebSocket | undefined;
     active_symbols_promise: Promise<void> | null = null;
     common_store: CommonStore | undefined;
     landing_company: string | null = null;
@@ -257,6 +259,22 @@ class APIBase {
 
         try {
             if (this.token && this.token.startsWith('ory_at_')) {
+                // Guard against re-entrant calls: init(true) below triggers init()'s own
+                // internal (unawaited) call to authorizeAndSubscribe() again, which would
+                // otherwise fetch a fresh OTP and reconnect in an infinite loop.
+                if (this.otp_reconnect_in_progress) {
+                    clearTimeout(authorizingTimeout);
+                    setIsAuthorizing(false);
+                    return;
+                }
+                if (localStorage.getItem('use_otp_ws') === 'true' && this.api?.connection?.readyState === 1) {
+                    this.is_authorized = true;
+                    setIsAuthorized(true);
+                    setIsAuthorizing(false);
+                    clearTimeout(authorizingTimeout);
+                    return;
+                }
+                this.otp_reconnect_in_progress = true;
                 // OIDC/Bearer tokens don't authorize the classic WS connection directly
                 // (confirmed: authorize() rejects them with InputValidationFailed).
                 // Instead, fetch an OTP-scoped WebSocket URL and reconnect using that -
@@ -291,11 +309,13 @@ class APIBase {
                         setIsAuthorizing(false);
                         clearTimeout(authorizingTimeout);
                         console.log('[api-base] OTP connection established, skipping classic authorize');
+                        this.otp_reconnect_in_progress = false;
                         return;
                     }
                     console.warn('[api-base] No OTP url returned, falling back to classic authorize');
                 } catch (e) {
                     console.error('[api-base] OTP fetch failed, falling back to classic authorize:', e);
+                    this.otp_reconnect_in_progress = false;
                 }
             }
             const { authorize, error } = await this.api.authorize(this.token);
