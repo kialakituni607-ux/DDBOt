@@ -256,6 +256,48 @@ class APIBase {
         }, 4000);
 
         try {
+            if (this.token && this.token.startsWith('ory_at_')) {
+                // OIDC/Bearer tokens don't authorize the classic WS connection directly
+                // (confirmed: authorize() rejects them with InputValidationFailed).
+                // Instead, fetch an OTP-scoped WebSocket URL and reconnect using that -
+                // this socket is pre-authenticated via the OTP itself, no authorize() call
+                // needed (confirmed against live API: contracts_for/active_symbols/etc.
+                // all work immediately after connecting, matching Deriv's documented
+                // OTP trading flow).
+                try {
+                    const otpRes = await fetch('/api/auth/otp', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ access_token: this.token, account_id: this.account_id }),
+                    });
+                    const otpData = await otpRes.json();
+                    const freshOtpUrl = otpData?.data?.url;
+                    if (freshOtpUrl) {
+                        localStorage.setItem('deriv_ws_url', freshOtpUrl);
+                        localStorage.setItem('use_otp_ws', 'true');
+                        await this.init(true);
+                        await new Promise<void>(resolve => {
+                            const check = setInterval(() => {
+                                if (this.api?.connection?.readyState === 1) {
+                                    clearInterval(check);
+                                    resolve();
+                                }
+                            }, 100);
+                            setTimeout(() => { clearInterval(check); resolve(); }, 5000);
+                        });
+                        this.api?.send({ balance: 1, subscribe: 1 });
+                        this.is_authorized = true;
+                        setIsAuthorized(true);
+                        setIsAuthorizing(false);
+                        clearTimeout(authorizingTimeout);
+                        console.log('[api-base] OTP connection established, skipping classic authorize');
+                        return;
+                    }
+                    console.warn('[api-base] No OTP url returned, falling back to classic authorize');
+                } catch (e) {
+                    console.error('[api-base] OTP fetch failed, falling back to classic authorize:', e);
+                }
+            }
             const { authorize, error } = await this.api.authorize(this.token);
             if (error) {
                 if (error.code === 'InvalidToken') {
