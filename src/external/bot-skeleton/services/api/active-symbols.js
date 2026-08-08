@@ -60,7 +60,16 @@ export default class ActiveSymbols {
     }
 
     processActiveSymbols() {
-        if (this.active_symbols.length) { console.log('[DEBUG raw symbol]', JSON.stringify(this.active_symbols[0])); }
+        if (this.active_symbols.length) {
+            console.log('[DEBUG raw symbol]', JSON.stringify(this.active_symbols[0]));
+            console.log('[DEBUG total symbols]', this.active_symbols.length);
+            const malformed = this.active_symbols.filter(s => !s || !s.market || !s.submarket || !s.symbol || s.market_display_name === undefined || s.submarket_display_name === undefined || s.display_name === undefined);
+            if (malformed.length) {
+                console.log('[DEBUG malformed symbols]', JSON.stringify(malformed));
+            } else {
+                console.log('[DEBUG malformed symbols] none found - all entries have required fields');
+            }
+        }
         return this.active_symbols.reduce((processed_symbols, symbol) => {
             if (
                 config().DISABLED_SYMBOLS.includes(symbol.symbol) ||
