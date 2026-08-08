@@ -60,6 +60,7 @@ export default class ActiveSymbols {
     }
 
     processActiveSymbols() {
+        if (this.active_symbols.length) { console.log('[DEBUG raw symbol]', JSON.stringify(this.active_symbols[0])); }
         return this.active_symbols.reduce((processed_symbols, symbol) => {
             if (
                 config().DISABLED_SYMBOLS.includes(symbol.symbol) ||
