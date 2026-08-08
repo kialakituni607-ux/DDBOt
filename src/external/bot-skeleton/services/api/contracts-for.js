@@ -613,6 +613,7 @@ export default class ContractsFor {
             }
         }
 
+        console.log("[DEBUG getTradeTypes]", JSON.stringify({ symbol, trade_type_category, subcategories, trade_types_found: trade_types.length }));
         return trade_types.length > 0 ? trade_types : config().NOT_AVAILABLE_DROPDOWN_OPTIONS;
     }
 
