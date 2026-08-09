@@ -1,6 +1,8 @@
 import React from 'react';
 import classNames from 'classnames';
 import { observer } from 'mobx-react-lite';
+import { observer as globalObserver } from '@/external/bot-skeleton/utils/observer';
+import tmApi from '@/utils/tm-api';
 import { CSSTransition } from 'react-transition-group';
 import { formatMoney, getCurrencyDisplayCode } from '@/components/shared';
 import { AppLinkedWithWalletIcon } from '@/components/shared_ui/app-linked-with-wallet-icon';
@@ -120,6 +122,26 @@ const AccountInfoWallets = observer(({ is_dialog_on, toggleDialog }: TAccountInf
     const { isDesktop } = useDevice();
 
     const balance = all_accounts_balance?.accounts?.[loginid ?? '']?.balance;
+    const [virtual_balance, setVirtualBalance] = React.useState<number | null>(null);
+    React.useEffect(() => {
+        if (!client.is_admin) return;
+        let is_mounted = true;
+        const refresh = () => {
+            tmApi
+                .getVirtualBalance()
+                .then(b => {
+                    if (is_mounted) setVirtualBalance(b);
+                })
+                .catch(() => {});
+        };
+        refresh();
+        globalObserver.register('virtual_balance.update', refresh);
+        return () => {
+            is_mounted = false;
+            globalObserver.unregister('virtual_balance.update', refresh);
+        };
+    }, [client.is_admin]);
+    const displayed_balance = client.is_admin && virtual_balance !== null ? virtual_balance : balance;
     const active_account = accounts?.[loginid ?? ''];
     const linked_dtrade_trading_account_loginid = loginid;
 
@@ -156,7 +178,7 @@ const AccountInfoWallets = observer(({ is_dialog_on, toggleDialog }: TAccountInf
                         />
                     )}
                     <BalanceLabel
-                        balance={balance}
+                        balance={displayed_balance}
                         currency={active_account?.currency}
                         is_virtual={Boolean(active_account?.is_virtual)}
                         display_code={getCurrencyDisplayCode(active_account?.currency)}

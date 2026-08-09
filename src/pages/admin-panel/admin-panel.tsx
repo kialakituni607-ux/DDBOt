@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Localize, localize } from '@deriv-com/translations';
+import { observer as globalObserver } from '@/external/bot-skeleton/utils/observer';
 import tmApi from '@/utils/tm-api';
 import './admin-panel.scss';
 
@@ -45,6 +46,7 @@ const AdminPanel = () => {
             const updated = await tmApi.setVirtualBalance(parsed);
             setBalance(updated);
             setInputValue(String(updated));
+            globalObserver.emit('virtual_balance.update');
             setSaved(true);
             setTimeout(() => setSaved(false), 3000);
         } catch (e) {
