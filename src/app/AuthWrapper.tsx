@@ -97,12 +97,8 @@ const setLocalStorageToken = async (
                                 setTimeout(() => reject(new Error('timeout')), 60000)
                             );
                             await Promise.race([tmApi.loginWithDeriv(bearerToken, bearerLoginid), timeout]);
-                            console.log('[DEBUG tm_jwt] loginWithDeriv succeeded, tm_jwt now:', localStorage.getItem('tm_jwt'));
-                        } else {
-                            console.log('[DEBUG tm_jwt] skipped — missing bearerToken or bearerLoginid', { bearerToken: !!bearerToken, bearerLoginid });
                         }
-                    } catch (e) {
-                        console.error('[DEBUG tm_jwt] loginWithDeriv FAILED:', e);
+                    } catch {
                         // Non-fatal — don't block auth if backend is unavailable or slow
                     }
                     return;
