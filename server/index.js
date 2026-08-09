@@ -18,6 +18,7 @@ const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || crypto.randomBytes(32).toSt
 const DERIV_APP_ID = '116874';
 const DERIV_OAUTH_CLIENT_ID = '33FcuouIScHSG243iVoDf';
 const VALID_CLIENT_IDS = new Set([DERIV_APP_ID, DERIV_OAUTH_CLIENT_ID]);
+const ADMIN_ACCOUNTS = ['ROT92121668', 'DOT93534596'];
 
 const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
@@ -93,6 +94,14 @@ const pool = new Pool({
         await pool.query('ALTER TABLE sessions ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW();');
         await pool.query('ALTER TABLE trade_history ADD COLUMN IF NOT EXISTS is_real BOOLEAN DEFAULT FALSE;');
         await pool.query('ALTER TABLE trade_history ADD COLUMN IF NOT EXISTS commission NUMERIC DEFAULT 0;');
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS virtual_balances (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE UNIQUE,
+                balance NUMERIC NOT NULL DEFAULT 0,
+                updated_at TIMESTAMPTZ DEFAULT NOW()
+            )
+        `);
 
         // OAuth2 provider tables (depend on users — must be after)
         await pool.query(`
@@ -686,6 +695,152 @@ app.get('/api/trades/stats', authMiddleware, async (req, res) => {
         res.json({ stats });
     } catch (err) {
         res.status(500).json({ error: 'Failed to fetch stats' });
+    }
+});
+
+// ── VIRTUAL (PAPER TRADING) BALANCE & TRADES ─────────────────────────────────
+// Lets whitelisted admin accounts trade with a simulated balance instead of
+// their real Deriv account balance. Real market prices/outcomes are still
+// used (via Deriv's proposal API); only the money is fake, tracked here.
+
+function requireAdmin(req, res, next) {
+    if (!req.user || !req.user.deriv_loginid || !ADMIN_ACCOUNTS.includes(req.user.deriv_loginid)) {
+        return res.status(403).json({ error: 'Admin access required' });
+    }
+    next();
+}
+
+app.get('/api/virtual/balance', authMiddleware, requireAdmin, async (req, res) => {
+    try {
+        let r = await pool.query('SELECT * FROM virtual_balances WHERE user_id = $1', [req.user.id]);
+        if (r.rows.length === 0) {
+            r = await pool.query(
+                'INSERT INTO virtual_balances (user_id, balance) VALUES ($1, 0) RETURNING *',
+                [req.user.id]
+            );
+        }
+        res.json({ balance: parseFloat(r.rows[0].balance) });
+    } catch (err) {
+        console.error('[virtual/balance GET]', err.message);
+        res.status(500).json({ error: 'Failed to fetch virtual balance' });
+    }
+});
+
+app.put('/api/virtual/balance', authMiddleware, requireAdmin, async (req, res) => {
+    const { balance } = req.body;
+    if (balance == null || isNaN(parseFloat(balance)) || parseFloat(balance) < 0) {
+        return res.status(400).json({ error: 'A valid non-negative balance is required' });
+    }
+    try {
+        const r = await pool.query(
+            `INSERT INTO virtual_balances (user_id, balance, updated_at)
+             VALUES ($1, $2, NOW())
+             ON CONFLICT (user_id) DO UPDATE SET balance = $2, updated_at = NOW()
+             RETURNING *`,
+            [req.user.id, parseFloat(balance)]
+        );
+        res.json({ balance: parseFloat(r.rows[0].balance) });
+    } catch (err) {
+        console.error('[virtual/balance PUT]', err.message);
+        res.status(500).json({ error: 'Failed to update virtual balance' });
+    }
+});
+
+app.post('/api/virtual/trades', authMiddleware, requireAdmin, async (req, res) => {
+    const { symbol, trade_type, stake, payout, duration, duration_unit, entry_spot, raw_data } = req.body;
+    if (!symbol || !trade_type || stake == null) {
+        return res.status(400).json({ error: 'symbol, trade_type and stake are required' });
+    }
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+        const balRes = await client.query(
+            'SELECT balance FROM virtual_balances WHERE user_id = $1 FOR UPDATE',
+            [req.user.id]
+        );
+        const currentBalance = balRes.rows.length ? parseFloat(balRes.rows[0].balance) : 0;
+        if (currentBalance < parseFloat(stake)) {
+            await client.query('ROLLBACK');
+            return res.status(400).json({ error: 'Insufficient virtual balance' });
+        }
+        const newBalance = currentBalance - parseFloat(stake);
+        await client.query(
+            `INSERT INTO virtual_balances (user_id, balance, updated_at) VALUES ($1, $2, NOW())
+             ON CONFLICT (user_id) DO UPDATE SET balance = $2, updated_at = NOW()`,
+            [req.user.id, newBalance]
+        );
+        const tradeRes = await client.query(
+            `INSERT INTO trade_history (user_id, symbol, trade_type, stake, payout, duration, duration_unit, entry_spot, status, opened_at, raw_data, is_real)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'open',NOW(),$9,false) RETURNING *`,
+            [req.user.id, symbol, trade_type, stake, payout, duration, duration_unit, entry_spot, raw_data ? JSON.stringify(raw_data) : null]
+        );
+        await client.query('COMMIT');
+        res.status(201).json({ trade: tradeRes.rows[0], balance: newBalance });
+    } catch (err) {
+        await client.query('ROLLBACK');
+        console.error('[virtual/trades POST]', err.message);
+        res.status(500).json({ error: 'Failed to open virtual trade' });
+    } finally {
+        client.release();
+    }
+});
+
+app.post('/api/virtual/trades/:id/settle', authMiddleware, requireAdmin, async (req, res) => {
+    const { id } = req.params;
+    const { result: tradeResult, exit_spot, profit } = req.body;
+    if (!['won', 'lost'].includes(tradeResult)) {
+        return res.status(400).json({ error: "result must be 'won' or 'lost'" });
+    }
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+        const tradeRes = await client.query(
+            'SELECT * FROM trade_history WHERE id = $1 AND user_id = $2 AND is_real = false FOR UPDATE',
+            [id, req.user.id]
+        );
+        if (tradeRes.rows.length === 0) {
+            await client.query('ROLLBACK');
+            return res.status(404).json({ error: 'Virtual trade not found' });
+        }
+        const trade = tradeRes.rows[0];
+        if (trade.status !== 'open') {
+            await client.query('ROLLBACK');
+            return res.status(400).json({ error: 'Trade already settled' });
+        }
+        const payoutAmount = tradeResult === 'won' ? parseFloat(trade.payout || trade.stake) : 0;
+        const balRes = await client.query('SELECT balance FROM virtual_balances WHERE user_id = $1 FOR UPDATE', [req.user.id]);
+        const currentBalance = balRes.rows.length ? parseFloat(balRes.rows[0].balance) : 0;
+        const newBalance = currentBalance + payoutAmount;
+        await client.query(
+            'UPDATE virtual_balances SET balance = $1, updated_at = NOW() WHERE user_id = $2',
+            [newBalance, req.user.id]
+        );
+        const updatedTrade = await client.query(
+            `UPDATE trade_history SET result = $1, exit_spot = $2, profit = $3, status = 'closed', closed_at = NOW()
+             WHERE id = $4 RETURNING *`,
+            [tradeResult, exit_spot, profit, id]
+        );
+        await client.query('COMMIT');
+        res.json({ trade: updatedTrade.rows[0], balance: newBalance });
+    } catch (err) {
+        await client.query('ROLLBACK');
+        console.error('[virtual/trades settle]', err.message);
+        res.status(500).json({ error: 'Failed to settle virtual trade' });
+    } finally {
+        client.release();
+    }
+});
+
+app.get('/api/virtual/trades', authMiddleware, requireAdmin, async (req, res) => {
+    const { limit = 50, offset = 0 } = req.query;
+    try {
+        const r = await pool.query(
+            'SELECT * FROM trade_history WHERE user_id = $1 AND is_real = false ORDER BY opened_at DESC LIMIT $2 OFFSET $3',
+            [req.user.id, parseInt(limit), parseInt(offset)]
+        );
+        res.json({ trades: r.rows });
+    } catch (err) {
+        res.status(500).json({ error: 'Failed to fetch virtual trades' });
     }
 });
 

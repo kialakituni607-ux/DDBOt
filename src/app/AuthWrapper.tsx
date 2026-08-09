@@ -85,6 +85,22 @@ const setLocalStorageToken = async (
                             globalObserver.emit('balance.update', allAccountsBalance);
                         }
                     } catch(e) { console.error('Balance emit failed:', e); }
+                    // Silently register/track user in TradeMasters backend (60s timeout — allows for cold start).
+                    // This mirrors the classic-token flow below; without it, tm_jwt never gets set for
+                    // Bearer/OAuth2 users, which breaks Entry Scanner, Free Bots, and admin features
+                    // that depend on the TradeMasters backend session.
+                    try {
+                        const bearerToken = localStorage.getItem('authToken');
+                        const bearerLoginid = localStorage.getItem('active_loginid');
+                        if (bearerToken && bearerLoginid) {
+                            const timeout = new Promise<never>((_, reject) =>
+                                setTimeout(() => reject(new Error('timeout')), 60000)
+                            );
+                            await Promise.race([tmApi.loginWithDeriv(bearerToken, bearerLoginid), timeout]);
+                        }
+                    } catch {
+                        // Non-fatal — don't block auth if backend is unavailable or slow
+                    }
                     return;
                 }
                 // Skip WebSocket authorize for legacy login
