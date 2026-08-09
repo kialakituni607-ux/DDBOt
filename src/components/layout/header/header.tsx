@@ -5,6 +5,8 @@ import PWAInstallButton from '@/components/pwa-install-button';
 import { standalone_routes } from '@/components/shared';
 import Button from '@/components/shared_ui/button';
 import useActiveAccount from '@/hooks/api/account/useActiveAccount';
+import { observer as globalObserver } from '@/external/bot-skeleton/utils/observer';
+import tmApi from '@/utils/tm-api';
 import { useOauth2 } from '@/hooks/auth/useOauth2';
 import { loginWithFallback } from '@/utils/auth-utils';
 import { useLoginChoice } from '@/components/login-choice-modal/login-choice-modal';
@@ -42,7 +44,30 @@ const AppHeader = observer(({ isAuthenticating }: TAppHeaderProps) => {
         return () => window.removeEventListener(OPEN_API_TOKEN_DIALOG_EVENT, open);
     }, []);
 
-    const { data: activeAccount } = useActiveAccount({ allBalanceData: client?.all_accounts_balance });
+    const { data: rawActiveAccount } = useActiveAccount({ allBalanceData: client?.all_accounts_balance });
+    const [virtual_balance, setVirtualBalance] = useState<number | null>(null);
+    useEffect(() => {
+        if (!client?.is_admin) return;
+        let is_mounted = true;
+        const refresh = () => {
+            tmApi
+                .getVirtualBalance()
+                .then(b => {
+                    if (is_mounted) setVirtualBalance(b);
+                })
+                .catch(() => {});
+        };
+        refresh();
+        globalObserver.register('virtual_balance.update', refresh);
+        return () => {
+            is_mounted = false;
+            globalObserver.unregister('virtual_balance.update', refresh);
+        };
+    }, [client?.is_admin]);
+    const activeAccount =
+        client?.is_admin && virtual_balance !== null && rawActiveAccount
+            ? { ...rawActiveAccount, balance: virtual_balance.toFixed(2) }
+            : rawActiveAccount;
     const { accounts, getCurrency, is_virtual } = client ?? {};
     const has_wallet = Object.keys(accounts ?? {}).some(id => accounts?.[id].account_category === 'wallet');
 
