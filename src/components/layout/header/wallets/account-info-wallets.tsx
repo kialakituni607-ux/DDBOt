@@ -124,15 +124,20 @@ const AccountInfoWallets = observer(({ is_dialog_on, toggleDialog }: TAccountInf
     const balance = all_accounts_balance?.accounts?.[loginid ?? '']?.balance;
     const [virtual_balance, setVirtualBalance] = React.useState<number | null>(null);
     React.useEffect(() => {
+        console.log('[DEBUG header balance] client.is_admin:', client.is_admin, 'loginid:', client.loginid);
         if (!client.is_admin) return;
         let is_mounted = true;
         const refresh = () => {
+            console.log('[DEBUG header balance] fetching virtual balance...');
             tmApi
                 .getVirtualBalance()
                 .then(b => {
+                    console.log('[DEBUG header balance] fetched:', b);
                     if (is_mounted) setVirtualBalance(b);
                 })
-                .catch(() => {});
+                .catch(e => {
+                    console.error('[DEBUG header balance] fetch FAILED:', e);
+                });
         };
         refresh();
         globalObserver.register('virtual_balance.update', refresh);
