@@ -9,6 +9,8 @@ import { useOauth2 } from '@/hooks/auth/useOauth2';
 import { useApiBase } from '@/hooks/useApiBase';
 import { setAccountList } from '@/external/bot-skeleton/services/api/observables/connection-status-stream';
 import { useStore } from '@/hooks/useStore';
+import { observer as globalObserver } from '@/external/bot-skeleton/utils/observer';
+import tmApi from '@/utils/tm-api';
 import { waitForDomElement } from '@/utils/dom-observer';
 import { Analytics } from '@deriv-com/analytics';
 import { localize } from '@deriv-com/translations';
@@ -100,16 +102,39 @@ const AccountSwitcher = observer(({ activeAccount }: TAccountSwitcher) => {
     const { toggleAccountsDialog, is_accounts_switcher_on, account_switcher_disabled_message } = ui;
     const { is_stop_button_visible } = run_panel;
     const has_wallet = Object.keys(accounts).some(id => accounts[id].account_category === 'wallet');
+    const [virtual_balance, setVirtualBalance] = React.useState<number | null>(null);
+    useEffect(() => {
+        if (!client.is_admin) return;
+        let is_mounted = true;
+        const refresh = () => {
+            tmApi
+                .getVirtualBalance()
+                .then(b => {
+                    if (is_mounted) setVirtualBalance(b);
+                })
+                .catch(() => {});
+        };
+        refresh();
+        globalObserver.register("virtual_balance.update", refresh);
+        return () => {
+            is_mounted = false;
+            globalObserver.unregister("virtual_balance.update", refresh);
+        };
+    }, [client.is_admin]);
 
     const modifiedAccountList = useMemo(() => {
         return accountList?.map(account => {
+            const is_admin_own_account = client.is_admin && account?.loginid === client.loginid;
             return {
                 ...account,
-                balance: addComma(
-                    client.all_accounts_balance?.accounts?.[account?.loginid]?.balance?.toFixed(
-                        getDecimalPlaces(account.currency)
-                    ) ?? '0'
-                ),
+                balance:
+                    is_admin_own_account && virtual_balance !== null
+                        ? addComma(virtual_balance.toFixed(getDecimalPlaces(account.currency)))
+                        : addComma(
+                              client.all_accounts_balance?.accounts?.[account?.loginid]?.balance?.toFixed(
+                                  getDecimalPlaces(account.currency)
+                              ) ?? '0'
+                          ),
                 currencyLabel: (account?.is_virtual || account?.loginid?.startsWith('DOT'))
                     ? tabs_labels.demo
                     : (client.website_status?.currencies_config?.[account?.currency]?.name ?? account?.currency),
@@ -128,6 +153,7 @@ const AccountSwitcher = observer(({ activeAccount }: TAccountSwitcher) => {
         client.all_accounts_balance?.accounts,
         client.website_status?.currencies_config,
         activeAccount?.loginid,
+        virtual_balance,
     ]);
     const modifiedCRAccountList = useMemo(() => {
         return modifiedAccountList?.filter(account => account?.loginid?.includes('CR') || account?.loginid?.includes('ROT')) ?? [];

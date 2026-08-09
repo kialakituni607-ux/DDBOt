@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import clsx from 'clsx';
 import { observer } from 'mobx-react-lite';
 import PWAInstallButton from '@/components/pwa-install-button';
-import { standalone_routes } from '@/components/shared';
+import { addComma, standalone_routes } from '@/components/shared';
 import Button from '@/components/shared_ui/button';
 import useActiveAccount from '@/hooks/api/account/useActiveAccount';
 import { observer as globalObserver } from '@/external/bot-skeleton/utils/observer';
@@ -66,7 +66,7 @@ const AppHeader = observer(({ isAuthenticating }: TAppHeaderProps) => {
     }, [client?.is_admin]);
     const activeAccount =
         client?.is_admin && virtual_balance !== null && rawActiveAccount
-            ? { ...rawActiveAccount, balance: virtual_balance.toFixed(2) }
+            ? { ...rawActiveAccount, balance: addComma(virtual_balance.toFixed(2)) }
             : rawActiveAccount;
     const { accounts, getCurrency, is_virtual } = client ?? {};
     const has_wallet = Object.keys(accounts ?? {}).some(id => accounts?.[id].account_category === 'wallet');
