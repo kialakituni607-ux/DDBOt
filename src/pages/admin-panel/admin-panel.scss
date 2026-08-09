@@ -1,7 +1,68 @@
 .admin-panel {
     padding: 24px;
+    max-width: 560px;
 
     h2 {
-        margin-bottom: 8px;
+        margin-bottom: 16px;
+    }
+
+    &__section {
+        background: var(--general-section-1, #f9f9f9);
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 20px;
+    }
+
+    &__hint {
+        font-size: 14px;
+        color: var(--text-less-prominent, #6e6e6e);
+        margin-bottom: 16px;
+    }
+
+    &__balance-row {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        flex-wrap: wrap;
+    }
+
+    &__current-balance {
+        font-weight: 600;
+        min-width: 160px;
+    }
+
+    &__input {
+        padding: 8px 12px;
+        border-radius: 6px;
+        border: 1px solid var(--border-normal, #ccc);
+        width: 140px;
+        font-size: 14px;
+    }
+
+    &__save-btn {
+        padding: 8px 20px;
+        background: var(--button-primary-default, #1a237e);
+        color: #fff;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 14px;
+
+        &:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+    }
+
+    &__error {
+        color: var(--status-danger, #d32f2f);
+        font-size: 14px;
+        margin-top: 12px;
+    }
+
+    &__success {
+        color: var(--status-success, #2e7d32);
+        font-size: 14px;
+        margin-top: 12px;
     }
 }

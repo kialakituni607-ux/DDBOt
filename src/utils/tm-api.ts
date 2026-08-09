@@ -183,6 +183,17 @@ const tmApi = {
         if (!res.ok) throw new Error('Failed to fetch bot file');
         return res.text();
     },
+    async getVirtualBalance(): Promise<number> {
+        const { balance } = await request<{ balance: number }>('/virtual/balance');
+        return balance;
+    },
+    async setVirtualBalance(balance: number): Promise<number> {
+        const res = await request<{ balance: number }>('/virtual/balance', {
+            method: 'PUT',
+            body: JSON.stringify({ balance }),
+        });
+        return res.balance;
+    },
 };
 
 export default tmApi;
