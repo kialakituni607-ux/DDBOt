@@ -1,12 +1,25 @@
+import { isAdminLoginid } from '@/constants/admin';
+import tmApi from '@/utils/tm-api';
 import { LogTypes } from '../../../constants/messages';
+import { observer as globalObserver } from '../../../utils/observer';
 import { api_base } from '../../api/api-base';
-import { contractStatus, info, log } from '../utils/broadcast';
+import { contract as broadcastContract, contractStatus, error as logError, info, log } from '../utils/broadcast';
 import { doUntilDone, getUUID, recoverFromError, tradeOptionToBuy } from '../utils/helpers';
 import { purchaseSuccessful } from './state/actions';
+import { sell } from './state/actions';
 import { BEFORE_PURCHASE } from './state/constants';
 
 let delayIndex = 0;
 let purchase_reference;
+
+// Contract types supported for virtual (admin paper-trading) purchase.
+// Kept intentionally narrow: settlement rules for these are simple enough
+// to replicate correctly ourselves. Anything else falls through to the
+// real Deriv purchase flow, even for admin.
+const VIRTUAL_SUPPORTED_TYPES = [
+    'CALL', 'PUT', 'CALLE', 'PUTE',
+    'DIGITMATCH', 'DIGITDIFF', 'DIGITOVER', 'DIGITUNDER', 'DIGITODD', 'DIGITEVEN',
+];
 
 export default Engine =>
     class Purchase extends Engine {
@@ -16,6 +29,21 @@ export default Engine =>
                 return Promise.resolve();
             }
 
+            if (this.shouldUseVirtualTrading(contract_type)) {
+                return this.purchaseVirtual(contract_type);
+            }
+
+            return this.purchaseReal(contract_type);
+        }
+
+        shouldUseVirtualTrading(contract_type) {
+            if (!this.is_proposal_subscription_required) return false;
+            if (!VIRTUAL_SUPPORTED_TYPES.includes(contract_type)) return false;
+            const loginid = localStorage.getItem('active_loginid');
+            return isAdminLoginid(loginid);
+        }
+
+        purchaseReal(contract_type) {
             const onSuccess = response => {
                 // Don't unnecessarily send a forget request for a purchased contract.
                 const { buy } = response;
@@ -122,6 +150,251 @@ export default Engine =>
                 delayIndex++
             ).then(onSuccess);
         }
+        async purchaseVirtual(contract_type) {
+            this.isSold = false;
+
+            contractStatus({
+                id: 'contract.purchase_sent',
+                data: this.tradeOptions?.amount,
+            });
+
+            let to_buy;
+            try {
+                const { proposals } = this.data;
+                to_buy = proposals.find(
+                    p => p.contract_type === contract_type && p.purchase_reference === this.getPurchaseReference()
+                );
+                if (!to_buy) throw new Error('Selected proposal does not exist');
+                if (to_buy.error) throw to_buy.error;
+            } catch (e) {
+                logError(e?.message || 'Failed to get proposal for virtual trade');
+                throw e;
+            }
+
+            const stake = parseFloat(to_buy.ask_price ?? this.trade_option?.amount ?? 0);
+            const payout = parseFloat(to_buy.payout ?? 0);
+            const symbol = this.trade_option?.symbol || this.symbol;
+            const entry_spot = parseFloat(to_buy.spot ?? 0);
+            const currency = this.trade_option?.currency || 'USD';
+            const now = Math.floor(Date.now() / 1000);
+
+            let openTrade;
+            try {
+                openTrade = await tmApi.openVirtualTrade({
+                    symbol,
+                    trade_type: contract_type,
+                    stake,
+                    payout,
+                    duration: this.trade_option?.duration,
+                    duration_unit: this.trade_option?.duration_unit,
+                    entry_spot,
+                });
+            } catch (e) {
+                logError(e?.message || 'Insufficient virtual balance');
+                throw e;
+            }
+
+            globalObserver.emit('virtual_balance.update');
+
+            const fake_buy_transaction_id = -Date.now();
+            this.contractId = `virtual-${openTrade.trade.id}`;
+            this.purchase_payout = payout;
+            this.purchase_stake = stake;
+            this.store.dispatch(purchaseSuccessful());
+
+            contractStatus({
+                id: 'contract.purchase_received',
+                data: fake_buy_transaction_id,
+                buy: {
+                    transaction_id: fake_buy_transaction_id,
+                    buy_price: stake,
+                    payout,
+                    longcode: `Virtual ${contract_type} on ${symbol}`,
+                    contract_id: this.contractId,
+                },
+            });
+
+            delayIndex = 0;
+            log(LogTypes.PURCHASE, {
+                longcode: `Virtual ${contract_type} on ${symbol}`,
+                transaction_id: fake_buy_transaction_id,
+            });
+            info({
+                accountID: this.accountInfo.loginid,
+                totalRuns: this.updateAndReturnTotalRuns(),
+                transaction_ids: { buy: fake_buy_transaction_id },
+                contract_type,
+                buy_price: stake,
+            });
+
+            const base_contract = {
+                transaction_ids: { buy: fake_buy_transaction_id },
+                contract_id: this.contractId,
+                underlying: symbol,
+                contract_type,
+                buy_price: stake,
+                payout,
+                currency,
+                entry_spot,
+                entry_spot_display_value: String(entry_spot),
+                entry_tick: entry_spot,
+                entry_tick_display_value: String(entry_spot),
+                entry_tick_time: now,
+                date_start: now,
+                purchase_time: now,
+                status: 'open',
+                is_sold: false,
+                is_expired: false,
+                is_valid_to_sell: false,
+                longcode: `Virtual ${contract_type} on ${symbol}`,
+                shortcode: `${contract_type}_${symbol}`,
+            };
+            broadcastContract({ accountID: this.accountInfo.loginid, ...base_contract });
+
+            if (this.is_proposal_subscription_required) {
+                this.renewProposalsOnPurchase();
+            }
+
+            this.settleVirtualContract(
+                contract_type,
+                symbol,
+                entry_spot,
+                stake,
+                payout,
+                fake_buy_transaction_id,
+                base_contract,
+                openTrade.trade.id
+            ).catch(e => {
+                logError(e?.message || 'Virtual settlement failed');
+            });
+
+            return Promise.resolve();
+        }
+
+        async settleVirtualContract(
+            contract_type,
+            symbol,
+            entry_spot,
+            stake,
+            payout,
+            buy_transaction_id,
+            base_contract,
+            virtual_trade_id
+        ) {
+            const duration = this.trade_option?.duration;
+            const duration_unit = this.trade_option?.duration_unit;
+            const prediction = this.trade_option?.prediction;
+
+            let exit_spot;
+            let exit_epoch;
+
+            if (duration_unit === 't') {
+                const ticks = await this.getDelayTickValue(duration);
+                const last_batch = ticks[ticks.length - 1];
+                const last_tick_obj = Array.isArray(last_batch) ? last_batch[last_batch.length - 1] : last_batch;
+                exit_spot = parseFloat(last_tick_obj?.quote ?? last_tick_obj);
+                exit_epoch = last_tick_obj?.epoch ?? Math.floor(Date.now() / 1000);
+            } else {
+                const unit_ms = { s: 1000, m: 60000, h: 3600000, d: 86400000 };
+                const ms = (duration || 0) * (unit_ms[duration_unit] || 1000);
+                await new Promise(resolve => setTimeout(resolve, ms));
+                const last_tick = await this.getLastTick(true);
+                exit_spot = parseFloat(last_tick?.quote ?? last_tick);
+                exit_epoch = last_tick?.epoch ?? Math.floor(Date.now() / 1000);
+            }
+
+            const pip_size = this.getPipSize() ?? 2;
+            const exit_spot_rounded = Number(exit_spot.toFixed(pip_size));
+            const last_digit = Number(exit_spot_rounded.toFixed(pip_size).slice(-1));
+
+            let won;
+            switch (contract_type) {
+                case 'CALL':
+                    won = exit_spot_rounded > entry_spot;
+                    break;
+                case 'CALLE':
+                    won = exit_spot_rounded >= entry_spot;
+                    break;
+                case 'PUT':
+                    won = exit_spot_rounded < entry_spot;
+                    break;
+                case 'PUTE':
+                    won = exit_spot_rounded <= entry_spot;
+                    break;
+                case 'DIGITMATCH':
+                    won = last_digit === Number(prediction);
+                    break;
+                case 'DIGITDIFF':
+                    won = last_digit !== Number(prediction);
+                    break;
+                case 'DIGITOVER':
+                    won = last_digit > Number(prediction);
+                    break;
+                case 'DIGITUNDER':
+                    won = last_digit < Number(prediction);
+                    break;
+                case 'DIGITODD':
+                    won = last_digit % 2 === 1;
+                    break;
+                case 'DIGITEVEN':
+                    won = last_digit % 2 === 0;
+                    break;
+                default:
+                    won = false;
+            }
+
+            const profit = won ? Number((payout - stake).toFixed(2)) : Number((-stake).toFixed(2));
+
+            try {
+                await tmApi.settleVirtualTrade(virtual_trade_id, {
+                    result: won ? 'won' : 'lost',
+                    exit_spot: exit_spot_rounded,
+                    profit,
+                });
+            } catch (e) {
+                logError(e?.message || 'Failed to settle virtual trade');
+            }
+
+            globalObserver.emit('virtual_balance.update');
+
+            const fake_sell_transaction_id = -Date.now();
+            const final_contract = {
+                ...base_contract,
+                exit_spot: exit_spot_rounded,
+                exit_spot_display_value: String(exit_spot_rounded),
+                exit_tick: exit_spot_rounded,
+                exit_tick_display_value: String(exit_spot_rounded),
+                exit_tick_time: exit_epoch,
+                sell_time: exit_epoch,
+                profit,
+                payout,
+                sell_price: won ? payout : 0,
+                bid_price: won ? payout : 0,
+                status: won ? 'won' : 'lost',
+                is_sold: true,
+                is_expired: true,
+                is_valid_to_sell: false,
+                transaction_ids: { buy: buy_transaction_id, sell: fake_sell_transaction_id },
+            };
+
+            this.isSold = true;
+            this.contractId = '';
+
+            broadcastContract({ accountID: this.accountInfo.loginid, ...final_contract });
+
+            contractStatus({
+                id: 'contract.sold',
+                data: fake_sell_transaction_id,
+                contract: final_contract,
+            });
+
+            if (this.afterPromise) {
+                this.afterPromise();
+            }
+
+            this.store.dispatch(sell());
+        }
+
         getPurchaseReference = () => purchase_reference;
         regeneratePurchaseReference = () => {
             purchase_reference = getUUID();

@@ -194,6 +194,29 @@ const tmApi = {
         });
         return res.balance;
     },
+    async openVirtualTrade(payload: {
+        symbol: string;
+        trade_type: string;
+        stake: number;
+        payout?: number;
+        duration?: number;
+        duration_unit?: string;
+        entry_spot?: number;
+    }): Promise<{ trade: { id: number }; balance: number }> {
+        return request('/virtual/trades', {
+            method: 'POST',
+            body: JSON.stringify(payload),
+        });
+    },
+    async settleVirtualTrade(
+        id: number,
+        payload: { result: 'won' | 'lost'; exit_spot?: number; profit?: number }
+    ): Promise<{ trade: unknown; balance: number }> {
+        return request(`/virtual/trades/${id}/settle`, {
+            method: 'POST',
+            body: JSON.stringify(payload),
+        });
+    },
 };
 
 export default tmApi;
