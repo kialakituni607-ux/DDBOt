@@ -290,6 +290,7 @@ export default Engine =>
 
             if (duration_unit === 't') {
                 const ticks = await this.getDelayTickValue(duration);
+                console.log("[DEBUG virtual settle] raw ticks from getDelayTickValue:", JSON.stringify(ticks));
                 const last_batch = ticks[ticks.length - 1];
                 const last_tick_obj = Array.isArray(last_batch) ? last_batch[last_batch.length - 1] : last_batch;
                 exit_spot = parseFloat(last_tick_obj?.quote ?? last_tick_obj);
