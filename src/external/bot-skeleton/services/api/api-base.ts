@@ -295,12 +295,25 @@ class APIBase {
                 // all work immediately after connecting, matching Deriv's documented
                 // OTP trading flow).
                 try {
-                    const otpRes = await fetch('/api/auth/otp', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ access_token: this.token, account_id: this.account_id }),
-                    });
-                    const otpData = await otpRes.json();
+                    // The OTP endpoint is called on every reload (single-use tokens),
+                    // so it's rate-limited more generously than login/register — but
+                    // heavy testing/usage can still occasionally hit that ceiling.
+                    // Retry a couple of times with backoff rather than failing outright
+                    // and forcing the user to manually reload.
+                    let otpRes: Response | undefined;
+                    let retry_delay_ms = 2000;
+                    for (let attempt = 0; attempt <= 2; attempt++) {
+                        otpRes = await fetch('/api/auth/otp', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ access_token: this.token, account_id: this.account_id }),
+                        });
+                        if (otpRes.status !== 429 || attempt === 2) break;
+                        console.warn(`[api-base] OTP fetch rate-limited (429), retrying in ${retry_delay_ms}ms (attempt ${attempt + 1}/3)`);
+                        await new Promise(resolve => setTimeout(resolve, retry_delay_ms));
+                        retry_delay_ms *= 2;
+                    }
+                    const otpData = await otpRes!.json();
                     const freshOtpUrl = otpData?.data?.url;
                     if (freshOtpUrl) {
                         localStorage.setItem('deriv_ws_url', freshOtpUrl);

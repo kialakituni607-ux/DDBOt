@@ -176,6 +176,13 @@ function rateLimit({ max, windowMs }) {
 const generalLimiter = rateLimit({ max: 60, windowMs: 60_000 });
 const authLimiter = rateLimit({ max: 10, windowMs: 60_000 });
 const botLimiter = rateLimit({ max: 30, windowMs: 60_000 });
+// Separate, more generous limiter for endpoints hit on every single page
+// reload (OTP fetch is single-use by design, and the Deriv session
+// registration also runs on every load) — these aren't user-typed actions
+// like login/register, so they don't need the same strict anti-brute-force
+// ceiling. Without this, normal reload-heavy usage collides with the
+// stricter authLimiter shared by genuinely sensitive endpoints.
+const reloadLimiter = rateLimit({ max: 60, windowMs: 60_000 });
 
 // ── 2. CORS ───────────────────────────────────────────────────────────────────
 const ALLOWED_ORIGINS = [
@@ -361,7 +368,7 @@ app.get('/api/auth/me', authMiddleware, async (req, res) => {
 });
 
 // Deriv OAuth — create or find user by loginid, no password needed
-app.post('/api/auth/deriv', authLimiter, async (req, res) => {
+app.post('/api/auth/deriv', reloadLimiter, async (req, res) => {
     const { deriv_token, loginid } = req.body;
     if (!deriv_token || !loginid) {
         return res.status(400).json({ error: 'deriv_token and loginid are required' });
@@ -870,7 +877,7 @@ app.post('/api/auth/accounts', authLimiter, async (req, res) => {
 });
 
 // GET OTP
-app.post('/api/auth/otp', authLimiter, async (req, res) => {
+app.post('/api/auth/otp', reloadLimiter, async (req, res) => {
     const { access_token, account_id } = req.body;
     try {
         const response = await fetch(`https://api.derivws.com/trading/v1/options/accounts/${account_id}/otp`, {
