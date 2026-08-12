@@ -255,6 +255,15 @@ export default Engine =>
                 this.renewProposalsOnPurchase();
             }
 
+            // Capture trade parameters NOW, at purchase time — this.trade_option is
+            // shared, mutable engine state that the bot may overwrite with the NEXT
+            // trade's values before this settlement (async, runs after purchase
+            // returns) gets a chance to read it. Passing them explicitly avoids a
+            // stale/wrong-value read that silently breaks settlement.
+            const settle_duration = this.trade_option?.duration;
+            const settle_duration_unit = this.trade_option?.duration_unit;
+            const settle_prediction = this.trade_option?.prediction;
+
             this.settleVirtualContract(
                 contract_type,
                 symbol,
@@ -263,7 +272,10 @@ export default Engine =>
                 payout,
                 fake_buy_transaction_id,
                 base_contract,
-                openTrade.trade.id
+                openTrade.trade.id,
+                settle_duration,
+                settle_duration_unit,
+                settle_prediction
             ).catch(e => {
                 logError(e?.message || 'Virtual settlement failed');
             });
@@ -279,11 +291,11 @@ export default Engine =>
             payout,
             buy_transaction_id,
             base_contract,
-            virtual_trade_id
+            virtual_trade_id,
+            duration,
+            duration_unit,
+            prediction
         ) {
-            const duration = this.trade_option?.duration;
-            const duration_unit = this.trade_option?.duration_unit;
-            const prediction = this.trade_option?.prediction;
 
             let exit_spot;
             let exit_epoch;
