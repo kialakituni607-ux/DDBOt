@@ -194,6 +194,19 @@ const tmApi = {
         });
         return res.balance;
     },
+    async getVirtualSequence(): Promise<{ sequence: string; index: number; enabled: boolean }> {
+        return request('/virtual/sequence');
+    },
+    async setVirtualSequence(payload: { sequence?: string; enabled?: boolean }): Promise<{
+        sequence: string;
+        index: number;
+        enabled: boolean;
+    }> {
+        return request('/virtual/sequence', {
+            method: 'PUT',
+            body: JSON.stringify(payload),
+        });
+    },
     async openVirtualTrade(payload: {
         symbol: string;
         trade_type: string;

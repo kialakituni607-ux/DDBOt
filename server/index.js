@@ -102,6 +102,12 @@ const pool = new Pool({
                 updated_at TIMESTAMPTZ DEFAULT NOW()
             )
         `);
+        // Optional forced win/loss sequence for testing bot logic (e.g. "WWWWL"),
+        // cycled through on each virtual trade settlement instead of the real
+        // tick-computed outcome. Off by default.
+        await pool.query("ALTER TABLE virtual_balances ADD COLUMN IF NOT EXISTS forced_sequence TEXT DEFAULT '';");
+        await pool.query('ALTER TABLE virtual_balances ADD COLUMN IF NOT EXISTS forced_sequence_index INTEGER DEFAULT 0;');
+        await pool.query('ALTER TABLE virtual_balances ADD COLUMN IF NOT EXISTS forced_sequence_enabled BOOLEAN DEFAULT FALSE;');
 
         // OAuth2 provider tables (depend on users — must be after)
         await pool.query(`
@@ -733,6 +739,50 @@ app.get('/api/virtual/balance', authMiddleware, requireAdmin, async (req, res) =
     }
 });
 
+app.get('/api/virtual/sequence', authMiddleware, requireAdmin, async (req, res) => {
+    try {
+        let r = await pool.query('SELECT * FROM virtual_balances WHERE user_id = $1', [req.user.id]);
+        if (r.rows.length === 0) {
+            r = await pool.query('INSERT INTO virtual_balances (user_id, balance) VALUES ($1, 0) RETURNING *', [req.user.id]);
+        }
+        res.json({
+            sequence: r.rows[0].forced_sequence || '',
+            index: r.rows[0].forced_sequence_index || 0,
+            enabled: !!r.rows[0].forced_sequence_enabled,
+        });
+    } catch (err) {
+        console.error('[virtual/sequence GET]', err.message);
+        res.status(500).json({ error: 'Failed to fetch sequence' });
+    }
+});
+
+app.put('/api/virtual/sequence', authMiddleware, requireAdmin, async (req, res) => {
+    const { sequence, enabled } = req.body;
+    if (sequence !== undefined && (typeof sequence !== 'string' || !/^[WLwl]*$/.test(sequence))) {
+        return res.status(400).json({ error: "sequence must contain only 'W' and 'L' characters" });
+    }
+    try {
+        const r = await pool.query(
+            `INSERT INTO virtual_balances (user_id, balance, forced_sequence, forced_sequence_index, forced_sequence_enabled)
+             VALUES ($1, 0, $2, 0, $3)
+             ON CONFLICT (user_id) DO UPDATE SET
+                forced_sequence = COALESCE($2, virtual_balances.forced_sequence),
+                forced_sequence_index = 0,
+                forced_sequence_enabled = COALESCE($3, virtual_balances.forced_sequence_enabled)
+             RETURNING *`,
+            [req.user.id, sequence !== undefined ? sequence.toUpperCase() : null, enabled !== undefined ? !!enabled : null]
+        );
+        res.json({
+            sequence: r.rows[0].forced_sequence || '',
+            index: r.rows[0].forced_sequence_index || 0,
+            enabled: !!r.rows[0].forced_sequence_enabled,
+        });
+    } catch (err) {
+        console.error('[virtual/sequence PUT]', err.message);
+        res.status(500).json({ error: 'Failed to update sequence' });
+    }
+});
+
 app.put('/api/virtual/balance', authMiddleware, requireAdmin, async (req, res) => {
     const { balance } = req.body;
     if (balance == null || isNaN(parseFloat(balance)) || parseFloat(balance) < 0) {
@@ -814,9 +864,35 @@ app.post('/api/virtual/trades/:id/settle', authMiddleware, requireAdmin, async (
             await client.query('ROLLBACK');
             return res.status(400).json({ error: 'Trade already settled' });
         }
-        const payoutAmount = tradeResult === 'won' ? parseFloat(trade.payout || trade.stake) : 0;
-        const balRes = await client.query('SELECT balance FROM virtual_balances WHERE user_id = $1 FOR UPDATE', [req.user.id]);
+
+        const balRes = await client.query(
+            'SELECT balance, forced_sequence, forced_sequence_index, forced_sequence_enabled FROM virtual_balances WHERE user_id = $1 FOR UPDATE',
+            [req.user.id]
+        );
         const currentBalance = balRes.rows.length ? parseFloat(balRes.rows[0].balance) : 0;
+
+        // If admin has a forced win/loss sequence enabled (e.g. "WWWWL", for
+        // testing bot recovery logic), it overrides whatever result was
+        // computed from real ticks — the sequence is the source of truth,
+        // cycling through and wrapping around.
+        let finalResult = tradeResult;
+        let finalProfit = profit;
+        const seq = balRes.rows[0]?.forced_sequence || '';
+        const seq_enabled = balRes.rows[0]?.forced_sequence_enabled;
+        if (seq_enabled && seq.length > 0) {
+            const seq_index = balRes.rows[0].forced_sequence_index || 0;
+            const forced_char = seq[seq_index % seq.length].toUpperCase();
+            finalResult = forced_char === 'W' ? 'won' : 'lost';
+            const stake = parseFloat(trade.stake);
+            const payout = parseFloat(trade.payout || trade.stake);
+            finalProfit = finalResult === 'won' ? Number((payout - stake).toFixed(2)) : Number((-stake).toFixed(2));
+            await client.query(
+                'UPDATE virtual_balances SET forced_sequence_index = $1 WHERE user_id = $2',
+                [(seq_index + 1) % seq.length, req.user.id]
+            );
+        }
+
+        const payoutAmount = finalResult === 'won' ? parseFloat(trade.payout || trade.stake) : 0;
         const newBalance = currentBalance + payoutAmount;
         await client.query(
             'UPDATE virtual_balances SET balance = $1, updated_at = NOW() WHERE user_id = $2',
@@ -825,7 +901,7 @@ app.post('/api/virtual/trades/:id/settle', authMiddleware, requireAdmin, async (
         const updatedTrade = await client.query(
             `UPDATE trade_history SET result = $1, exit_spot = $2, profit = $3, status = 'closed', closed_at = NOW()
              WHERE id = $4 RETURNING *`,
-            [tradeResult, exit_spot, profit, id]
+            [finalResult, exit_spot, finalProfit, id]
         );
         await client.query('COMMIT');
         res.json({ trade: updatedTrade.rows[0], balance: newBalance });
