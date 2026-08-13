@@ -248,6 +248,18 @@ class APIBase {
         if (this.api?.connection?.readyState && this.api?.connection?.readyState > 1) {
             // eslint-disable-next-line no-console
             console.log('Info: Connection to the server was closed, trying to reconnect.');
+            // OTP tokens are single-use. If we were connected via an OTP-scoped
+            // socket and it drops (network blip, server-side timeout, etc.),
+            // blindly reconnecting reuses the SAME already-consumed OTP URL
+            // still sitting in localStorage — guaranteed to fail again, forever,
+            // until the user does a full manual page reload. Clear the stale
+            // OTP state here so init() goes through the same fresh-OTP-fetch
+            // path it uses on a genuine first load, instead of retrying with
+            // dead credentials.
+            if (localStorage.getItem('use_otp_ws') === 'true') {
+                localStorage.removeItem('use_otp_ws');
+                localStorage.removeItem('deriv_ws_url');
+            }
             this.init(true);
         }
     };
