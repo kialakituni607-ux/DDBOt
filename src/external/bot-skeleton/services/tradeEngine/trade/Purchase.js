@@ -399,11 +399,6 @@ export default Engine =>
                 is_valid_to_sell: false,
                 transaction_ids: { buy: buy_transaction_id, sell: fake_sell_transaction_id },
             };
-                is_sold: true,
-                is_expired: true,
-                is_valid_to_sell: false,
-                transaction_ids: { buy: buy_transaction_id, sell: fake_sell_transaction_id },
-            };
 
             this.isSold = true;
             this.contractId = '';
