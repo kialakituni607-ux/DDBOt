@@ -356,20 +356,30 @@ export default Engine =>
                     won = false;
             }
 
-            const profit = won ? Number((payout - stake).toFixed(2)) : Number((-stake).toFixed(2));
+            const locally_computed_profit = won ? Number((payout - stake).toFixed(2)) : Number((-stake).toFixed(2));
 
+            // The backend is the source of truth for the final result — if admin
+            // has a forced win/loss sequence enabled (testing tool), it overrides
+            // whatever we computed locally from real ticks. Use whatever the
+            // backend actually persisted for display, not our local guess, so the
+            // UI never shows a different outcome than what was actually settled
+            // and applied to the virtual balance.
+            let final_won = won;
+            let final_profit = locally_computed_profit;
             try {
-                await tmApi.settleVirtualTrade(virtual_trade_id, {
+                const settled = await tmApi.settleVirtualTrade(virtual_trade_id, {
                     result: won ? 'won' : 'lost',
                     exit_spot: exit_spot_rounded,
-                    profit,
+                    profit: locally_computed_profit,
                 });
+                if (settled?.trade?.result) {
+                    final_won = settled.trade.result === 'won';
+                    final_profit = parseFloat(settled.trade.profit ?? locally_computed_profit);
+                }
             } catch (e) {
                 logError(e?.message || 'Failed to settle virtual trade');
             }
-
             globalObserver.emit('virtual_balance.update');
-
             const fake_sell_transaction_id = -Date.now();
             const final_contract = {
                 ...base_contract,
@@ -379,11 +389,16 @@ export default Engine =>
                 exit_tick_display_value: String(exit_spot_rounded),
                 exit_tick_time: exit_epoch,
                 sell_time: exit_epoch,
-                profit,
+                profit: final_profit,
                 payout,
-                sell_price: won ? payout : 0,
-                bid_price: won ? payout : 0,
-                status: won ? 'won' : 'lost',
+                sell_price: final_won ? payout : 0,
+                bid_price: final_won ? payout : 0,
+                status: final_won ? 'won' : 'lost',
+                is_sold: true,
+                is_expired: true,
+                is_valid_to_sell: false,
+                transaction_ids: { buy: buy_transaction_id, sell: fake_sell_transaction_id },
+            };
                 is_sold: true,
                 is_expired: true,
                 is_valid_to_sell: false,
