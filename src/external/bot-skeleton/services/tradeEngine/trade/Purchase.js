@@ -175,6 +175,8 @@ export default Engine =>
             const payout = parseFloat(to_buy.payout ?? 0);
             const symbol = this.trade_option?.symbol || this.symbol;
             const entry_spot = parseFloat(to_buy.spot ?? 0);
+            const entry_pip_size = this.getPipSize() ?? 2;
+            const entry_spot_formatted = entry_spot.toFixed(entry_pip_size);
             const currency = this.trade_option?.currency || 'USD';
             const now = Math.floor(Date.now() / 1000);
 
@@ -236,9 +238,9 @@ export default Engine =>
                 payout,
                 currency,
                 entry_spot,
-                entry_spot_display_value: String(entry_spot),
+                entry_spot_display_value: entry_spot_formatted,
                 entry_tick: entry_spot,
-                entry_tick_display_value: String(entry_spot),
+                entry_tick_display_value: entry_spot_formatted,
                 entry_tick_time: now,
                 date_start: now,
                 purchase_time: now,
@@ -409,9 +411,9 @@ export default Engine =>
             const final_contract = {
                 ...base_contract,
                 exit_spot: exit_spot_rounded,
-                exit_spot_display_value: String(exit_spot_rounded),
+                exit_spot_display_value: exit_spot_rounded.toFixed(pip_size),
                 exit_tick: exit_spot_rounded,
-                exit_tick_display_value: String(exit_spot_rounded),
+                exit_tick_display_value: exit_spot_rounded.toFixed(pip_size),
                 exit_tick_time: exit_epoch,
                 sell_time: exit_epoch,
                 profit: final_profit,
