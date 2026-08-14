@@ -300,6 +300,7 @@ export default Engine =>
             let exit_spot;
             let exit_epoch;
 
+            console.log("[DEBUG virtual settle] duration:", JSON.stringify(duration), "duration_unit:", JSON.stringify(duration_unit), "typeof duration:", typeof duration);
             if (duration_unit === 't') {
                 const ticks = await this.getDelayTickValue(duration);
                 console.log("[DEBUG virtual settle] raw ticks from getDelayTickValue:", JSON.stringify(ticks));
