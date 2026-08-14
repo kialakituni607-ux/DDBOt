@@ -300,12 +300,36 @@ export default Engine =>
             let exit_spot;
             let exit_epoch;
 
-            console.log("[DEBUG virtual settle] duration:", JSON.stringify(duration), "duration_unit:", JSON.stringify(duration_unit), "typeof duration:", typeof duration);
             if (duration_unit === 't') {
-                const ticks = await this.getDelayTickValue(duration);
-                console.log("[DEBUG virtual settle] raw ticks from getDelayTickValue:", JSON.stringify(ticks));
-                const last_batch = ticks[ticks.length - 1];
-                const last_tick_obj = Array.isArray(last_batch) ? last_batch[last_batch.length - 1] : last_batch;
+                // NOTE: intentionally not using the shared getDelayTickValue()
+                // helper here — it has a pre-existing bug where it resolves
+                // its promise with a live reference to its internal ticks
+                // array, then immediately clears that same array (ticks.length
+                // = 0) right after resolving. Since that happens synchronously,
+                // before our await continuation runs, we'd always read back an
+                // empty array. No other caller in this codebase was affected
+                // since none of them read the resolved tick data itself, only
+                // used it as a timing signal. We collect ticks ourselves here,
+                // using the same underlying ticksService primitives, returning
+                // a safe snapshot instead.
+                const symbol = this.symbol;
+                const collected_ticks = [];
+                const exit_data = await new Promise((resolve, reject) => {
+                    try {
+                        const callback = tick_list => {
+                            const latest = Array.isArray(tick_list) ? tick_list[tick_list.length - 1] : tick_list;
+                            if (latest) collected_ticks.push(latest);
+                            if (collected_ticks.length >= duration) {
+                                this.$scope.ticksService.stopMonitor({ symbol, key: '' });
+                                resolve(collected_ticks.slice());
+                            }
+                        };
+                        this.$scope.ticksService.monitor({ symbol, callback });
+                    } catch (e) {
+                        reject(e);
+                    }
+                });
+                const last_tick_obj = exit_data[exit_data.length - 1];
                 exit_spot = parseFloat(last_tick_obj?.quote ?? last_tick_obj);
                 exit_epoch = last_tick_obj?.epoch ?? Math.floor(Date.now() / 1000);
             } else {
