@@ -174,11 +174,111 @@ export default Engine =>
             const stake = parseFloat(to_buy.ask_price ?? this.trade_option?.amount ?? 0);
             const payout = parseFloat(to_buy.payout ?? 0);
             const symbol = this.trade_option?.symbol || this.symbol;
-            const entry_spot = parseFloat(to_buy.spot ?? 0);
-            const entry_pip_size = this.getPipSize() ?? 2;
-            const entry_spot_formatted = entry_spot.toFixed(entry_pip_size);
             const currency = this.trade_option?.currency || 'USD';
-            const now = Math.floor(Date.now() / 1000);
+
+            // Capture trade parameters NOW, before any waiting — this.trade_option
+            // is shared, mutable engine state that the bot may overwrite with the
+            // NEXT trade's values while we're waiting for ticks below.
+            const duration = this.trade_option?.duration;
+            const duration_unit = this.trade_option?.duration_unit;
+            const prediction = this.trade_option?.prediction;
+            const pip_size = this.getPipSize() ?? 2;
+
+            // Per Deriv's real contract rules: entry spot is the next tick after
+            // the contract is processed, and exit spot is the last tick when the
+            // contract ends. For a 1-tick contract there is only ONE tick in the
+            // whole contract — that same tick is both entry and exit. We collect
+            // `duration` real ticks and use the first as entry, the last as exit
+            // (identical when duration is 1), instead of treating the cached
+            // proposal price as "entry" and a separately-fetched later tick as
+            // "exit" — which measured two different points in time and produced
+            // exit values not matching Deriv's real definition.
+            let entry_spot;
+            let exit_spot;
+            let entry_epoch;
+            let exit_epoch;
+
+            try {
+                if (duration_unit === 't') {
+                    const collected_ticks = [];
+                    const exit_data = await new Promise((resolve, reject) => {
+                        try {
+                            const callback = tick_list => {
+                                const latest = Array.isArray(tick_list) ? tick_list[tick_list.length - 1] : tick_list;
+                                if (latest) collected_ticks.push(latest);
+                                if (collected_ticks.length >= duration) {
+                                    this.$scope.ticksService.stopMonitor({ symbol, key: '' });
+                                    resolve(collected_ticks.slice());
+                                }
+                            };
+                            this.$scope.ticksService.monitor({ symbol, callback });
+                        } catch (e) {
+                            reject(e);
+                        }
+                    });
+                    const first_tick = exit_data[0];
+                    const last_tick = exit_data[exit_data.length - 1];
+                    entry_spot = parseFloat(first_tick?.quote ?? first_tick);
+                    entry_epoch = first_tick?.epoch ?? Math.floor(Date.now() / 1000);
+                    exit_spot = parseFloat(last_tick?.quote ?? last_tick);
+                    exit_epoch = last_tick?.epoch ?? Math.floor(Date.now() / 1000);
+                } else {
+                    const first_tick = await this.getLastTick(true);
+                    entry_spot = parseFloat(first_tick?.quote ?? first_tick);
+                    entry_epoch = first_tick?.epoch ?? Math.floor(Date.now() / 1000);
+                    const unit_ms = { s: 1000, m: 60000, h: 3600000, d: 86400000 };
+                    const ms = (duration || 0) * (unit_ms[duration_unit] || 1000);
+                    await new Promise(resolve => setTimeout(resolve, ms));
+                    const last_tick = await this.getLastTick(true);
+                    exit_spot = parseFloat(last_tick?.quote ?? last_tick);
+                    exit_epoch = last_tick?.epoch ?? Math.floor(Date.now() / 1000);
+                }
+            } catch (e) {
+                logError(e?.message || 'Failed to read market ticks for virtual trade');
+                throw e;
+            }
+
+            const entry_spot_rounded = Number(entry_spot.toFixed(pip_size));
+            const exit_spot_rounded = Number(exit_spot.toFixed(pip_size));
+            const last_digit = Number(exit_spot_rounded.toFixed(pip_size).slice(-1));
+
+            let won;
+            switch (contract_type) {
+                case 'CALL':
+                    won = exit_spot_rounded > entry_spot_rounded;
+                    break;
+                case 'CALLE':
+                    won = exit_spot_rounded >= entry_spot_rounded;
+                    break;
+                case 'PUT':
+                    won = exit_spot_rounded < entry_spot_rounded;
+                    break;
+                case 'PUTE':
+                    won = exit_spot_rounded <= entry_spot_rounded;
+                    break;
+                case 'DIGITMATCH':
+                    won = last_digit === Number(prediction);
+                    break;
+                case 'DIGITDIFF':
+                    won = last_digit !== Number(prediction);
+                    break;
+                case 'DIGITOVER':
+                    won = last_digit > Number(prediction);
+                    break;
+                case 'DIGITUNDER':
+                    won = last_digit < Number(prediction);
+                    break;
+                case 'DIGITODD':
+                    won = last_digit % 2 === 1;
+                    break;
+                case 'DIGITEVEN':
+                    won = last_digit % 2 === 0;
+                    break;
+                default:
+                    won = false;
+            }
+
+            const locally_computed_profit = won ? Number((payout - stake).toFixed(2)) : Number((-stake).toFixed(2));
 
             let openTrade;
             try {
@@ -187,9 +287,9 @@ export default Engine =>
                     trade_type: contract_type,
                     stake,
                     payout,
-                    duration: this.trade_option?.duration,
-                    duration_unit: this.trade_option?.duration_unit,
-                    entry_spot,
+                    duration,
+                    duration_unit,
+                    entry_spot: entry_spot_rounded,
                 });
             } catch (e) {
                 logError(e?.message || 'Insufficient virtual balance');
@@ -237,13 +337,13 @@ export default Engine =>
                 buy_price: stake,
                 payout,
                 currency,
-                entry_spot,
-                entry_spot_display_value: entry_spot_formatted,
-                entry_tick: entry_spot,
-                entry_tick_display_value: entry_spot_formatted,
-                entry_tick_time: now,
-                date_start: now,
-                purchase_time: now,
+                entry_spot: entry_spot_rounded,
+                entry_spot_display_value: entry_spot_rounded.toFixed(pip_size),
+                entry_tick: entry_spot_rounded,
+                entry_tick_display_value: entry_spot_rounded.toFixed(pip_size),
+                entry_tick_time: entry_epoch,
+                date_start: entry_epoch,
+                purchase_time: entry_epoch,
                 status: 'open',
                 is_sold: false,
                 is_expired: false,
@@ -257,27 +357,18 @@ export default Engine =>
                 this.renewProposalsOnPurchase();
             }
 
-            // Capture trade parameters NOW, at purchase time — this.trade_option is
-            // shared, mutable engine state that the bot may overwrite with the NEXT
-            // trade's values before this settlement (async, runs after purchase
-            // returns) gets a chance to read it. Passing them explicitly avoids a
-            // stale/wrong-value read that silently breaks settlement.
-            const settle_duration = this.trade_option?.duration;
-            const settle_duration_unit = this.trade_option?.duration_unit;
-            const settle_prediction = this.trade_option?.prediction;
-
+            // We already know the outcome — we waited for all the ticks needed
+            // before opening the trade above — so settle right away rather than
+            // deferring to a separate later wait.
             this.settleVirtualContract(
-                contract_type,
-                symbol,
-                entry_spot,
-                stake,
-                payout,
+                openTrade.trade.id,
+                won,
+                locally_computed_profit,
+                exit_spot_rounded,
+                exit_epoch,
                 fake_buy_transaction_id,
                 base_contract,
-                openTrade.trade.id,
-                settle_duration,
-                settle_duration_unit,
-                settle_prediction
+                payout
             ).catch(e => {
                 logError(e?.message || 'Virtual settlement failed');
             });
@@ -286,111 +377,17 @@ export default Engine =>
         }
 
         async settleVirtualContract(
-            contract_type,
-            symbol,
-            entry_spot,
-            stake,
-            payout,
+            virtual_trade_id,
+            won,
+            locally_computed_profit,
+            exit_spot_rounded,
+            exit_epoch,
             buy_transaction_id,
             base_contract,
-            virtual_trade_id,
-            duration,
-            duration_unit,
-            prediction
+            payout
         ) {
-
-            let exit_spot;
-            let exit_epoch;
-
-            if (duration_unit === 't') {
-                // NOTE: intentionally not using the shared getDelayTickValue()
-                // helper here — it has a pre-existing bug where it resolves
-                // its promise with a live reference to its internal ticks
-                // array, then immediately clears that same array (ticks.length
-                // = 0) right after resolving. Since that happens synchronously,
-                // before our await continuation runs, we'd always read back an
-                // empty array. No other caller in this codebase was affected
-                // since none of them read the resolved tick data itself, only
-                // used it as a timing signal. We collect ticks ourselves here,
-                // using the same underlying ticksService primitives, returning
-                // a safe snapshot instead.
-                const symbol = this.symbol;
-                const collected_ticks = [];
-                const exit_data = await new Promise((resolve, reject) => {
-                    try {
-                        const callback = tick_list => {
-                            const latest = Array.isArray(tick_list) ? tick_list[tick_list.length - 1] : tick_list;
-                            if (latest) collected_ticks.push(latest);
-                            if (collected_ticks.length >= duration) {
-                                this.$scope.ticksService.stopMonitor({ symbol, key: '' });
-                                resolve(collected_ticks.slice());
-                            }
-                        };
-                        this.$scope.ticksService.monitor({ symbol, callback });
-                    } catch (e) {
-                        reject(e);
-                    }
-                });
-                const last_tick_obj = exit_data[exit_data.length - 1];
-                exit_spot = parseFloat(last_tick_obj?.quote ?? last_tick_obj);
-                exit_epoch = last_tick_obj?.epoch ?? Math.floor(Date.now() / 1000);
-            } else {
-                const unit_ms = { s: 1000, m: 60000, h: 3600000, d: 86400000 };
-                const ms = (duration || 0) * (unit_ms[duration_unit] || 1000);
-                await new Promise(resolve => setTimeout(resolve, ms));
-                const last_tick = await this.getLastTick(true);
-                exit_spot = parseFloat(last_tick?.quote ?? last_tick);
-                exit_epoch = last_tick?.epoch ?? Math.floor(Date.now() / 1000);
-            }
-
             const pip_size = this.getPipSize() ?? 2;
-            const exit_spot_rounded = Number(exit_spot.toFixed(pip_size));
-            const last_digit = Number(exit_spot_rounded.toFixed(pip_size).slice(-1));
 
-            let won;
-            switch (contract_type) {
-                case 'CALL':
-                    won = exit_spot_rounded > entry_spot;
-                    break;
-                case 'CALLE':
-                    won = exit_spot_rounded >= entry_spot;
-                    break;
-                case 'PUT':
-                    won = exit_spot_rounded < entry_spot;
-                    break;
-                case 'PUTE':
-                    won = exit_spot_rounded <= entry_spot;
-                    break;
-                case 'DIGITMATCH':
-                    won = last_digit === Number(prediction);
-                    break;
-                case 'DIGITDIFF':
-                    won = last_digit !== Number(prediction);
-                    break;
-                case 'DIGITOVER':
-                    won = last_digit > Number(prediction);
-                    break;
-                case 'DIGITUNDER':
-                    won = last_digit < Number(prediction);
-                    break;
-                case 'DIGITODD':
-                    won = last_digit % 2 === 1;
-                    break;
-                case 'DIGITEVEN':
-                    won = last_digit % 2 === 0;
-                    break;
-                default:
-                    won = false;
-            }
-
-            const locally_computed_profit = won ? Number((payout - stake).toFixed(2)) : Number((-stake).toFixed(2));
-
-            // The backend is the source of truth for the final result — if admin
-            // has a forced win/loss sequence enabled (testing tool), it overrides
-            // whatever we computed locally from real ticks. Use whatever the
-            // backend actually persisted for display, not our local guess, so the
-            // UI never shows a different outcome than what was actually settled
-            // and applied to the virtual balance.
             let final_won = won;
             let final_profit = locally_computed_profit;
             try {
@@ -406,7 +403,9 @@ export default Engine =>
             } catch (e) {
                 logError(e?.message || 'Failed to settle virtual trade');
             }
+
             globalObserver.emit('virtual_balance.update');
+
             const fake_sell_transaction_id = -Date.now();
             const final_contract = {
                 ...base_contract,
@@ -444,6 +443,7 @@ export default Engine =>
 
             this.store.dispatch(sell());
         }
+
 
         getPurchaseReference = () => purchase_reference;
         regeneratePurchaseReference = () => {
