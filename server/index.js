@@ -842,6 +842,48 @@ app.post('/api/virtual/trades', authMiddleware, requireAdmin, async (req, res) =
     }
 });
 
+// When a forced win/loss sequence overrides the real market-computed
+// result, the displayed entry/exit spot needs to actually be consistent
+// with that forced outcome (e.g. a forced "won" on Digits Over 5 should
+// show a last digit genuinely over 5) — otherwise the testing tool looks
+// broken even though the balance credit is correct.
+function synthesizeConsistentExitSpot(trade_type, entry_spot_raw, prediction, want_won, pip_size = 2) {
+    const entry = parseFloat(entry_spot_raw);
+    if (isNaN(entry)) return entry_spot_raw;
+    const setLastDigit = digit => {
+        const fixed = entry.toFixed(pip_size);
+        const replaced = fixed.slice(0, -1) + String(digit);
+        return parseFloat(replaced);
+    };
+    const pip = 1 / Math.pow(10, pip_size);
+    const round = v => Number(v.toFixed(pip_size));
+    const p = Number(prediction);
+    switch (trade_type) {
+        case 'CALL':
+            return want_won ? round(entry + pip) : round(entry - pip);
+        case 'CALLE':
+            return want_won ? entry : round(entry - pip);
+        case 'PUT':
+            return want_won ? round(entry - pip) : round(entry + pip);
+        case 'PUTE':
+            return want_won ? entry : round(entry + pip);
+        case 'DIGITMATCH':
+            return setLastDigit(want_won ? p : (p + 1) % 10);
+        case 'DIGITDIFF':
+            return setLastDigit(want_won ? (p + 1) % 10 : p);
+        case 'DIGITOVER':
+            return setLastDigit(want_won ? Math.min(9, p + 1) : p);
+        case 'DIGITUNDER':
+            return setLastDigit(want_won ? Math.max(0, p - 1) : p);
+        case 'DIGITODD':
+            return setLastDigit(want_won ? 1 : 0);
+        case 'DIGITEVEN':
+            return setLastDigit(want_won ? 0 : 1);
+        default:
+            return entry;
+    }
+}
+
 app.post('/api/virtual/trades/:id/settle', authMiddleware, requireAdmin, async (req, res) => {
     const { id } = req.params;
     const { result: tradeResult, exit_spot, profit } = req.body;
@@ -877,6 +919,7 @@ app.post('/api/virtual/trades/:id/settle', authMiddleware, requireAdmin, async (
         // cycling through and wrapping around.
         let finalResult = tradeResult;
         let finalProfit = profit;
+        let finalExitSpot = exit_spot;
         const seq = balRes.rows[0]?.forced_sequence || '';
         const seq_enabled = balRes.rows[0]?.forced_sequence_enabled;
         if (seq_enabled && seq.length > 0) {
@@ -886,6 +929,8 @@ app.post('/api/virtual/trades/:id/settle', authMiddleware, requireAdmin, async (
             const stake = parseFloat(trade.stake);
             const payout = parseFloat(trade.payout || trade.stake);
             finalProfit = finalResult === 'won' ? Number((payout - stake).toFixed(2)) : Number((-stake).toFixed(2));
+            const prediction = trade.raw_data?.prediction;
+            finalExitSpot = synthesizeConsistentExitSpot(trade.trade_type, trade.entry_spot, prediction, finalResult === 'won');
             await client.query(
                 'UPDATE virtual_balances SET forced_sequence_index = $1 WHERE user_id = $2',
                 [(seq_index + 1) % seq.length, req.user.id]
@@ -901,7 +946,7 @@ app.post('/api/virtual/trades/:id/settle', authMiddleware, requireAdmin, async (
         const updatedTrade = await client.query(
             `UPDATE trade_history SET result = $1, exit_spot = $2, profit = $3, status = 'closed', closed_at = NOW()
              WHERE id = $4 RETURNING *`,
-            [finalResult, exit_spot, finalProfit, id]
+            [finalResult, finalExitSpot, finalProfit, id]
         );
         await client.query('COMMIT');
         res.json({ trade: updatedTrade.rows[0], balance: newBalance });

@@ -290,6 +290,7 @@ export default Engine =>
                     duration,
                     duration_unit,
                     entry_spot: entry_spot_rounded,
+                    raw_data: { prediction },
                 });
             } catch (e) {
                 logError(e?.message || 'Insufficient virtual balance');
@@ -390,6 +391,13 @@ export default Engine =>
 
             let final_won = won;
             let final_profit = locally_computed_profit;
+            // Default to our own real-tick-based exit spot; if the backend
+            // overrode the result via a forced win/loss sequence (a testing
+            // tool), it also returns a synthesized exit spot consistent with
+            // that forced outcome (e.g. a forced win on "Over 5" genuinely has
+            // a last digit over 5) — use that instead so the display never
+            // contradicts the actual result.
+            let final_exit_spot = exit_spot_rounded;
             try {
                 const settled = await tmApi.settleVirtualTrade(virtual_trade_id, {
                     result: won ? 'won' : 'lost',
@@ -400,6 +408,9 @@ export default Engine =>
                     final_won = settled.trade.result === 'won';
                     final_profit = parseFloat(settled.trade.profit ?? locally_computed_profit);
                 }
+                if (settled?.trade?.exit_spot !== undefined && settled.trade.exit_spot !== null) {
+                    final_exit_spot = parseFloat(settled.trade.exit_spot);
+                }
             } catch (e) {
                 logError(e?.message || 'Failed to settle virtual trade');
             }
@@ -409,10 +420,10 @@ export default Engine =>
             const fake_sell_transaction_id = -Date.now();
             const final_contract = {
                 ...base_contract,
-                exit_spot: exit_spot_rounded,
-                exit_spot_display_value: exit_spot_rounded.toFixed(pip_size),
-                exit_tick: exit_spot_rounded,
-                exit_tick_display_value: exit_spot_rounded.toFixed(pip_size),
+                exit_spot: final_exit_spot,
+                exit_spot_display_value: final_exit_spot.toFixed(pip_size),
+                exit_tick: final_exit_spot,
+                exit_tick_display_value: final_exit_spot.toFixed(pip_size),
                 exit_tick_time: exit_epoch,
                 sell_time: exit_epoch,
                 profit: final_profit,

@@ -215,6 +215,7 @@ const tmApi = {
         duration?: number;
         duration_unit?: string;
         entry_spot?: number;
+        raw_data?: Record<string, unknown>;
     }): Promise<{ trade: { id: number }; balance: number }> {
         return request('/virtual/trades', {
             method: 'POST',
@@ -224,7 +225,7 @@ const tmApi = {
     async settleVirtualTrade(
         id: number,
         payload: { result: 'won' | 'lost'; exit_spot?: number; profit?: number }
-    ): Promise<{ trade: unknown; balance: number }> {
+    ): Promise<{ trade: { result?: string; exit_spot?: number; profit?: number }; balance: number }> {
         return request(`/virtual/trades/${id}/settle`, {
             method: 'POST',
             body: JSON.stringify(payload),
