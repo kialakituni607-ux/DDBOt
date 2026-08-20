@@ -352,7 +352,6 @@ export default Engine =>
                 longcode: `Virtual ${contract_type} on ${symbol}`,
                 shortcode: `${contract_type}_${symbol}`,
             };
-            broadcastContract({ accountID: this.accountInfo.loginid, ...base_contract });
 
             if (this.is_proposal_subscription_required) {
                 this.renewProposalsOnPurchase();
