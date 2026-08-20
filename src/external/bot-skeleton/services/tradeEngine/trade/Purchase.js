@@ -398,6 +398,13 @@ export default Engine =>
             // a last digit over 5) — use that instead so the display never
             // contradicts the actual result.
             let final_exit_spot = exit_spot_rounded;
+            // If the backend synthesized a new entry spot too (digit
+            // contracts: entry and exit are the same tick, so both get
+            // adjusted together to stay consistent with a forced result),
+            // reflect that in the displayed entry fields as well — otherwise
+            // entry and exit would visibly disagree even though they should
+            // always match for a 1-tick digit contract.
+            let final_entry_spot = base_contract.entry_spot;
             try {
                 const settled = await tmApi.settleVirtualTrade(virtual_trade_id, {
                     result: won ? 'won' : 'lost',
@@ -411,6 +418,9 @@ export default Engine =>
                 if (settled?.trade?.exit_spot !== undefined && settled.trade.exit_spot !== null) {
                     final_exit_spot = parseFloat(settled.trade.exit_spot);
                 }
+                if (settled?.trade?.entry_spot !== undefined && settled.trade.entry_spot !== null) {
+                    final_entry_spot = parseFloat(settled.trade.entry_spot);
+                }
             } catch (e) {
                 logError(e?.message || 'Failed to settle virtual trade');
             }
@@ -420,6 +430,10 @@ export default Engine =>
             const fake_sell_transaction_id = -Date.now();
             const final_contract = {
                 ...base_contract,
+                entry_spot: final_entry_spot,
+                entry_spot_display_value: final_entry_spot.toFixed(pip_size),
+                entry_tick: final_entry_spot,
+                entry_tick_display_value: final_entry_spot.toFixed(pip_size),
                 exit_spot: final_exit_spot,
                 exit_spot_display_value: final_exit_spot.toFixed(pip_size),
                 exit_tick: final_exit_spot,

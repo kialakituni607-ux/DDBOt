@@ -225,7 +225,7 @@ const tmApi = {
     async settleVirtualTrade(
         id: number,
         payload: { result: 'won' | 'lost'; exit_spot?: number; profit?: number }
-    ): Promise<{ trade: { result?: string; exit_spot?: number; profit?: number }; balance: number }> {
+    ): Promise<{ trade: { result?: string; exit_spot?: number; entry_spot?: number; profit?: number }; balance: number }> {
         return request(`/virtual/trades/${id}/settle`, {
             method: 'POST',
             body: JSON.stringify(payload),

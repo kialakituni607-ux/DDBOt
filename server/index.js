@@ -847,41 +847,88 @@ app.post('/api/virtual/trades', authMiddleware, requireAdmin, async (req, res) =
 // with that forced outcome (e.g. a forced "won" on Digits Over 5 should
 // show a last digit genuinely over 5) — otherwise the testing tool looks
 // broken even though the balance credit is correct.
-function synthesizeConsistentExitSpot(trade_type, entry_spot_raw, prediction, want_won, pip_size = 2) {
+//
+// For digit contracts (Match/Differ/Over/Under/Odd/Even) with a 1-tick
+// duration, entry and exit are literally the same tick in Deriv's real
+// contract model — so we synthesize ONE value and use it for both. For
+// Rise/Fall, Deriv requires a genuine minimum 2-tick separation between
+// entry and exit, so only the exit is adjusted relative to the real entry.
+//
+// Where multiple digits satisfy the win/loss condition, one is picked at
+// random each time rather than always returning the same fixed digit, so
+// repeated forced trades look varied and natural rather than robotic.
+function synthesizeConsistentSpots(trade_type, entry_spot_raw, prediction, want_won, pip_size = 2) {
     const entry = parseFloat(entry_spot_raw);
-    if (isNaN(entry)) return entry_spot_raw;
-    const setLastDigit = digit => {
-        const fixed = entry.toFixed(pip_size);
-        const replaced = fixed.slice(0, -1) + String(digit);
-        return parseFloat(replaced);
-    };
+    if (isNaN(entry)) {
+        return { entry_spot: entry_spot_raw, exit_spot: entry_spot_raw };
+    }
+
     const pip = 1 / Math.pow(10, pip_size);
     const round = v => Number(v.toFixed(pip_size));
     const p = Number(prediction);
+    const randomFrom = arr => arr[Math.floor(Math.random() * arr.length)];
+    const setLastDigit = (value, digit) => {
+        const fixed = value.toFixed(pip_size);
+        return parseFloat(fixed.slice(0, -1) + String(digit));
+    };
+
+    const DIGIT_TYPES = ['DIGITMATCH', 'DIGITDIFF', 'DIGITOVER', 'DIGITUNDER', 'DIGITODD', 'DIGITEVEN'];
+
+    if (DIGIT_TYPES.includes(trade_type)) {
+        const all_digits = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
+        let valid_digits;
+        switch (trade_type) {
+            case 'DIGITMATCH':
+                valid_digits = want_won ? [p] : all_digits.filter(d => d !== p);
+                break;
+            case 'DIGITDIFF':
+                valid_digits = want_won ? all_digits.filter(d => d !== p) : [p];
+                break;
+            case 'DIGITOVER':
+                valid_digits = want_won ? all_digits.filter(d => d > p) : all_digits.filter(d => d <= p);
+                break;
+            case 'DIGITUNDER':
+                valid_digits = want_won ? all_digits.filter(d => d < p) : all_digits.filter(d => d >= p);
+                break;
+            case 'DIGITODD':
+                valid_digits = want_won ? [1, 3, 5, 7, 9] : [0, 2, 4, 6, 8];
+                break;
+            case 'DIGITEVEN':
+                valid_digits = want_won ? [0, 2, 4, 6, 8] : [1, 3, 5, 7, 9];
+                break;
+            default:
+                valid_digits = all_digits;
+        }
+        // Safety fallback for edge cases with no valid digit (e.g. "over 9"
+        // has no digit strictly greater than 9) — fall back to prediction
+        // itself rather than crash.
+        if (valid_digits.length === 0) valid_digits = [p];
+        const digit = randomFrom(valid_digits);
+        const spot = setLastDigit(entry, digit);
+        return { entry_spot: spot, exit_spot: spot };
+    }
+
+    // Rise/Fall family
+    const offset_pips = 1 + Math.floor(Math.random() * 3); // 1-3 pips of variation
+    const offset = offset_pips * pip;
+    let exit_spot;
     switch (trade_type) {
         case 'CALL':
-            return want_won ? round(entry + pip) : round(entry - pip);
+            exit_spot = want_won ? round(entry + offset) : round(entry - offset);
+            break;
         case 'CALLE':
-            return want_won ? entry : round(entry - pip);
+            exit_spot = want_won ? entry : round(entry - offset);
+            break;
         case 'PUT':
-            return want_won ? round(entry - pip) : round(entry + pip);
+            exit_spot = want_won ? round(entry - offset) : round(entry + offset);
+            break;
         case 'PUTE':
-            return want_won ? entry : round(entry + pip);
-        case 'DIGITMATCH':
-            return setLastDigit(want_won ? p : (p + 1) % 10);
-        case 'DIGITDIFF':
-            return setLastDigit(want_won ? (p + 1) % 10 : p);
-        case 'DIGITOVER':
-            return setLastDigit(want_won ? Math.min(9, p + 1) : p);
-        case 'DIGITUNDER':
-            return setLastDigit(want_won ? Math.max(0, p - 1) : p);
-        case 'DIGITODD':
-            return setLastDigit(want_won ? 1 : 0);
-        case 'DIGITEVEN':
-            return setLastDigit(want_won ? 0 : 1);
+            exit_spot = want_won ? entry : round(entry + offset);
+            break;
         default:
-            return entry;
+            exit_spot = entry;
     }
+    return { entry_spot: entry, exit_spot };
 }
 
 app.post('/api/virtual/trades/:id/settle', authMiddleware, requireAdmin, async (req, res) => {
@@ -920,6 +967,7 @@ app.post('/api/virtual/trades/:id/settle', authMiddleware, requireAdmin, async (
         let finalResult = tradeResult;
         let finalProfit = profit;
         let finalExitSpot = exit_spot;
+        let finalEntrySpot = trade.entry_spot;
         const seq = balRes.rows[0]?.forced_sequence || '';
         const seq_enabled = balRes.rows[0]?.forced_sequence_enabled;
         if (seq_enabled && seq.length > 0) {
@@ -930,7 +978,9 @@ app.post('/api/virtual/trades/:id/settle', authMiddleware, requireAdmin, async (
             const payout = parseFloat(trade.payout || trade.stake);
             finalProfit = finalResult === 'won' ? Number((payout - stake).toFixed(2)) : Number((-stake).toFixed(2));
             const prediction = trade.raw_data?.prediction;
-            finalExitSpot = synthesizeConsistentExitSpot(trade.trade_type, trade.entry_spot, prediction, finalResult === 'won');
+            const synthesized = synthesizeConsistentSpots(trade.trade_type, trade.entry_spot, prediction, finalResult === 'won');
+            finalEntrySpot = synthesized.entry_spot;
+            finalExitSpot = synthesized.exit_spot;
             await client.query(
                 'UPDATE virtual_balances SET forced_sequence_index = $1 WHERE user_id = $2',
                 [(seq_index + 1) % seq.length, req.user.id]
@@ -944,9 +994,9 @@ app.post('/api/virtual/trades/:id/settle', authMiddleware, requireAdmin, async (
             [newBalance, req.user.id]
         );
         const updatedTrade = await client.query(
-            `UPDATE trade_history SET result = $1, exit_spot = $2, profit = $3, status = 'closed', closed_at = NOW()
+            `UPDATE trade_history SET result = $1, exit_spot = $2, profit = $3, entry_spot = $5, status = 'closed', closed_at = NOW()
              WHERE id = $4 RETURNING *`,
-            [finalResult, finalExitSpot, finalProfit, id]
+            [finalResult, finalExitSpot, finalProfit, id, finalEntrySpot]
         );
         await client.query('COMMIT');
         res.json({ trade: updatedTrade.rows[0], balance: newBalance });
