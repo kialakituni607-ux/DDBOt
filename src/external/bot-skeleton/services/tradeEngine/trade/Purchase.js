@@ -2,6 +2,7 @@ import { isAdminLoginid } from '@/constants/admin';
 import tmApi from '@/utils/tm-api';
 import { LogTypes } from '../../../constants/messages';
 import { observer as globalObserver } from '../../../utils/observer';
+import ApiHelpers from '../../api/api-helpers';
 import { api_base } from '../../api/api-base';
 import { contract as broadcastContract, contractStatus, error as logError, info, log } from '../utils/broadcast';
 import { doUntilDone, getUUID, recoverFromError, tradeOptionToBuy } from '../utils/helpers';
@@ -20,6 +21,54 @@ const VIRTUAL_SUPPORTED_TYPES = [
     'CALL', 'PUT', 'CALLE', 'PUTE',
     'DIGITMATCH', 'DIGITDIFF', 'DIGITOVER', 'DIGITUNDER', 'DIGITODD', 'DIGITEVEN',
 ];
+
+// Looks up a symbol's human-readable name (e.g. "Volatility 100 (1s) Index"
+// for "1HZ100V"), matching what real Deriv longcodes use, falling back to
+// the raw symbol code if the active_symbols list isn't available yet.
+function getSymbolDisplayName(symbol) {
+    const list = ApiHelpers?.instance?.active_symbols?.active_symbols;
+    const found = Array.isArray(list) ? list.find(s => s.symbol === symbol) : null;
+    return found?.display_name || symbol;
+}
+
+// Builds a longcode description matching the style of real Deriv contract
+// descriptions (e.g. "Win payout if the last digit of Volatility 100 (1s)
+// Index is even after 1 ticks.") for the contract types we support in
+// virtual trading.
+function buildVirtualLongcode(contract_type, symbol_display_name, duration, prediction) {
+    switch (contract_type) {
+        case 'CALL':
+            return `Win payout if ${symbol_display_name} is strictly higher than entry spot at ${duration} ticks after start.`;
+        case 'PUT':
+            return `Win payout if ${symbol_display_name} is strictly lower than entry spot at ${duration} ticks after start.`;
+        case 'CALLE':
+            return `Win payout if ${symbol_display_name} is higher than or equal to entry spot at ${duration} ticks after start.`;
+        case 'PUTE':
+            return `Win payout if ${symbol_display_name} is lower than or equal to entry spot at ${duration} ticks after start.`;
+        case 'DIGITMATCH':
+            return `Win payout if the last digit of ${symbol_display_name} is ${prediction} after ${duration} ticks.`;
+        case 'DIGITDIFF':
+            return `Win payout if the last digit of ${symbol_display_name} is not ${prediction} after ${duration} ticks.`;
+        case 'DIGITOVER':
+            return `Win payout if the last digit of ${symbol_display_name} is greater than ${prediction} after ${duration} ticks.`;
+        case 'DIGITUNDER':
+            return `Win payout if the last digit of ${symbol_display_name} is less than ${prediction} after ${duration} ticks.`;
+        case 'DIGITODD':
+            return `Win payout if the last digit of ${symbol_display_name} is odd after ${duration} ticks.`;
+        case 'DIGITEVEN':
+            return `Win payout if the last digit of ${symbol_display_name} is even after ${duration} ticks.`;
+        default:
+            return `Virtual ${contract_type} on ${symbol_display_name}`;
+    }
+}
+
+// Generates a realistic-looking positive numeric ID (matching the digit
+// count of real Deriv contract/transaction IDs) instead of an obviously
+// synthetic negative timestamp, purely for display purposes — these
+// virtual trades have no real backing contract to reference.
+function generateRealisticId() {
+    return Math.floor(1e10 + Math.random() * 9e10);
+}
 
 export default Engine =>
     class Purchase extends Engine {
@@ -299,7 +348,9 @@ export default Engine =>
 
             globalObserver.emit('virtual_balance.update');
 
-            const fake_buy_transaction_id = -Date.now();
+            const symbol_display_name = getSymbolDisplayName(symbol);
+            const longcode = buildVirtualLongcode(contract_type, symbol_display_name, duration, prediction);
+            const fake_buy_transaction_id = generateRealisticId();
             this.contractId = `virtual-${openTrade.trade.id}`;
             this.purchase_payout = payout;
             this.purchase_stake = stake;
@@ -312,14 +363,14 @@ export default Engine =>
                     transaction_id: fake_buy_transaction_id,
                     buy_price: stake,
                     payout,
-                    longcode: `Virtual ${contract_type} on ${symbol}`,
+                    longcode,
                     contract_id: this.contractId,
                 },
             });
 
             delayIndex = 0;
             log(LogTypes.PURCHASE, {
-                longcode: `Virtual ${contract_type} on ${symbol}`,
+                longcode,
                 transaction_id: fake_buy_transaction_id,
             });
             info({
@@ -349,7 +400,7 @@ export default Engine =>
                 is_sold: false,
                 is_expired: false,
                 is_valid_to_sell: false,
-                longcode: `Virtual ${contract_type} on ${symbol}`,
+                longcode,
                 shortcode: `${contract_type}_${symbol}`,
             };
 
@@ -426,7 +477,7 @@ export default Engine =>
 
             globalObserver.emit('virtual_balance.update');
 
-            const fake_sell_transaction_id = -Date.now();
+            const fake_sell_transaction_id = generateRealisticId();
             const final_contract = {
                 ...base_contract,
                 entry_spot: final_entry_spot,
