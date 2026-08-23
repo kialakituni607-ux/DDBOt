@@ -277,9 +277,17 @@ export default class AppStore {
     };
 
     onSocketOpened = async () => {
-        // Wait for api_base to finish fetching active_symbols first
+        // Wait for api_base to finish fetching active_symbols first.
+        // Race against a timeout: if a reconnect (e.g. switching to the
+        // OTP-scoped socket) replaced the connection this promise belonged
+        // to, the original promise may never resolve, hanging here forever.
+        // retrieveActiveSymbols() below re-checks api_base fresh regardless,
+        // so it's safe to proceed after the timeout even if this races.
         if (api_base.active_symbols_promise) {
-            await api_base.active_symbols_promise;
+            await Promise.race([
+                api_base.active_symbols_promise,
+                new Promise(resolve => setTimeout(resolve, 8000)),
+            ]);
         }
         this.api_helpers_store = {
             server_time: this.root_store.common.server_time,
