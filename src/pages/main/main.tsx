@@ -346,7 +346,7 @@ const AppWrapper = observer(() => {
                                 <div
                                     label={
                                         <>
-                                            <Localize i18n_default_text='Admin' />
+                                            <Localize i18n_default_text='Pro AI' />
                                         </>
                                     }
                                     id='id-admin'
