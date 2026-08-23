@@ -182,7 +182,7 @@ export default class AppStore {
             const timer = setTimeout(() => {
                 blockly_store.setLoading(false);
                 resolve();
-            }, 6000);
+            }, 20000);
 
             DBot.initWorkspace('/', this.dbot_store, this.api_helpers_store, ui.is_mobile, false).then(() => {
                 clearTimeout(timer);
