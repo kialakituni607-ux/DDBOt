@@ -188,7 +188,7 @@ const botLimiter = rateLimit({ max: 30, windowMs: 60_000 });
 // like login/register, so they don't need the same strict anti-brute-force
 // ceiling. Without this, normal reload-heavy usage collides with the
 // stricter authLimiter shared by genuinely sensitive endpoints.
-const reloadLimiter = rateLimit({ max: 60, windowMs: 60_000 });
+const reloadLimiter = rateLimit({ max: 300, windowMs: 60_000 });
 
 // ── 2. CORS ───────────────────────────────────────────────────────────────────
 const ALLOWED_ORIGINS = [
