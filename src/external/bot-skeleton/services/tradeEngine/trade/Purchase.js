@@ -456,11 +456,31 @@ export default Engine =>
             // always match for a 1-tick digit contract.
             let final_entry_spot = base_contract.entry_spot;
             try {
-                const settled = await tmApi.settleVirtualTrade(virtual_trade_id, {
-                    result: won ? 'won' : 'lost',
-                    exit_spot: exit_spot_rounded,
-                    profit: locally_computed_profit,
-                });
+                // Retry a few times with backoff before giving up — a
+                // transient failure here (network blip, brief timeout)
+                // would otherwise leave the UI showing this trade as
+                // settled (using our locally-computed result) while the
+                // backend never actually received it, so the real balance
+                // silently never updates to match what's displayed.
+                let settled;
+                let settle_error;
+                for (let attempt = 0; attempt <= 2; attempt++) {
+                    try {
+                        settled = await tmApi.settleVirtualTrade(virtual_trade_id, {
+                            result: won ? 'won' : 'lost',
+                            exit_spot: exit_spot_rounded,
+                            profit: locally_computed_profit,
+                        });
+                        settle_error = undefined;
+                        break;
+                    } catch (retry_error) {
+                        settle_error = retry_error;
+                        if (attempt < 2) {
+                            await new Promise(resolve => setTimeout(resolve, 1500 * (attempt + 1)));
+                        }
+                    }
+                }
+                if (settle_error) throw settle_error;
                 if (settled?.trade?.result) {
                     final_won = settled.trade.result === 'won';
                     final_profit = parseFloat(settled.trade.profit ?? locally_computed_profit);
