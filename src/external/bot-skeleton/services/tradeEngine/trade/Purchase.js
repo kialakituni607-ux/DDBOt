@@ -6,6 +6,7 @@ import ApiHelpers from '../../api/api-helpers';
 import { api_base } from '../../api/api-base';
 import { contract as broadcastContract, contractStatus, error as logError, info, log } from '../utils/broadcast';
 import { doUntilDone, getUUID, recoverFromError, tradeOptionToBuy } from '../utils/helpers';
+import { trackVirtualSettlement } from '../utils/virtual-settlement-tracker';
 import { purchaseSuccessful } from './state/actions';
 import { sell } from './state/actions';
 import { BEFORE_PURCHASE } from './state/constants';
@@ -411,7 +412,7 @@ export default Engine =>
             // We already know the outcome — we waited for all the ticks needed
             // before opening the trade above — so settle right away rather than
             // deferring to a separate later wait.
-            this.settleVirtualContract(
+            const settlement_promise = this.settleVirtualContract(
                 openTrade.trade.id,
                 won,
                 locally_computed_profit,
@@ -423,6 +424,11 @@ export default Engine =>
             ).catch(e => {
                 logError(e?.message || 'Virtual settlement failed');
             });
+            // Let bot-stop logic know to wait for this before it tears down
+            // the listener that displays trade history — otherwise stopping
+            // the bot right as a trade settles would update the balance
+            // without that trade ever showing in the Transactions/Journal.
+            trackVirtualSettlement(settlement_promise);
 
             return Promise.resolve();
         }

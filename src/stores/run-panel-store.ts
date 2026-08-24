@@ -1,4 +1,5 @@
 import { action, computed, makeObservable, observable, reaction, runInAction } from 'mobx';
+import { waitForPendingVirtualSettlements } from '@/external/bot-skeleton/services/tradeEngine/utils/virtual-settlement-tracker';
 import { botNotification } from '@/components/bot-notification/bot-notification';
 import { notification_message } from '@/components/bot-notification/bot-notification-utils';
 import { isSafari, mobileOSDetect, standalone_routes } from '@/components/shared';
@@ -699,8 +700,17 @@ export default class RunPanelStore {
         observer.unregisterAll('bot.click_stop');
         observer.unregisterAll('bot.trade_again');
         observer.unregisterAll('contract.status');
-        observer.unregisterAll('bot.contract');
         observer.unregisterAll('Error');
+        // If a virtual trade was still settling in the background when
+        // Stop was clicked (e.g. a new run had just started), wait for it
+        // before tearing down the listener that displays trade history —
+        // otherwise its result arrives after we've stopped listening,
+        // updating the balance but never showing up in Transactions/
+        // Journal. Everything else about stopping proceeds immediately;
+        // only this one listener's teardown is delayed.
+        waitForPendingVirtualSettlements().then(() => {
+            observer.unregisterAll('bot.contract');
+        });
     };
 
     setContractStage = (contract_stage: TContractStage) => {
