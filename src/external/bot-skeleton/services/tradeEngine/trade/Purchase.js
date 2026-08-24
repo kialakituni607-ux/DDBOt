@@ -504,6 +504,16 @@ export default Engine =>
             this.isSold = true;
             this.contractId = '';
 
+            // Mirror what OpenContract.js does for real trades: populate
+            // this.data.contract so bot logic reading contract details via
+            // getDetail/isResult/readDetails (BotInterface.js) works the
+            // same way for virtual trades as it does for real ones. Without
+            // this, tradeEngine.data.contract is never set for virtual
+            // trades (only the real proposal_open_contract WS subscription
+            // sets it), and any bot that checks the last trade's result
+            // crashes reading .transaction_ids off an undefined/stale value.
+            this.data.contract = final_contract;
+
             broadcastContract({ accountID: this.accountInfo.loginid, ...final_contract });
 
             contractStatus({
