@@ -190,6 +190,14 @@ const botLimiter = rateLimit({ max: 30, windowMs: 60_000 });
 // stricter authLimiter shared by genuinely sensitive endpoints.
 const reloadLimiter = rateLimit({ max: 300, windowMs: 60_000 });
 
+// Virtual (paper) trade open/settle calls happen at least twice per trade,
+// and fast tick-duration contracts combined with a bot's own "restart on
+// error" retry logic can legitimately fire many of these per minute — the
+// blanket generalLimiter (60/min, applied globally via app.use) was too
+// tight for this and caused real trading sessions to hit false-positive
+// rate limits.
+const virtualTradeLimiter = rateLimit({ max: 600, windowMs: 60_000 });
+
 // ── 2. CORS ───────────────────────────────────────────────────────────────────
 const ALLOWED_ORIGINS = [
     'https://trademasters.site',
@@ -803,7 +811,7 @@ app.put('/api/virtual/balance', authMiddleware, requireAdmin, async (req, res) =
     }
 });
 
-app.post('/api/virtual/trades', authMiddleware, requireAdmin, async (req, res) => {
+app.post('/api/virtual/trades', virtualTradeLimiter, authMiddleware, requireAdmin, async (req, res) => {
     const { symbol, trade_type, stake, payout, duration, duration_unit, entry_spot, raw_data } = req.body;
     if (!symbol || !trade_type || stake == null) {
         return res.status(400).json({ error: 'symbol, trade_type and stake are required' });
@@ -931,7 +939,7 @@ function synthesizeConsistentSpots(trade_type, entry_spot_raw, prediction, want_
     return { entry_spot: entry, exit_spot };
 }
 
-app.post('/api/virtual/trades/:id/settle', authMiddleware, requireAdmin, async (req, res) => {
+app.post('/api/virtual/trades/:id/settle', virtualTradeLimiter, authMiddleware, requireAdmin, async (req, res) => {
     const { id } = req.params;
     const { result: tradeResult, exit_spot, profit } = req.body;
     if (!['won', 'lost'].includes(tradeResult)) {
