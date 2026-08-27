@@ -296,8 +296,24 @@ export default class AppStore {
         if (!ApiHelpers?.instance) {
             ApiHelpers.setInstance(this.api_helpers_store);
         }
-        const active_symbols = ApiHelpers?.instance?.active_symbols;
-        const contracts_for = ApiHelpers?.instance?.contracts_for;
+        let active_symbols = ApiHelpers?.instance?.active_symbols;
+        let contracts_for = ApiHelpers?.instance?.contracts_for;
+        // These may not be populated yet if this runs very early in a
+        // connection race (e.g. right as the socket switches from classic
+        // to OTP-scoped) — previously this silently did nothing and never
+        // retried, which is why symbols sometimes never populated until a
+        // manual refresh happened to give this a luckier-timed second
+        // chance. Poll briefly instead of silently giving up.
+        if (!(ApiHelpers?.instance && active_symbols && contracts_for && typeof active_symbols?.retrieveActiveSymbols === 'function')) {
+            for (let attempt = 0; attempt < 10; attempt++) {
+                await new Promise(resolve => setTimeout(resolve, 500));
+                active_symbols = ApiHelpers?.instance?.active_symbols;
+                contracts_for = ApiHelpers?.instance?.contracts_for;
+                if (ApiHelpers?.instance && active_symbols && contracts_for && typeof active_symbols?.retrieveActiveSymbols === 'function') {
+                    break;
+                }
+            }
+        }
         if (ApiHelpers?.instance && active_symbols && contracts_for && typeof active_symbols.retrieveActiveSymbols === 'function') {
             const force = localStorage.getItem("otp_reinit_active") !== "true";
             active_symbols.retrieveActiveSymbols(force).then(() => {
