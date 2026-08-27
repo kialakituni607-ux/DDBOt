@@ -225,7 +225,15 @@ app.use(
     })
 );
 
-app.use(generalLimiter);
+// Virtual trade routes have their own dedicated, more generous limiter
+// (virtualTradeLimiter) below — without this exclusion, they'd still be
+// bound by whichever limiter is stricter, since middleware stacks rather
+// than replaces. That silently kept these routes capped at 60/min even
+// after adding a 600/min limiter specifically for them.
+app.use((req, res, next) => {
+    if (req.path.startsWith('/api/virtual/trades')) return next();
+    return generalLimiter(req, res, next);
+});
 app.use(express.json());
 
 app.get('/health', (req, res) => res.json({ status: 'ok' }));
