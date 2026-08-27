@@ -1,4 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { getInitialLanguage } from '@deriv-com/translations';
+import { website_name } from '@/utils/site-config';
 import './smart-analyser.scss';
 
 const SYMBOLS = [
@@ -16,7 +18,12 @@ const SYMBOLS = [
 
 const SAMPLE_SIZES = [25, 50, 100, 500, 1000];
 const APP_ID = '116874';
-const WS_URL = `wss://ws.derivws.com/websockets/v3?app_id=${APP_ID}`;
+// Match the same URL format used by the main app's connection
+// (appId.js) — missing the &l= and &brand= params here caused this
+// standalone connection to start failing once Deriv began enforcing
+// them more strictly, even though this endpoint needs no authorization
+// at all (it's public tick history data).
+const WS_URL = `wss://ws.derivws.com/websockets/v3?app_id=${APP_ID}&l=${getInitialLanguage()}&brand=${website_name.toLowerCase()}`;
 
 const DIGIT_COLORS = [
     '#e74c3c', '#e67e22', '#f1c40f', '#2ecc71', '#1abc9c',
