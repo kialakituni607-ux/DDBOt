@@ -343,7 +343,11 @@ export default Engine =>
                     raw_data: { prediction },
                 });
             } catch (e) {
-                logError(e?.message || 'Insufficient virtual balance');
+                if (e && e.message === 'Insufficient virtual balance') {
+                    e.code = 'InsufficientBalance';
+                    e.message = 'Your account balance is insufficient to buy this contract.';
+                }
+                logError(e && e.message || 'Insufficient virtual balance');
                 throw e;
             }
 
