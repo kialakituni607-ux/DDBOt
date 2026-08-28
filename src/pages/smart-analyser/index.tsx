@@ -328,11 +328,11 @@ const SmartAnalyser = () => {
                 setLastDigit(d);
                 setTickCount(prev => prev + 1);
             }
-            if (data.error) setStatus('error');
+            if (data.error) { console.error('[SmartAnalyser] DERIV ERROR:', JSON.stringify(data.error)); setStatus('error'); }
         };
 
-        ws.onerror = () => setStatus('error');
-        ws.onclose = () => {};
+        ws.onerror = (err) => { console.error('[SmartAnalyser] WS ERROR:', err); setStatus('error'); };
+        ws.onclose = (evt) => { console.warn('[SmartAnalyser] WS CLOSED code:', evt.code, 'reason:', evt.reason, 'wasClean:', evt.wasClean); };
     }, [symbol]);
 
     useEffect(() => {
