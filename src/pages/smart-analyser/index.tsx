@@ -1,7 +1,6 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { getInitialLanguage } from '@deriv-com/translations';
-import { website_name } from '@/utils/site-config';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import './smart-analyser.scss';
+import { api_base } from '@/external/bot-skeleton';
 
 const SYMBOLS = [
     { label: 'Volatility 10 Index', value: 'R_10' },
@@ -17,13 +16,6 @@ const SYMBOLS = [
 ];
 
 const SAMPLE_SIZES = [25, 50, 100, 500, 1000];
-const APP_ID = '116874';
-// Match the same URL format used by the main app's connection
-// (appId.js) — missing the &l= and &brand= params here caused this
-// standalone connection to start failing once Deriv began enforcing
-// them more strictly, even though this endpoint needs no authorization
-// at all (it's public tick history data).
-const WS_URL = `wss://ws.derivws.com/websockets/v3?app_id=${APP_ID}&l=${getInitialLanguage()}&brand=${website_name.toLowerCase()}`;
 
 const DIGIT_COLORS = [
     '#e74c3c', '#e67e22', '#f1c40f', '#2ecc71', '#1abc9c',
@@ -71,7 +63,7 @@ const confidenceLevel = (actual: number, expected: number): Confidence => {
     return 'low';
 };
 
-const buildPredictions = (pct: DigitStats, sampleSize: number): Prediction[] => {
+const buildPredictions = (pct: DigitStats, _sampleSize: number): Prediction[] => {
     const hasSamples = Object.values(pct).some(v => v > 0);
     if (!hasSamples) return [];
 
@@ -274,14 +266,22 @@ const SmartAnalyser = () => {
     const [status, setStatus] = useState<'connecting' | 'connected' | 'error'>('connecting');
     const [tickCount, setTickCount] = useState(0);
 
-    const wsRef = useRef<WebSocket | null>(null);
     const digitsRef = useRef<number[]>([]);
+    const subscriptionRef = useRef<{ unsubscribe: () => void } | null>(null);
+    const subscriptionIdRef = useRef<string | null>(null);
 
     const percentages = calcPercentages(digits, sampleSize);
     const predictions = buildPredictions(percentages, sampleSize);
 
     const connect = useCallback(() => {
-        if (wsRef.current) wsRef.current.close();
+        // Clean up any previous subscription before starting a new one
+        if (subscriptionIdRef.current && api_base?.api) {
+            api_base.api.send({ forget: subscriptionIdRef.current }).catch(() => {});
+            subscriptionIdRef.current = null;
+        }
+        subscriptionRef.current?.unsubscribe();
+        subscriptionRef.current = null;
+
         digitsRef.current = [];
         setDigits([]);
         setLastPrice('—');
@@ -289,24 +289,14 @@ const SmartAnalyser = () => {
         setTickCount(0);
         setStatus('connecting');
 
-        const ws = new WebSocket(WS_URL);
-        wsRef.current = ws;
+        if (!api_base?.api) {
+            console.error('[SmartAnalyser] api_base not ready, retrying shortly');
+            setStatus('error');
+            setTimeout(connect, 1000);
+            return;
+        }
 
-        ws.onopen = () => {
-            setStatus('connected');
-            ws.send(JSON.stringify({
-                ticks_history: symbol,
-                adjust_start_time: 1,
-                count: 1000,
-                end: 'latest',
-                start: 1,
-                style: 'ticks',
-                subscribe: 1,
-            }));
-        };
-
-        ws.onmessage = (evt: MessageEvent) => {
-            const data = JSON.parse(evt.data);
+        subscriptionRef.current = api_base.api.onMessage().subscribe(({ data }: { data: any }) => {
             if (data.msg_type === 'history' && data.history) {
                 const prices = data.history.prices as number[];
                 const d = prices.map(getLastDigit);
@@ -318,8 +308,11 @@ const SmartAnalyser = () => {
                     setLastPrice(last.toFixed(2));
                     setLastDigit(getLastDigit(last));
                 }
+                setStatus('connected');
+                if (data.subscription?.id) subscriptionIdRef.current = data.subscription.id;
             }
             if (data.msg_type === 'tick' && data.tick) {
+                if (data.tick.symbol && data.tick.symbol !== symbol) return;
                 const price = data.tick.quote as number;
                 const d = getLastDigit(price);
                 digitsRef.current = [...digitsRef.current, d];
@@ -327,17 +320,36 @@ const SmartAnalyser = () => {
                 setLastPrice(price.toFixed(2));
                 setLastDigit(d);
                 setTickCount(prev => prev + 1);
+                if (data.subscription?.id) subscriptionIdRef.current = data.subscription.id;
             }
-            if (data.error) { console.error('[SmartAnalyser] DERIV ERROR:', JSON.stringify(data.error)); setStatus('error'); }
-        };
+            if (data.error) {
+                console.error('[SmartAnalyser] DERIV ERROR:', JSON.stringify(data.error));
+                setStatus('error');
+            }
+        });
 
-        ws.onerror = (err) => { console.error('[SmartAnalyser] WS ERROR:', err); setStatus('error'); };
-        ws.onclose = (evt) => { console.warn('[SmartAnalyser] WS CLOSED code:', evt.code, 'reason:', evt.reason, 'wasClean:', evt.wasClean); };
+        api_base.api.send({
+            ticks_history: symbol,
+            adjust_start_time: 1,
+            count: 1000,
+            end: 'latest',
+            start: 1,
+            style: 'ticks',
+            subscribe: 1,
+        }).catch((err: unknown) => {
+            console.error('[SmartAnalyser] ticks_history send failed:', err);
+            setStatus('error');
+        });
     }, [symbol]);
 
     useEffect(() => {
         connect();
-        return () => { wsRef.current?.close(); };
+        return () => {
+            if (subscriptionIdRef.current && api_base?.api) {
+                api_base.api.send({ forget: subscriptionIdRef.current }).catch(() => {});
+            }
+            subscriptionRef.current?.unsubscribe();
+        };
     }, [connect]);
 
     const symbolLabel = SYMBOLS.find(s => s.value === symbol)?.label ?? symbol;
