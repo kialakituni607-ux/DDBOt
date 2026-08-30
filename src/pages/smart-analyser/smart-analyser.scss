@@ -218,10 +218,15 @@
     transition: transform 0.2s;
 
     &--active {
-        transform: translateY(-2px);
+        transform: translateY(-2px) scale(1.08);
+        animation: digit-pulse 0.4s ease;
 
         .sa-digit-ring svg {
-            filter: drop-shadow(0 2px 8px rgba(255, 152, 0, 0.45));
+            filter: drop-shadow(0 0 12px rgba(255, 0, 0, 0.95)) drop-shadow(0 0 4px rgba(255, 0, 0, 0.8));
+        }
+
+        .sa-digit-number {
+            fill: #ff0000;
         }
     }
 
@@ -518,6 +523,12 @@
 .sa-pred-bar-expected {
     color: #aaa;
     font-weight: 500;
+}
+
+@keyframes digit-pulse {
+    0% { transform: translateY(-2px) scale(1); }
+    50% { transform: translateY(-2px) scale(1.15); }
+    100% { transform: translateY(-2px) scale(1.08); }
 }
 
 @keyframes pulse {

@@ -477,13 +477,15 @@ const AppWrapper = observer(() => {
                                 }
                                 id='id-smart-analyser'
                             >
-                                <Suspense
-                                    fallback={
-                                        <ChunkLoader message={localize('Please wait, loading Smart Analyser...')} />
-                                    }
-                                >
-                                    <SmartAnalyser />
-                                </Suspense>
+                                <div style={{ width: '100%', height: 'calc(100vh - 120px)', overflow: 'auto' }}>
+                                    <Suspense
+                                        fallback={
+                                            <ChunkLoader message={localize('Please wait, loading Smart Analyser...')} />
+                                        }
+                                    >
+                                        <SmartAnalyser />
+                                    </Suspense>
+                                </div>
                             </div>
                             <div
                                 label={
