@@ -195,17 +195,18 @@
 
 .sa-digits-grid {
     display: grid;
-    grid-template-columns: repeat(5, 1fr);
-    gap: 0.4rem;
+    grid-template-columns: repeat(5, auto);
+    justify-content: center;
+    gap: 0.2rem 1.4rem;
 
     @media (max-width: 900px) {
-        grid-template-columns: repeat(5, 1fr);
-        gap: 0.8rem;
+        grid-template-columns: repeat(5, auto);
+        gap: 0.2rem 0.8rem;
     }
 
     @media (max-width: 600px) {
-        grid-template-columns: repeat(5, 1fr);
-        gap: 0.6rem;
+        grid-template-columns: repeat(5, auto);
+        gap: 0.2rem 0.4rem;
     }
 }
 
