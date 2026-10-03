@@ -58,6 +58,7 @@ class APIBase {
     is_authorized = false;
     otp_reconnect_in_progress = false;
     is_initializing = false;
+    pending_init: { force: boolean } | null = null;
     otp_socket: WebSocket | undefined;
     active_symbols_promise: Promise<void> | null = null;
     common_store: CommonStore | undefined;
@@ -86,16 +87,34 @@ class APIBase {
     }
 
     async init(force_create_connection = false) {
+        // Never drop a call: if an init is running, queue one more run afterwards
+        // so a call made after login (with the token) still takes effect.
+        if (this.is_initializing) {
+            console.log('[api-base] init() already in progress, queuing re-run');
+            this.pending_init = { force: !!(this.pending_init?.force || force_create_connection) };
+            return;
+        }
+        this.is_initializing = true;
+        try {
+            await this._init(force_create_connection);
+        } catch (e) {
+            console.error('[api-base] init() failed:', e);
+        } finally {
+            this.is_initializing = false;
+            if (this.pending_init) {
+                const { force } = this.pending_init;
+                this.pending_init = null;
+                await this.init(force);
+            }
+        }
+    }
+
+    async _init(force_create_connection = false) {
         // Guard against concurrent init() calls: several independent triggers
         // (account switching, TMB hooks, authorizeAndSubscribe's own internal
         // reconnect) can call init() around the same time. Without this guard,
         // each call independently tears down and recreates the connection,
         // producing a reconnect storm where sockets close before finishing.
-        if (this.is_initializing) {
-            console.log('[api-base] init() already in progress, skipping duplicate call');
-            return;
-        }
-        this.is_initializing = true;
         console.log('[api-base] init() called');
         this.toggleRunButton(true);
         const is_otp_reinit = localStorage.getItem('use_otp_ws') === 'true';
@@ -181,7 +200,6 @@ class APIBase {
         }
 
         chart_api.init(force_create_connection);
-        this.is_initializing = false;
     }
 
     hydrateFromLocalStorage(): boolean {
@@ -438,7 +456,15 @@ class APIBase {
     }
 
     getActiveSymbols = async () => {
-        const response = await this.api?.send({ active_symbols: 'brief' });
+        let response: any;
+        try {
+            response = await Promise.race([
+                this.api?.send({ active_symbols: 'brief' }),
+                new Promise((_, reject) => setTimeout(() => reject(new Error('active_symbols timeout')), 8000)),
+            ]);
+        } catch (e) {
+            console.warn('[api-base] active_symbols request failed:', (e as Error)?.message ?? e);
+        }
         const active_symbols = response?.active_symbols || [];
         const pip_sizes: Record<string, number> = {};
         if (active_symbols.length) this.has_active_symbols = true;

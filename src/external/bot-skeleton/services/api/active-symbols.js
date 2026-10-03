@@ -30,12 +30,20 @@ export default class ActiveSymbols {
 
         this.is_initialised = true;
 
-        if (api_base.has_active_symbols) {
-            this.active_symbols = api_base?.active_symbols ?? [];
-        } else {
-            await api_base.active_symbols_promise;
-            this.active_symbols = api_base?.active_symbols ?? [];
+        if (!api_base.has_active_symbols) {
+            // The promise may not exist yet (init() hasn't reached it) or may have
+            // finished empty. Wait for real symbols, retrying, instead of accepting [].
+            const deadline = Date.now() + 30000;
+            while (!api_base.has_active_symbols && Date.now() < deadline) {
+                if (api_base.active_symbols_promise) {
+                    try { await api_base.active_symbols_promise; } catch (e) { /* retry below */ }
+                    if (api_base.has_active_symbols) break;
+                    if (api_base.api) api_base.active_symbols_promise = api_base.getActiveSymbols();
+                }
+                await new Promise(r => setTimeout(r, 300));
+            }
         }
+        this.active_symbols = api_base?.active_symbols ?? [];
 
         this.processed_symbols = this.processActiveSymbols();
 

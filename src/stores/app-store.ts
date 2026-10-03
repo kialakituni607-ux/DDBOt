@@ -180,6 +180,10 @@ export default class AppStore {
         // Add a timeout so the loading overlay doesn't hang indefinitely
         const initWithTimeout = new Promise<void>(resolve => {
             const timer = setTimeout(() => {
+                console.warn('[app-store] initWorkspace timed out after 20s', {
+                    has_active_symbols: api_base.has_active_symbols,
+                    connection: api_base.getConnectionStatus(),
+                });
                 blockly_store.setLoading(false);
                 resolve();
             }, 20000);
