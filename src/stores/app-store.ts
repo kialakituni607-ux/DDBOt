@@ -188,10 +188,12 @@ export default class AppStore {
                 resolve();
             }, 10000);
 
+            console.log('[app-store] calling DBot.initWorkspace');
             DBot.initWorkspace('/', this.dbot_store, this.api_helpers_store, ui.is_mobile, false).then(() => {
                 clearTimeout(timer);
                 resolve();
-            }).catch(() => {
+            }).catch((e) => {
+                console.error('[app-store] DBot.initWorkspace FAILED:', e, e?.stack);
                 clearTimeout(timer);
                 resolve();
             });
