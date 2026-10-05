@@ -171,7 +171,7 @@ export default class AppStore {
                     timer_counter++;
                 }
             }
-        }, 10000);
+        }, 20000);
 
         if (!this.dbot_store) return;
 
@@ -186,7 +186,7 @@ export default class AppStore {
                 });
                 blockly_store.setLoading(false);
                 resolve();
-            }, 10000);
+            }, 20000);
 
             console.log('[app-store] calling DBot.initWorkspace');
             DBot.initWorkspace('/', this.dbot_store, this.api_helpers_store, ui.is_mobile, false).then(() => {
