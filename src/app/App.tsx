@@ -99,8 +99,8 @@ function App() {
                 console.warn('[watchdog] check failed', e);
             }
         };
-        const t1 = setTimeout(check, 15000);
-        const t2 = setTimeout(check, 30000);
+        const t1 = setTimeout(check, 8000);
+        const t2 = setTimeout(check, 16000);
         return () => {
             clearTimeout(t1);
             clearTimeout(t2);
