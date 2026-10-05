@@ -186,7 +186,7 @@ export default class AppStore {
                 });
                 blockly_store.setLoading(false);
                 resolve();
-            }, 20000);
+            }, 10000);
 
             DBot.initWorkspace('/', this.dbot_store, this.api_helpers_store, ui.is_mobile, false).then(() => {
                 clearTimeout(timer);
@@ -198,6 +198,29 @@ export default class AppStore {
         });
 
         await initWithTimeout;
+
+        // Auto-recover: if Bot Builder came up empty, reload once (same as a manual refresh).
+        try {
+            const w = window as any;
+            const is_empty = () =>
+                !api_base.has_active_symbols || !(w.Blockly?.derivWorkspace?.getAllBlocks?.().length > 0);
+            for (let i = 0; i < 10 && is_empty(); i++) {
+                await new Promise(r => setTimeout(r, 500));
+            }
+            if (is_empty() && navigator.onLine) {
+                const last = Number(sessionStorage.getItem('bb_autoreload_ts') || 0);
+                if (Date.now() - last > 120000) {
+                    sessionStorage.setItem('bb_autoreload_ts', String(Date.now()));
+                    console.warn('[app-store] Bot Builder empty after init, auto-reloading once', {
+                        has_active_symbols: api_base.has_active_symbols,
+                    });
+                    window.location.reload();
+                    return;
+                }
+            }
+        } catch (e) {
+            console.warn('[app-store] auto-recover check failed:', e);
+        }
 
         blockly_store.setContainerSize();
         blockly_store.setLoading(false);
