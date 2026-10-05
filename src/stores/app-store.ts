@@ -207,10 +207,11 @@ export default class AppStore {
             for (let i = 0; i < 10 && is_empty(); i++) {
                 await new Promise(r => setTimeout(r, 500));
             }
+            if (!is_empty()) sessionStorage.removeItem('bb_autoreload_count');
             if (is_empty() && navigator.onLine) {
-                const last = Number(sessionStorage.getItem('bb_autoreload_ts') || 0);
-                if (Date.now() - last > 120000) {
-                    sessionStorage.setItem('bb_autoreload_ts', String(Date.now()));
+                const tries = Number(sessionStorage.getItem('bb_autoreload_count') || 0);
+                if (tries < 5 && localStorage.getItem('authToken')) {
+                    sessionStorage.setItem('bb_autoreload_count', String(tries + 1));
                     console.warn('[app-store] Bot Builder empty after init, auto-reloading once', {
                         has_active_symbols: api_base.has_active_symbols,
                     });
