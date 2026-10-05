@@ -81,6 +81,33 @@ const router = createBrowserRouter(
 
 function App() {
     React.useEffect(() => {
+        const check = () => {
+            try {
+                const w = window as any;
+                if (w.Blockly?.derivWorkspace) {
+                    sessionStorage.removeItem('bb_autoreload_count');
+                    return;
+                }
+                if (!window.location.hash.includes('bot_builder')) return;
+                if (!navigator.onLine || !localStorage.getItem('authToken')) return;
+                const tries = Number(sessionStorage.getItem('bb_autoreload_count') || 0);
+                if (tries >= 5) return;
+                sessionStorage.setItem('bb_autoreload_count', String(tries + 1));
+                console.warn('[watchdog] Bot Builder workspace missing, reloading', { attempt: tries + 1 });
+                window.location.reload();
+            } catch (e) {
+                console.warn('[watchdog] check failed', e);
+            }
+        };
+        const t1 = setTimeout(check, 15000);
+        const t2 = setTimeout(check, 30000);
+        return () => {
+            clearTimeout(t1);
+            clearTimeout(t2);
+        };
+    }, []);
+
+    React.useEffect(() => {
         // Clean up any stale PKCE verifier if the user lands anywhere other than /callback
         // without an active auth code in the URL (i.e. they abandoned a login mid-flow).
         const isCallback = window.location.pathname.includes('/callback');

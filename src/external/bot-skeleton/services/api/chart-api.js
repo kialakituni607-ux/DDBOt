@@ -15,6 +15,7 @@ class ChartAPI {
             }
             this.api = await generateDerivApiInstance();
             this.api?.connection.addEventListener('close', this.onsocketclose.bind(this));
+            this.api?.connection.addEventListener('open', () => { this.retry_count = 0; });
         }
         this.getTime();
     };
@@ -33,7 +34,13 @@ class ChartAPI {
         if (this.api?.connection?.readyState && this.api?.connection?.readyState > 1) {
             // eslint-disable-next-line no-console
             console.log('Info: Chart connection to the server was closed, trying to reconnect.');
-            this.init(true);
+            this.retry_count = (this.retry_count || 0) + 1;
+            if (this.retry_count > 8) {
+                console.warn('[chart-api] giving up reconnecting after 8 attempts');
+                return;
+            }
+            clearTimeout(this.retry_timer);
+            this.retry_timer = setTimeout(() => this.init(true), Math.min(2000 * this.retry_count, 15000));
         }
     };
 }
