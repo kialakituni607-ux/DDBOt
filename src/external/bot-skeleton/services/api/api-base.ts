@@ -466,6 +466,10 @@ class APIBase {
             console.warn('[api-base] active_symbols request failed:', (e as Error)?.message ?? e);
         }
         const active_symbols = response?.active_symbols || [];
+        if (!active_symbols.length && this.has_active_symbols) {
+            console.warn('[api-base] empty/failed active_symbols response, keeping previous list');
+            return;
+        }
         const pip_sizes: Record<string, number> = {};
         if (active_symbols.length) this.has_active_symbols = true;
         active_symbols.forEach(({ symbol, pip }: { symbol: string; pip: string }) => {
