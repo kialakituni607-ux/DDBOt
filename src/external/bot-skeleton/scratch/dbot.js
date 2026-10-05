@@ -96,6 +96,11 @@ class DBot {
             }
         };
 
+        // Wait for the Bot Builder container to be in the DOM (it may mount after init starts)
+        for (let i = 0; i < 150 && !document.getElementById('scratch_div'); i++) {
+            await new Promise(r => setTimeout(r, 100));
+        }
+
         return new Promise((resolve, reject) => {
             __webpack_public_path__ = public_path; // eslint-disable-line no-global-assign
             ApiHelpers.setInstance(api_helpers_store);
@@ -116,6 +121,7 @@ class DBot {
                 }
                 const el_scratch_div = document.getElementById('scratch_div');
                 if (!el_scratch_div) {
+                    reject(new Error('scratch_div not found'));
                     return;
                 }
 
