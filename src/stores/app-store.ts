@@ -173,7 +173,10 @@ export default class AppStore {
             }
         }, 20000);
 
-        if (!this.dbot_store) return;
+        if (!this.dbot_store) {
+            console.warn('[app-store] onMount: dbot_store not ready, skipping initWorkspace');
+            return;
+        }
 
         blockly_store.setLoading(true);
 
