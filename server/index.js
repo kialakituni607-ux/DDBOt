@@ -1074,7 +1074,18 @@ app.post('/api/auth/otp', reloadLimiter, async (req, res) => {
                 'Deriv-App-ID': '33FcuouIScHSG243iVoDf'
             }
         });
-        const data = await response.json();
+        const raw = await response.text();
+        let data;
+        try {
+            data = JSON.parse(raw);
+        } catch (e) {
+            console.error('[otp] non-JSON reply from Deriv:', response.status, raw.substring(0, 200), '| account_id:', account_id);
+            return res.status(response.status === 200 ? 502 : response.status).json({ error: raw.substring(0, 200) || 'Invalid OTP response' });
+        }
+        if (!response.ok) {
+            console.error('[otp] Deriv rejected:', response.status, JSON.stringify(data).substring(0, 200), '| account_id:', account_id);
+            return res.status(response.status).json(data);
+        }
         console.log('[otp]:', JSON.stringify(data).substring(0, 200));
         res.json({ data: data.data || data });
     } catch (err) {
