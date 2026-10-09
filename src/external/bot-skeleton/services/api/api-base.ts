@@ -343,6 +343,23 @@ class APIBase {
                         await new Promise(resolve => setTimeout(resolve, retry_delay_ms));
                         retry_delay_ms *= 2;
                     }
+                    if (otpRes && otpRes.status === 401) {
+                        const n = Number(sessionStorage.getItem('otp_401_count') || 0) + 1;
+                        sessionStorage.setItem('otp_401_count', String(n));
+                        this.otp_reconnect_in_progress = false;
+                        clearTimeout(authorizingTimeout);
+                        setIsAuthorizing(false);
+                        if (n >= 2) {
+                            console.warn('[api-base] OTP rejected twice (401), clearing session');
+                            sessionStorage.removeItem('otp_401_count');
+                            ['deriv_ws_url', 'use_otp_ws', 'all_accounts_balance'].forEach(k => localStorage.removeItem(k));
+                            clearAuthData();
+                        } else {
+                            console.warn('[api-base] OTP rejected (401), retrying once');
+                            setTimeout(() => this.authorizeAndSubscribe(), 2000);
+                        }
+                        return;
+                    }
                     const otpData = await otpRes!.json();
                     const freshOtpUrl = otpData?.data?.url;
                     if (freshOtpUrl) {
@@ -364,9 +381,11 @@ class APIBase {
                         setIsAuthorizing(false);
                         clearTimeout(authorizingTimeout);
                         console.log('[api-base] OTP connection established, skipping classic authorize');
+                        sessionStorage.removeItem('otp_401_count');
                         this.otp_reconnect_in_progress = false;
                         return;
                     }
+                    this.otp_reconnect_in_progress = false;
                     console.warn('[api-base] No OTP url returned, falling back to classic authorize');
                 } catch (e) {
                     console.error('[api-base] OTP fetch failed, falling back to classic authorize:', e);
