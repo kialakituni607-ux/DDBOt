@@ -246,6 +246,22 @@ const EntryScanner: React.FC = observer(() => {
             return;
         }
 
+        // Wait for the socket to actually open before sending anything
+        const opened = await new Promise<boolean>(resolve => {
+            const conn = api?.connection;
+            if (!conn) return resolve(false);
+            if (conn.readyState === 1) return resolve(true);
+            const t = setTimeout(() => resolve(false), 8000);
+            conn.addEventListener('open', () => { clearTimeout(t); resolve(true); });
+            conn.addEventListener('close', () => { clearTimeout(t); resolve(false); });
+        });
+        if (!opened) {
+            try { api.disconnect?.(); } catch { /* ignore */ }
+            setStatusMsg('⚠️ Could not connect to market data. Please try again in a moment.');
+            setScanning(false);
+            return;
+        }
+
         let best: ScanResult | null = null;
         let bestScore = -1;
 
@@ -260,14 +276,17 @@ const EntryScanner: React.FC = observer(() => {
             try {
                 // Parse the user's tick count, clamp to 100..5000, fall back to 500.
                 const parsedCount = Math.max(100, Math.min(5000, parseInt(tickCount, 10) || 500));
-                const response: any = await api.send({
+                const response: any = await Promise.race([
+                    new Promise((_, rej) => setTimeout(() => rej(new Error('ticks_history timeout')), 10000)),
+                    api.send({
                     ticks_history: symbol,
                     count: parsedCount,
                     end: 'latest',
                     start: 1,
                     style: 'ticks',
                     adjust_start_time: 1,
-                });
+                    }),
+                ]);
 
                 const prices: number[] = response.history.prices.map(Number);
                 const digits = prices.map(getLastDigit);
