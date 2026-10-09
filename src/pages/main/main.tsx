@@ -3,7 +3,6 @@ import classNames from 'classnames';
 import { observer } from 'mobx-react-lite';
 import { useLocation, useNavigate } from 'react-router-dom';
 import ChunkLoader from '@/components/loader/chunk-loader';
-import DTrader from '@/pages/dtrader';
 import { generateOAuthURL } from '@/components/shared';
 import DesktopWrapper from '@/components/shared_ui/desktop-wrapper';
 import Dialog from '@/components/shared_ui/dialog';
@@ -73,7 +72,7 @@ const AppWrapper = observer(() => {
     const { clear } = summary_card;
     const { DASHBOARD, BOT_BUILDER } = DBOT_TABS;
     const init_render = React.useRef(true);
-    const hash = ['dashboard', 'bot_builder', 'chart', 'tutorial', 'entry_scanner', 'free_bots', 'dtrader', 'analysis_tool', 'smart_analyser', 'antipoverty_ai'];
+    const hash = ['dashboard', 'bot_builder', 'chart', 'tutorial', 'entry_scanner', 'free_bots', 'smart_analyser', 'analysis_tool', 'antipoverty_ai'];
     const { isDesktop } = useDevice();
     const location = useLocation();
     const navigate = useNavigate();
@@ -432,13 +431,19 @@ const AppWrapper = observer(() => {
                                             width='24px'
                                             fill='var(--text-general)'
                                         />
-                                        <Localize i18n_default_text='Deriv Trader' />
+                                        <Localize i18n_default_text='Smart Analyser' />
                                     </>
                                 }
-                                id='id-dtrader'
+                                id='id-smart-analyser'
                             >
-                                <div style={{width:'100%',height:'calc(100vh - 120px)', overflow: 'auto'}}>
-                                    <DTrader />
+                                <div style={{ width: '100%', height: 'calc(100vh - 120px)', overflow: 'auto' }}>
+                                    <Suspense
+                                        fallback={
+                                            <ChunkLoader message={localize('Please wait, loading Smart Analyser...')} />
+                                        }
+                                    >
+                                        <SmartAnalyser />
+                                    </Suspense>
                                 </div>
                             </div>
                             <div
@@ -461,29 +466,6 @@ const AppWrapper = observer(() => {
                                         }
                                     >
                                         <AnalysisTool />
-                                    </Suspense>
-                                </div>
-                            </div>
-                            <div
-                                label={
-                                    <>
-                                        <LabelPairedChartLineCaptionRegularIcon
-                                            height='24px'
-                                            width='24px'
-                                            fill='var(--text-general)'
-                                        />
-                                        <Localize i18n_default_text='Smart Analyser' />
-                                    </>
-                                }
-                                id='id-smart-analyser'
-                            >
-                                <div style={{ width: '100%', height: 'calc(100vh - 120px)', overflow: 'auto' }}>
-                                    <Suspense
-                                        fallback={
-                                            <ChunkLoader message={localize('Please wait, loading Smart Analyser...')} />
-                                        }
-                                    >
-                                        <SmartAnalyser />
                                     </Suspense>
                                 </div>
                             </div>
