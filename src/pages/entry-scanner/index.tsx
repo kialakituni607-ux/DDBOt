@@ -241,6 +241,10 @@ const EntryScanner: React.FC = observer(() => {
         let api: any = null;
         let usingShared = false;
         try {
+            // Give the main connection up to 10s to be ready before falling back
+            for (let i = 0; i < 40 && api_base.api?.connection?.readyState !== 1; i++) {
+                await new Promise(r => setTimeout(r, 250));
+            }
             if (api_base.api?.connection?.readyState === 1) {
                 api = api_base.api;
                 usingShared = true;
