@@ -3,6 +3,7 @@ import { observer } from 'mobx-react-lite';
 import { useStore } from '@/hooks/useStore';
 import { load, save_types } from '@/external/bot-skeleton';
 import { generateDerivApiInstance } from '@/external/bot-skeleton/services/api/appId';
+import { api_base } from '@/external/bot-skeleton/services/api/api-base';
 import tmApi from '@/utils/tm-api';
 import { DBOT_TABS } from '@/constants/bot-contents';
 import Journal from '@/components/journal';
@@ -238,8 +239,15 @@ const EntryScanner: React.FC = observer(() => {
 
         // Create a dedicated WebSocket API just for scanning
         let api: any = null;
+        let usingShared = false;
         try {
-            api = await generateDerivApiInstance();
+            if (api_base.api?.connection?.readyState === 1) {
+                api = api_base.api;
+                usingShared = true;
+                console.log('[ES] using shared main connection');
+            } else {
+                api = await generateDerivApiInstance();
+            }
         } catch (e) {
             setStatusMsg('⚠️ Could not connect to market data. Check your connection.');
             setScanning(false);
@@ -256,7 +264,7 @@ const EntryScanner: React.FC = observer(() => {
             conn.addEventListener('close', () => { clearTimeout(t); resolve(false); });
         });
         if (!opened) {
-            try { api.disconnect?.(); } catch { /* ignore */ }
+            try { if (!usingShared) api.disconnect?.(); } catch { /* ignore */ }
             setStatusMsg('⚠️ Could not connect to market data. Please try again in a moment.');
             setScanning(false);
             return;
@@ -333,7 +341,7 @@ const EntryScanner: React.FC = observer(() => {
         }
 
         // Clean up the scan connection
-        try { api.disconnect?.(); } catch { /* ignore */ }
+        try { if (!usingShared) api.disconnect?.(); } catch { /* ignore */ }
 
         if (!abortRef.current) {
             if (best) {
