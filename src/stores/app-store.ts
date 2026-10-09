@@ -174,8 +174,15 @@ export default class AppStore {
         }, 20000);
 
         if (!this.dbot_store) {
-            console.warn('[app-store] onMount: dbot_store not ready, skipping initWorkspace');
-            return;
+            console.warn('[app-store] onMount: dbot_store not ready, waiting for it');
+            for (let i = 0; i < 240 && !this.dbot_store; i++) {
+                await new Promise(r => setTimeout(r, 250));
+            }
+            if (!this.dbot_store) {
+                console.error('[app-store] dbot_store never became ready, giving up');
+                return;
+            }
+            console.log('[app-store] dbot_store ready, continuing initWorkspace');
         }
 
         blockly_store.setLoading(true);
