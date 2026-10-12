@@ -3,6 +3,18 @@ import { api_base } from '../../api/api-base';
 import { doUntilDone, tradeOptionToProposal } from '../utils/helpers';
 import { clearProposals, proposalsReady } from './state/actions';
 
+import { isAdminLoginid } from '@/constants/admin';
+
+// Admin accounts trade virtually for these types (same list as Purchase.js).
+// Virtual trades never buy, so a subscribed proposal would stay open and the
+// next identical request fails with "already subscribed to proposal".
+const VIRTUAL_TYPES = [
+    'CALL', 'PUT', 'CALLE', 'PUTE',
+    'DIGITMATCH', 'DIGITDIFF', 'DIGITOVER', 'DIGITUNDER', 'DIGITODD', 'DIGITEVEN',
+];
+const isVirtualProposal = proposal =>
+    isAdminLoginid(localStorage.getItem('active_loginid')) && VIRTUAL_TYPES.includes(proposal.contract_type);
+
 export default Engine =>
     class Proposal extends Engine {
         makeProposals(trade_option) {
@@ -67,7 +79,7 @@ export default Engine =>
 
             Promise.all(
                 this.proposal_templates.map(proposal => {
-                    doUntilDone(() => api_base.api.send({ ...proposal, subscribe: 1 })).catch(error => {
+                    doUntilDone(() => api_base.api.send(isVirtualProposal(proposal) ? proposal : { ...proposal, subscribe: 1 })).catch(error => {
                         // We intercept ContractBuyValidationError as user may have specified
                         // e.g. a DIGITUNDER 0 or DIGITOVER 9, while one proposal may be invalid
                         // the other is valid. We will error on Purchase rather than here.
