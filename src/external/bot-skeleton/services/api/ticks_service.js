@@ -70,6 +70,7 @@ export default class TicksService {
     }
 
     async request(options) {
+        this.ensureObserved();
         return new Promise((resolve, reject) => {
             const { symbol, granularity } = options;
 
@@ -196,8 +197,21 @@ export default class TicksService {
         }
     }
 
+    ensureObserved() {
+        if (!api_base.api || api_base.api === this.observed_api) return;
+        console.warn('[ticks] API connection changed, re-attaching tick listener and clearing stale cache');
+        try { this.tick_subscription?.unsubscribe?.(); } catch (e) { /* ignore */ }
+        this.ticks = this.ticks.clear();
+        this.candles = this.candles.clear();
+        this.subscriptions = this.subscriptions.clear();
+        this.ticks_history_promise = null;
+        this.candles_promise = null;
+        this.observe();
+    }
+
     observe() {
         if (api_base.api) {
+            this.observed_api = api_base.api;
             const subscription = api_base.api.onMessage().subscribe(({ data }) => {
                 if (data.msg_type === 'tick') {
                     const { tick } = data;
@@ -222,6 +236,7 @@ export default class TicksService {
                 }
             });
             api_base.pushSubscription(subscription);
+            this.tick_subscription = subscription;
         }
     }
 
