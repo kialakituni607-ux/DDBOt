@@ -37,12 +37,34 @@
                 font-size: 62.5%;
             }
         </style>
+        <style>
+            #tm-splash { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
+                background: radial-gradient(circle at 50% 30%, #1b2170 0%, #0a0f3a 60%, #060826 100%);
+                font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; color: #fff; z-index: 9999; }
+            #tm-splash .tm-card { width: min(420px, 88vw); padding: 28px 26px; border-radius: 16px;
+                background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.14);
+                backdrop-filter: blur(10px); text-align: center; }
+            #tm-splash img { width: 72px; height: 72px; object-fit: contain; margin-bottom: 14px; }
+            #tm-splash .tm-name { font-size: 22px; font-weight: 800; letter-spacing: 2px; }
+            #tm-splash .tm-sub { font-size: 12px; opacity: 0.7; margin-top: 4px; }
+            #tm-splash .tm-msg { font-size: 13px; font-weight: 600; margin-top: 18px; }
+            #tm-splash .tm-bar { height: 5px; border-radius: 3px; background: rgba(255,255,255,0.15); margin-top: 16px; overflow: hidden; }
+            #tm-splash .tm-bar::after { content: ''; display: block; height: 100%; width: 40%; border-radius: 3px;
+                background: linear-gradient(90deg, #3b82f6, #60a5fa); animation: tm-slide 1.3s ease-in-out infinite; }
+            @keyframes tm-slide { 0% { transform: translateX(-100%); } 100% { transform: translateX(250%); } }
+        </style>
     </head>
 
     <body class="body theme theme--light">
         <div id="modal_root" class="modal-root"></div>
         <div id="popup_root" class="popup-root"></div>
-        <div id="root"></div>
+        <div id="root"><div id="tm-splash"><div class="tm-card">
+            <img src="/trademasters-logo.png" alt="TradeMasters" />
+            <div class="tm-name">TRADEMASTERS</div>
+            <div class="tm-sub">Trading Workspace</div>
+            <div class="tm-msg">Initializing bot engine...</div>
+            <div class="tm-bar"></div>
+        </div></div></div>
         <!-- LiveChat script -->
         <script type="text/javascript" defer>
             window.__lc = window.__lc || {};
