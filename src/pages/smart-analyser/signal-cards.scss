@@ -1,0 +1,35 @@
+.sc-wrap { margin-top: 16px; }
+.sc-title { font-weight: 700; font-size: 16px; margin-bottom: 10px; }
+.sc-loading { padding: 16px; text-align: center; opacity: 0.7; }
+.sc-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+@media (max-width: 800px) { .sc-grid { grid-template-columns: 1fr; } }
+
+.sc-card { background: #0b1437; color: #fff; border: 1px solid #1f2b5c; border-radius: 12px; padding: 14px; }
+.sc-card__head { display: flex; justify-content: space-between; font-weight: 700; font-size: 13px; margin-bottom: 10px; }
+.sc-card__streak { color: #ff9f43; }
+
+.sc-digits { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin-bottom: 10px; }
+.sc-digit { width: 28px; height: 28px; border-radius: 50%; border: 1.5px solid #3a4680; background: transparent; color: #fff; font-weight: 600; cursor: pointer; }
+.sc-digit--latest { border-color: #ff9f43; }
+.sc-digit--selected { border-color: #ff4d4f; box-shadow: 0 0 0 1px #ff4d4f; }
+
+.sc-bar { display: flex; align-items: center; gap: 8px; margin: 6px 0; font-size: 12px; font-weight: 700; }
+.sc-bar__name { width: 64px; }
+.sc-bar__track { flex: 1; height: 7px; border-radius: 4px; background: #1a2554; overflow: hidden; }
+.sc-bar__fill { height: 100%; border-radius: 4px; transition: width 0.2s; }
+.sc-bar__pct { width: 52px; text-align: right; }
+
+.sc-tone--green { color: #2ecc71; } .sc-bg--green { background: #2ecc71; }
+.sc-tone--red { color: #ff5a5f; } .sc-bg--red { background: #ff5a5f; }
+.sc-tone--purple { color: #a78bfa; } .sc-bg--purple { background: #8b5cf6; }
+.sc-tone--amber { color: #ff9f43; } .sc-bg--amber { background: #ff9f43; }
+.sc-tone--grey { color: #9aa3c7; } .sc-bg--grey { background: #6b7399; }
+
+.sc-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.sc-chip { min-width: 28px; height: 24px; padding: 0 4px; display: inline-flex; align-items: center; justify-content: center; border-radius: 5px; font-size: 12px; font-weight: 700; border: 1px solid; }
+.sc-chip--green { color: #2ecc71; border-color: #1c7a47; background: rgba(46, 204, 113, 0.12); }
+.sc-chip--red { color: #ff5a5f; border-color: #8a2b30; background: rgba(255, 90, 95, 0.12); }
+.sc-chip--purple { color: #a78bfa; border-color: #5b44a8; background: rgba(139, 92, 246, 0.14); }
+.sc-chip--amber { color: #ff9f43; border-color: #a35f1c; background: rgba(255, 159, 67, 0.14); }
+.sc-chip--grey { color: #9aa3c7; border-color: #3a4680; }
+.sc-more { height: 24px; padding: 0 8px; border-radius: 5px; border: 1px solid #3a4680; background: transparent; color: #cfd6ff; font-size: 12px; cursor: pointer; }
