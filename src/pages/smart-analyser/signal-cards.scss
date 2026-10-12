@@ -33,3 +33,23 @@
 .sc-chip--amber { color: #ff9f43; border-color: #a35f1c; background: rgba(255, 159, 67, 0.14); }
 .sc-chip--grey { color: #9aa3c7; border-color: #3a4680; }
 .sc-more { height: 24px; padding: 0 8px; border-radius: 5px; border: 1px solid #3a4680; background: transparent; color: #cfd6ff; font-size: 12px; cursor: pointer; }
+
+/* Desktop only: all 10 digit circles on one row */
+@media (min-width: 1024px) {
+    .smart-analyser .sa-digits-grid {
+        display: grid;
+        grid-template-columns: repeat(10, minmax(0, 1fr));
+        gap: 8px;
+        overflow: visible;
+    }
+    .smart-analyser .sa-digits-grid .sa-digit-card {
+        min-width: 0;
+        width: 100%;
+        padding: 6px 2px;
+    }
+    .smart-analyser .sa-digits-grid .sa-digit-ring svg {
+        width: 100%;
+        max-width: 80px;
+        height: auto;
+    }
+}
