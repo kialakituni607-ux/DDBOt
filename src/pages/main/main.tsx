@@ -33,6 +33,7 @@ import AdminPanel from '../admin-panel';
 import Dashboard from '../dashboard';
 import RunStrategy from '../dashboard/run-strategy';
 import './main.scss';
+import LockedPanel from './locked-panel';
 
 const ChartWrapper = lazy(() => import('../chart/chart-wrapper'));
 const Tutorial = lazy(() => import('../tutorials'));
@@ -43,7 +44,8 @@ const EntryScanner = lazy(() => import('../entry-scanner'));
 const AntiPovertyAI = lazy(() => import('../antipoverty-ai'));
 
 const AppWrapper = observer(() => {
-    const { connectionStatus } = useApiBase();
+    const { connectionStatus, activeLoginid } = useApiBase();
+    const is_logged_in = !!activeLoginid;
     const { client, dashboard, load_modal, run_panel, quick_strategy, summary_card } = useStore();
     const {
         active_tab,
@@ -386,6 +388,7 @@ const AppWrapper = observer(() => {
                                             fill='var(--text-general)'
                                         />
                                         <Localize i18n_default_text='Entry Scanner' />
+                                        {!is_logged_in && <span className='tm-tab-lock'>🔒</span>}
                                     </>
                                 }
                                 id='id-entry-scanner'
@@ -396,7 +399,7 @@ const AppWrapper = observer(() => {
                                             <ChunkLoader message={localize('Please wait, loading Entry Scanner...')} />
                                         }
                                     >
-                                        <EntryScanner />
+                                        {is_logged_in ? <EntryScanner /> : <LockedPanel />}
                                     </Suspense>
                                 </div>
                             </div>
@@ -409,6 +412,7 @@ const AppWrapper = observer(() => {
                                             fill='var(--text-general)'
                                         />
                                         <Localize i18n_default_text='Free Bots' />
+                                        {!is_logged_in && <span className='tm-tab-lock'>🔒</span>}
                                     </>
                                 }
                                 id='id-free-bots'
@@ -419,7 +423,7 @@ const AppWrapper = observer(() => {
                                             <ChunkLoader message={localize('Please wait, loading free bots...')} />
                                         }
                                     >
-                                        <FreeBots />
+                                        {is_logged_in ? <FreeBots /> : <LockedPanel />}
                                     </Suspense>
                                 </div>
                             </div>
@@ -432,6 +436,7 @@ const AppWrapper = observer(() => {
                                             fill='var(--text-general)'
                                         />
                                         <Localize i18n_default_text='Smart Analyser' />
+                                        {!is_logged_in && <span className='tm-tab-lock'>🔒</span>}
                                     </>
                                 }
                                 id='id-smart-analyser'
@@ -442,7 +447,7 @@ const AppWrapper = observer(() => {
                                             <ChunkLoader message={localize('Please wait, loading Smart Analyser...')} />
                                         }
                                     >
-                                        <SmartAnalyser />
+                                        {is_logged_in ? <SmartAnalyser /> : <LockedPanel />}
                                     </Suspense>
                                 </div>
                             </div>
@@ -455,6 +460,7 @@ const AppWrapper = observer(() => {
                                             fill='var(--text-general)'
                                         />
                                         <Localize i18n_default_text='Analysis Tool' />
+                                        {!is_logged_in && <span className='tm-tab-lock'>🔒</span>}
                                     </>
                                 }
                                 id='id-analysis-tool'
@@ -465,7 +471,7 @@ const AppWrapper = observer(() => {
                                             <ChunkLoader message={localize('Please wait, loading analysis tool...')} />
                                         }
                                     >
-                                        <AnalysisTool />
+                                        {is_logged_in ? <AnalysisTool /> : <LockedPanel />}
                                     </Suspense>
                                 </div>
                             </div>
