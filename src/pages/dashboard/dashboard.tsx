@@ -24,13 +24,13 @@ const DashboardComponent = observer(({ handleTabChange }: TMobileIconGuide) => {
 
     return (
         <React.Fragment>
+            <DashboardHero handleTabChange={handleTabChange} />
             <div
                 className={classNames('tab__dashboard', {
                     'tab__dashboard--tour-active': active_tour,
                 })}
             >
                 <div className='tab__dashboard__content'>
-                    <DashboardHero handleTabChange={handleTabChange} />
                     {client.is_logged_in && (
                         <Announcements is_mobile={!isDesktop} is_tablet={isTablet} handleTabChange={handleTabChange} />
                     )}
