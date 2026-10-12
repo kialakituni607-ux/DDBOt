@@ -1,3 +1,4 @@
+import { getCachedVirtualBalance, isAdminSession, setCachedVirtualBalance } from '@/utils/virtual-balance-cache';
 import { useCallback, useEffect, useState } from 'react';
 import clsx from 'clsx';
 import { observer } from 'mobx-react-lite';
@@ -45,27 +46,33 @@ const AppHeader = observer(({ isAuthenticating }: TAppHeaderProps) => {
     }, []);
 
     const { data: rawActiveAccount } = useActiveAccount({ allBalanceData: client?.all_accounts_balance });
-    const [virtual_balance, setVirtualBalance] = useState<number | null>(null);
+    const [virtual_balance, setVirtualBalance] = useState<number | null>(getCachedVirtualBalance);
     useEffect(() => {
-        if (!client?.is_admin) return;
+        if (!client?.is_admin && !isAdminSession()) return;
         let is_mounted = true;
+        let attempts = 0;
+        let timer: ReturnType<typeof setTimeout> | undefined;
         const refresh = () => {
             tmApi
                 .getVirtualBalance()
                 .then(b => {
+                    setCachedVirtualBalance(b);
                     if (is_mounted) setVirtualBalance(b);
                 })
-                .catch(() => {});
+                .catch(() => {
+                    if (is_mounted && attempts++ < 15) timer = setTimeout(refresh, 3000);
+                });
         };
         refresh();
         globalObserver.register('virtual_balance.update', refresh);
         return () => {
             is_mounted = false;
+            clearTimeout(timer);
             globalObserver.unregister('virtual_balance.update', refresh);
         };
     }, [client?.is_admin]);
     const activeAccount =
-        client?.is_admin && virtual_balance !== null && rawActiveAccount
+        (client?.is_admin || isAdminSession()) && virtual_balance !== null && rawActiveAccount
             ? { ...rawActiveAccount, balance: addComma(virtual_balance.toFixed(2)) }
             : rawActiveAccount;
     const { accounts, getCurrency, is_virtual } = client ?? {};

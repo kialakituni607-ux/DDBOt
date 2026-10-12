@@ -1,3 +1,4 @@
+import { getCachedVirtualBalance, isAdminSession, setCachedVirtualBalance } from '@/utils/virtual-balance-cache';
 import React, { useEffect } from 'react';
 import { lazy, Suspense, useMemo } from 'react';
 import { observer } from 'mobx-react-lite';
@@ -102,29 +103,35 @@ const AccountSwitcher = observer(({ activeAccount }: TAccountSwitcher) => {
     const { toggleAccountsDialog, is_accounts_switcher_on, account_switcher_disabled_message } = ui;
     const { is_stop_button_visible } = run_panel;
     const has_wallet = Object.keys(accounts).some(id => accounts[id].account_category === 'wallet');
-    const [virtual_balance, setVirtualBalance] = React.useState<number | null>(null);
+    const [virtual_balance, setVirtualBalance] = React.useState<number | null>(getCachedVirtualBalance);
     useEffect(() => {
-        if (!client.is_admin) return;
+        if (!client.is_admin && !isAdminSession()) return;
         let is_mounted = true;
+        let attempts = 0;
+        let timer: ReturnType<typeof setTimeout> | undefined;
         const refresh = () => {
             tmApi
                 .getVirtualBalance()
                 .then(b => {
+                    setCachedVirtualBalance(b);
                     if (is_mounted) setVirtualBalance(b);
                 })
-                .catch(() => {});
+                .catch(() => {
+                    if (is_mounted && attempts++ < 15) timer = setTimeout(refresh, 3000);
+                });
         };
         refresh();
         globalObserver.register("virtual_balance.update", refresh);
         return () => {
             is_mounted = false;
+            clearTimeout(timer);
             globalObserver.unregister("virtual_balance.update", refresh);
         };
     }, [client.is_admin]);
 
     const modifiedAccountList = useMemo(() => {
         return accountList?.map(account => {
-            const is_admin_own_account = client.is_admin && account?.loginid === client.loginid;
+            const is_admin_own_account = (client.is_admin || isAdminSession()) && account?.loginid === (client.loginid || localStorage.getItem('active_loginid'));
             return {
                 ...account,
                 balance:
