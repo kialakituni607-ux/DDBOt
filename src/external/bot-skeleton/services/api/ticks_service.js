@@ -199,6 +199,11 @@ export default class TicksService {
     observe() {
         if (api_base.api) {
             const subscription = api_base.api.onMessage().subscribe(({ data }) => {
+                if (data?.error) console.warn('[ws error]', data.msg_type, data.error.code, data.error.message);
+                if (data?.msg_type === 'tick' && !this._tick_logged) {
+                    this._tick_logged = true;
+                    console.log('[ticks] sample tick message:', JSON.stringify(data).slice(0, 400));
+                }
                 if (data.msg_type === 'tick') {
                     const { tick } = data;
                     const { symbol, id } = tick;
