@@ -93,12 +93,14 @@ export default Engine =>
 
         observeProposals() {
             if (!api_base.api) return;
+            console.log('[engine] observeProposals attached to', api_base.api?.connection?.url);
             const subscription = api_base.api.onMessage().subscribe(response => {
                 if (response.data.msg_type === 'proposal') {
                     const { passthrough, proposal } = response.data;
                     if (proposal && this.data.proposals.findIndex(p => p.id === proposal.id) === -1) {
                         // Add proposals based on the ID returned by the API.
                         this.data.proposals.push({ ...proposal, ...passthrough });
+                        console.log('[engine] proposal stored', passthrough?.contract_type, passthrough?.purchase_reference);
                         this.checkProposalReady();
                     }
                 }
