@@ -86,11 +86,7 @@ const SignalCards = ({ digits, prices, sampleSize, lastDigit }: Props) => {
     }
 
     const overUnder: Result[] = win.map(d =>
-        d > barrier
-            ? { c: 'O', word: 'Over', tone: 'green' }
-            : d < barrier
-              ? { c: 'U', word: 'Under', tone: 'red' }
-              : { c: '=', word: 'Equal', tone: 'grey' }
+        d > barrier ? { c: 'O', word: 'Over', tone: 'green' } : { c: 'U', word: 'Under', tone: 'red' }
     );
     const evenOdd: Result[] = win.map(d =>
         d % 2 === 0 ? { c: 'E', word: 'Even', tone: 'green' } : { c: 'O', word: 'Odd', tone: 'red' }
