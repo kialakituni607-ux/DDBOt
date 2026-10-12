@@ -94,6 +94,27 @@ export default class TradeEngine extends Balance(Purchase(Sell(OpenContract(Prop
         }
 
         globalObserver.emit('bot.running');
+        try {
+            const diag = tag => {
+                try {
+                    const st = this.store.getState();
+                    console.log('[RUN-DIAG]', tag, JSON.stringify({
+                        socket: api_base.api?.connection?.url?.slice(0, 45),
+                        readyState: api_base.api?.connection?.readyState,
+                        scope: st.scope,
+                        proposalsReady: st.proposalsReady,
+                        newTick: st.newTick,
+                        proposals_in_memory: (this.data.proposals || []).length,
+                        templates: (this.proposal_templates || []).length,
+                        has_startPromise: !!this.startPromise,
+                        is_proposal_sub_required: this.is_proposal_subscription_required,
+                    }));
+                } catch (e) { console.log('[RUN-DIAG] failed', e.message); }
+            };
+            diag('at-run');
+            setTimeout(() => diag('after-5s'), 5000);
+            setTimeout(() => diag('after-20s'), 20000);
+        } catch (e) { /* ignore */ }
 
         const validated_trade_options = this.validateTradeOptions(tradeOptions);
 
