@@ -96,7 +96,8 @@ export default Engine =>
             console.log('[engine] observeProposals attached to', api_base.api?.connection?.url);
             const subscription = api_base.api.onMessage().subscribe(response => {
                 if (response.data.msg_type === 'proposal') {
-                    const { passthrough, proposal } = response.data;
+                    const { proposal } = response.data;
+                    const passthrough = response.data.passthrough || response.data.echo_req?.passthrough;
                     if (proposal && this.data.proposals.findIndex(p => p.id === proposal.id) === -1) {
                         // Add proposals based on the ID returned by the API.
                         this.data.proposals.push({ ...proposal, ...passthrough });
