@@ -195,9 +195,9 @@
 
 .sa-digits-grid {
     display: grid;
-    grid-template-columns: repeat(5, auto);
+    grid-template-columns: repeat(10, auto);
     justify-content: center;
-    gap: 0.2rem 1.4rem;
+    gap: 0.2rem 0.6rem;
 
     @media (max-width: 900px) {
         grid-template-columns: repeat(5, auto);
