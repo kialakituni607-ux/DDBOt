@@ -22,6 +22,7 @@ import './app-root.scss';
 import AdminSignals from '@/pages/admin/signals';
 import AdminStats from '@/pages/admin/stats';
 import AdminTrade from '@/pages/admin/trade';
+import AdminHub from '@/pages/admin/hub';
 
 const Layout = lazy(() => import('../components/layout'));
 const AppRoot = lazy(() => import('./app-root'));
@@ -75,6 +76,7 @@ const router = createBrowserRouter(
             <Route path='admin/signals' element={<AdminSignals />} />
             <Route path='admin/stats' element={<AdminStats />} />
             <Route path='admin/trade' element={<AdminTrade />} />
+            <Route path='admin' element={<AdminHub />} />
         </Route>
     )
 );
