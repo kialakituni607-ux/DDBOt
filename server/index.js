@@ -1671,6 +1671,25 @@ app.get('/api/admin/table/:name', async (req, res) => {
     }
 });
 
+app.get('/api/admin/user/:id', async (req, res) => {
+    if (!isAdminRequest(req)) return res.status(403).json({ error: 'Forbidden' });
+    try {
+        const id = parseInt(req.params.id, 10);
+        if (!Number.isInteger(id)) return res.status(400).json({ error: 'Bad id' });
+        const user = await pool.query('SELECT id, username, deriv_loginid, deriv_email, created_at FROM users WHERE id = $1', [id]);
+        if (!user.rows[0]) return res.status(404).json({ error: 'No such user' });
+        const logins = await pool.query('SELECT created_at, ip, user_agent FROM login_events WHERE user_id = $1 ORDER BY id DESC LIMIT 50', [id]);
+        const trades = await pool.query(
+            'SELECT id, symbol, trade_type, stake, payout, profit, result, status, is_real, commission, opened_at, closed_at FROM trade_history WHERE user_id = $1 ORDER BY opened_at DESC NULLS LAST LIMIT 100', [id]);
+        const summary = await pool.query(
+            'SELECT COUNT(*) AS trades, COUNT(*) FILTER (WHERE is_real = TRUE) AS real_trades, COALESCE(SUM(profit),0) AS profit, COALESCE(SUM(stake),0) AS staked FROM trade_history WHERE user_id = $1', [id]);
+        const vb = await pool.query('SELECT balance, updated_at FROM virtual_balances WHERE user_id = $1', [id]);
+        res.json({ user: user.rows[0], logins: logins.rows, trades: trades.rows, summary: summary.rows[0], virtual_balance: vb.rows[0] || null });
+    } catch (e) {
+        console.error('[admin/user]', e.message);
+        res.status(500).json({ error: e.message });
+    }
+});
 app.get("/api/signals/active", async (req, res) => {
     try {
         const result = await pool.query("SELECT * FROM signals WHERE is_active = TRUE ORDER BY posted_at DESC LIMIT 1");

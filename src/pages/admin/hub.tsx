@@ -20,6 +20,7 @@ const AdminHub = () => {
     const [selected, setSelected] = useState('');
     const [offset, setOffset] = useState(0);
     const [tableData, setTableData] = useState<any>(null);
+    const [detail, setDetail] = useState<any>(null);
 
     const call = async (path: string, sec: string) => {
         const res = await fetch(API_BASE + path, { headers: { 'x-admin-secret': sec } });
@@ -49,6 +50,14 @@ const AdminHub = () => {
             setError(e.message === 'Forbidden' ? 'Wrong password' : e.message);
         }
         setLoading(false);
+    };
+
+    const openUser = async (id: number) => {
+        setError('');
+        try {
+            setDetail(await call(`/api/admin/user/${id}`, secret));
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        } catch (e: any) { setError(e.message); }
     };
 
     useEffect(() => {
@@ -92,6 +101,34 @@ const AdminHub = () => {
                     </a>
                 ))}
             </div>
+            {detail && (
+                <div style={{ ...card, padding: 20, marginBottom: 32 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <h3 style={{ margin: 0 }}>{detail.user.username} ({detail.user.deriv_loginid})</h3>
+                        <button onClick={() => setDetail(null)} style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: 18 }}>×</button>
+                    </div>
+                    <p style={{ color: '#666', fontSize: 13 }}>Joined {new Date(detail.user.created_at).toLocaleString()} · Email {detail.user.deriv_email || '—'}</p>
+                    <p style={{ fontSize: 14 }}>
+                        Virtual balance: <b>{detail.virtual_balance ? Number(detail.virtual_balance.balance).toFixed(2) : 'none'}</b> ·
+                        Trades recorded: <b>{detail.summary.trades}</b> (real {detail.summary.real_trades}) ·
+                        Staked <b>{Number(detail.summary.staked).toFixed(2)}</b> · Profit <b>{Number(detail.summary.profit).toFixed(2)}</b>
+                    </p>
+                    <p style={{ fontSize: 12, color: '#888' }}>Real account balance is not stored by the backend, so it cannot be shown here.</p>
+                    <h4>Logins ({detail.logins.length})</h4>
+                    {!detail.logins.length ? <p style={{ color: '#888', fontSize: 13 }}>No logins recorded yet.</p> : (
+                        <div style={{ overflow: 'auto', maxHeight: 220 }}><table style={{ width: '100%', fontSize: 13 }}><tbody>
+                            {detail.logins.map((l: any, i: number) => <tr key={i}><td style={{ padding: 4 }}>{new Date(l.created_at).toLocaleString()}</td><td style={{ padding: 4 }}>{l.ip || '—'}</td><td style={{ padding: 4, color: '#888' }}>{(l.user_agent || '').slice(0, 60)}</td></tr>)}
+                        </tbody></table></div>
+                    )}
+                    <h4>Trades (latest 100)</h4>
+                    {!detail.trades.length ? <p style={{ color: '#888', fontSize: 13 }}>No trades recorded.</p> : (
+                        <div style={{ overflow: 'auto', maxHeight: 300 }}><table style={{ width: '100%', fontSize: 13 }}>
+                            <thead><tr>{['Opened', 'Symbol', 'Type', 'Stake', 'Profit', 'Result', 'Real'].map(h => <th key={h} style={{ textAlign: 'left', padding: 4 }}>{h}</th>)}</tr></thead>
+                            <tbody>{detail.trades.map((t: any) => <tr key={t.id}><td style={{ padding: 4 }}>{t.opened_at ? new Date(t.opened_at).toLocaleString() : '—'}</td><td style={{ padding: 4 }}>{t.symbol}</td><td style={{ padding: 4 }}>{t.trade_type}</td><td style={{ padding: 4 }}>{t.stake}</td><td style={{ padding: 4 }}>{t.profit ?? '—'}</td><td style={{ padding: 4 }}>{t.result || t.status}</td><td style={{ padding: 4 }}>{t.is_real ? 'yes' : 'no'}</td></tr>)}</tbody>
+                        </table></div>
+                    )}
+                </div>
+            )}
             <h3 style={{ marginBottom: 12 }}>Database tables (read-only)</h3>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
                 {tables.map(t => (
@@ -107,6 +144,7 @@ const AdminHub = () => {
                         <thead>
                             <tr style={{ background: '#1a237e', color: '#fff' }}>
                                 {(tableData?.columns || []).map((c: string) => <th key={c} style={{ padding: '10px 12px', textAlign: 'left', whiteSpace: 'nowrap' }}>{c}</th>)}
+                                {selected === 'users' && <th style={{ padding: '10px 12px', textAlign: 'left' }}>Footprint</th>}
                             </tr>
                         </thead>
                         <tbody>
@@ -117,6 +155,7 @@ const AdminHub = () => {
                             ) : tableData.rows.map((r: any, i: number) => (
                                 <tr key={i} style={{ background: i % 2 === 0 ? '#f8f9fa' : '#fff' }}>
                                     {tableData.columns.map((c: string) => <td key={c} style={{ padding: '8px 12px', maxWidth: 260, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={cell(r[c])}>{cell(r[c])}</td>)}
+                                    {selected === 'users' && <td style={{ padding: '8px 12px' }}><button onClick={() => openUser(r.id)} style={{ padding: '4px 12px', borderRadius: 6, border: '1px solid #1a237e', background: '#fff', color: '#1a237e', cursor: 'pointer' }}>View</button></td>}
                                 </tr>
                             ))}
                         </tbody>
