@@ -543,6 +543,11 @@ export default Engine =>
             // sets it), and any bot that checks the last trade's result
             // crashes reading .transaction_ids off an undefined/stale value.
             this.data.contract = final_contract;
+            try {
+                this.updateTotals(final_contract);
+            } catch (e) {
+                console.warn('[virtual] updateTotals failed:', e.message);
+            }
 
             broadcastContract({ accountID: this.accountInfo.loginid, ...final_contract });
 
