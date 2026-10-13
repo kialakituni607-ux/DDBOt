@@ -28,6 +28,20 @@ const pool = new Pool({
             : false,
 });
 
+(async function ensureLoginEvents() {
+    try {
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS login_events (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER REFERENCES users(id),
+                created_at TIMESTAMPTZ DEFAULT NOW()
+            )
+        `);
+    } catch (e) {
+        console.error('[login_events] schema error:', e.message);
+    }
+})();
+
 // Idempotent schema bootstrap — creates all base tables and applies migrations.
 (async function ensureSchema() {
     try {
@@ -462,7 +476,7 @@ app.post('/api/auth/deriv', reloadLimiter, async (req, res) => {
             }
         } else {
             // Update email and refresh token on every login
-            await pool.query('UPDATE users SET deriv_email = $1 WHERE id = $2', [email, user.id]);
+            await pool.query('UPDATE users SET deriv_email = COALESCE($1, deriv_email) WHERE id = $2', [email, user.id]);
             if (deriv_token) {
                 const encrypted = encryptToken(deriv_token);
                 await pool.query(
@@ -471,6 +485,12 @@ app.post('/api/auth/deriv', reloadLimiter, async (req, res) => {
                     [encrypted, user.id]
                 );
             }
+        }
+
+        try {
+            await pool.query('INSERT INTO login_events (user_id) VALUES ($1)', [user.id]);
+        } catch (e) {
+            console.error('[login_events] insert failed:', e.message);
         }
 
         const jwtToken = jwt.sign({ id: user.id, deriv_loginid: loginid, username: user.username }, JWT_SECRET, {
@@ -1544,16 +1564,27 @@ app.get("/api/admin/stats", async (req, res) => {
         const loginStats = await pool.query(`
             SELECT
                 COUNT(*) AS total_logins,
-                COUNT(*) FILTER (WHERE expires_at >= NOW() - INTERVAL '1 day') AS logins_today,
-                COUNT(*) FILTER (WHERE expires_at >= NOW() - INTERVAL '7 days') AS logins_this_week,
+                COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '1 day') AS logins_today,
+                COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '7 days') AS logins_this_week,
                 COUNT(DISTINCT user_id) AS unique_users_logged_in
-            FROM sessions
+            FROM login_events
+        `);
+
+        const usersCount = await pool.query('SELECT COUNT(*) FROM users');
+        const usersList = await pool.query(`
+            SELECT u.id, u.username, u.deriv_loginid, u.created_at,
+                   (SELECT MAX(le.created_at) FROM login_events le WHERE le.user_id = u.id) AS last_login
+            FROM users u
+            ORDER BY u.id DESC
+            LIMIT 100
         `);
 
         res.json({
             commission: commissionStats.rows[0],
             per_user: perUser.rows,
             logins: loginStats.rows[0],
+            total_users: Number(usersCount.rows[0].count),
+            users: usersList.rows,
         });
     } catch (err) {
         console.error('[admin/stats]', err.message);
