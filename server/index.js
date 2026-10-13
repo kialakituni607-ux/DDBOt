@@ -1609,6 +1609,68 @@ app.get("/api/admin/stats", async (req, res) => {
         res.status(500).json({ error: err.message });
     }
 });
+// ---- Admin database browser (read-only, ADMIN_SECRET protected) ----
+function isAdminRequest(req) {
+    const given = Buffer.from(String(req.headers['x-admin-secret'] || ''));
+    const expected = Buffer.from(String(process.env.ADMIN_SECRET || 'trademasters-admin'));
+    return given.length === expected.length && crypto.timingSafeEqual(given, expected);
+}
+const SENSITIVE_COL = /password|secret|token(?!_name)|hash|^code$|^challenge$|^otp/i;
+async function listPublicTables() {
+    const r = await pool.query(
+        "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_type = 'BASE TABLE' ORDER BY 1"
+    );
+    return r.rows.map(x => x.table_name);
+}
+app.get('/api/admin/tables', async (req, res) => {
+    if (!isAdminRequest(req)) return res.status(403).json({ error: 'Forbidden' });
+    try {
+        const names = await listPublicTables();
+        const tables = [];
+        for (const name of names) {
+            const c = await pool.query(`SELECT COUNT(*) FROM "${name.replace(/"/g, '""')}"`);
+            tables.push({ name, count: Number(c.rows[0].count) });
+        }
+        res.json({ tables });
+    } catch (e) {
+        console.error('[admin/tables]', e.message);
+        res.status(500).json({ error: e.message });
+    }
+});
+app.get('/api/admin/table/:name', async (req, res) => {
+    if (!isAdminRequest(req)) return res.status(403).json({ error: 'Forbidden' });
+    try {
+        const name = req.params.name;
+        const names = await listPublicTables();
+        if (!names.includes(name)) return res.status(404).json({ error: 'Unknown table' });
+        const limit = Math.min(Math.max(Number(req.query.limit) || 50, 1), 200);
+        const offset = Math.max(Number(req.query.offset) || 0, 0);
+        const r = await pool.query(
+            `SELECT * FROM "${name.replace(/"/g, '""')}" ORDER BY 1 DESC LIMIT $1 OFFSET $2`,
+            [limit, offset]
+        );
+        const columns = r.fields.map(f => f.name);
+        const rows = r.rows.map(row => {
+            const out = {};
+            for (const col of columns) {
+                let v = row[col];
+                if (SENSITIVE_COL.test(col) && v !== null && v !== undefined) v = '[hidden]';
+                else if (typeof v === 'string' && v.length > 200) v = v.slice(0, 200) + '…';
+                else if (v && typeof v === 'object' && !(v instanceof Date)) {
+                    const j = JSON.stringify(v);
+                    v = j.length > 200 ? j.slice(0, 200) + '…' : j;
+                }
+                out[col] = v;
+            }
+            return out;
+        });
+        res.json({ columns, rows, limit, offset });
+    } catch (e) {
+        console.error('[admin/table]', e.message);
+        res.status(500).json({ error: e.message });
+    }
+});
+
 app.get("/api/signals/active", async (req, res) => {
     try {
         const result = await pool.query("SELECT * FROM signals WHERE is_active = TRUE ORDER BY posted_at DESC LIMIT 1");
