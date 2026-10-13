@@ -37,6 +37,14 @@ const pool = new Pool({
                 created_at TIMESTAMPTZ DEFAULT NOW()
             )
         `);
+        await pool.query(`
+            ALTER TABLE login_events
+                ADD COLUMN IF NOT EXISTS username TEXT,
+                ADD COLUMN IF NOT EXISTS deriv_loginid TEXT,
+                ADD COLUMN IF NOT EXISTS email TEXT,
+                ADD COLUMN IF NOT EXISTS ip TEXT,
+                ADD COLUMN IF NOT EXISTS user_agent TEXT
+        `);
     } catch (e) {
         console.error('[login_events] schema error:', e.message);
     }
@@ -488,7 +496,17 @@ app.post('/api/auth/deriv', reloadLimiter, async (req, res) => {
         }
 
         try {
-            await pool.query('INSERT INTO login_events (user_id) VALUES ($1)', [user.id]);
+            await pool.query(
+                'INSERT INTO login_events (user_id, username, deriv_loginid, email, ip, user_agent) VALUES ($1, $2, $3, $4, $5, $6)',
+                [
+                    user.id,
+                    user.username,
+                    loginid,
+                    email || user.deriv_email || null,
+                    String(req.headers['x-forwarded-for'] || req.socket?.remoteAddress || '').split(',')[0].trim() || null,
+                    String(req.headers['user-agent'] || '').slice(0, 300) || null,
+                ]
+            );
         } catch (e) {
             console.error('[login_events] insert failed:', e.message);
         }
