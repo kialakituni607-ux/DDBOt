@@ -549,7 +549,7 @@ app.post('/api/auth/pkce-exchange', authLimiter, async (req, res) => {
             }),
         });
         const rawText = await response.text();
-        console.log('[PKCE] Legacy tokens raw response:', response.status, rawText.substring(0, 500));
+        console.log('[PKCE] token exchange status:', response.status);
         const data = JSON.parse(rawText);
         if (!response.ok) {
             return res
@@ -1124,7 +1124,7 @@ app.post('/api/auth/otp', reloadLimiter, async (req, res) => {
             console.error('[otp] Deriv rejected:', response.status, JSON.stringify(data).substring(0, 200), '| account_id:', account_id);
             return res.status(response.status).json(data);
         }
-        console.log('[otp]:', JSON.stringify(data).substring(0, 200));
+        console.log('[otp] ok');
         res.json({ data: data.data || data });
     } catch (err) {
         console.error('[otp] error:', err.message);
