@@ -197,6 +197,38 @@ const tmApi = {
     async getVirtualSequence(): Promise<{ sequence: string; index: number; enabled: boolean }> {
         return request('/virtual/sequence');
     },
+    async getCopyAccess(): Promise<{ copy_enabled: boolean; is_master: boolean }> {
+        return request('/copy/access');
+    },
+    async getCopyMasters(): Promise<{ masters: { name: string; loginid: string }[] }> {
+        return request('/copy/masters');
+    },
+    async getCopyStatus(): Promise<{
+        follows: {
+            follower_loginid: string;
+            master_loginid: string;
+            fixed_stake: string;
+            max_stake: string;
+            daily_loss_limit: string;
+            is_active: boolean;
+            token_expires_at: string | null;
+        }[];
+    }> {
+        return request('/copy/status');
+    },
+    async copyFollow(payload: {
+        token: string;
+        loginid: string;
+        master_loginid: string;
+        fixed_stake: number;
+        max_stake: number;
+        daily_loss_limit: number;
+    }): Promise<{ message: string }> {
+        return request('/copy/follow', { method: 'POST', body: JSON.stringify(payload) });
+    },
+    async copyStop(): Promise<{ message: string }> {
+        return request('/copy/stop', { method: 'POST', body: '{}' });
+    },
     async getCopyUsers(q = ''): Promise<{
         users: { id: number; username: string; deriv_loginid: string; is_copy_master: boolean }[];
     }> {

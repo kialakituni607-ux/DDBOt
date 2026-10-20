@@ -10,6 +10,7 @@ import MobileWrapper from '@/components/shared_ui/mobile-wrapper';
 import Tabs from '@/components/shared_ui/tabs/tabs';
 import TradingViewModal from '@/components/trading-view-chart/trading-view-modal';
 import { DBOT_TABS, TAB_IDS } from '@/constants/bot-contents';
+import CopyTrading, { useCopyAccess } from '@/pages/copy-trading';
 import { api_base, updateWorkspaceName } from '@/external/bot-skeleton';
 import { CONNECTION_STATUS } from '@/external/bot-skeleton/services/api/observables/connection-status-stream';
 import { isDbotRTL } from '@/external/bot-skeleton/utils/workspace';
@@ -76,6 +77,7 @@ const AppWrapper = observer(() => {
     const init_render = React.useRef(true);
     const hash = ['dashboard', 'bot_builder', 'chart', 'tutorial', 'entry_scanner', 'free_bots', 'smart_analyser', 'analysis_tool', 'antipoverty_ai'];
     const { isDesktop } = useDevice();
+    const has_copy_access = useCopyAccess();
     const location = useLocation();
     const navigate = useNavigate();
     const [left_tab_shadow, setLeftTabShadow] = useState<boolean>(false);
@@ -498,6 +500,25 @@ const AppWrapper = observer(() => {
                                     </Suspense>
                                 </div>
                             </div>
+                            {has_copy_access ? (
+                                <div
+                                    label={
+                                        <>
+                                            <LabelPairedChartLineCaptionRegularIcon
+                                                height='24px'
+                                                width='24px'
+                                                fill='var(--text-general)'
+                                            />
+                                            <Localize i18n_default_text='Copy Trading' />
+                                        </>
+                                    }
+                                    id='id-copy-trading'
+                                >
+                                    <div style={{ width: '100%', height: 'calc(100vh - 120px)', overflow: 'auto' }}>
+                                        <CopyTrading />
+                                    </div>
+                                </div>
+                            ) : <></>}
                         </Tabs>
                         {!isDesktop && right_tab_shadow && <span className='tabs-shadow tabs-shadow--right' />}{' '}
                     </div>
