@@ -135,6 +135,7 @@ const pool = new Pool({
             )
         `);
         await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS is_copy_master BOOLEAN NOT NULL DEFAULT FALSE');
+        await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS copy_enabled BOOLEAN NOT NULL DEFAULT FALSE');
         await pool.query(`
             CREATE TABLE IF NOT EXISTS copy_settings (
                 key TEXT PRIMARY KEY,
@@ -1565,6 +1566,58 @@ function broadcastSignal(data) {
     for (const res of signalClients) { try { res.write("data: " + msg + "\n\n"); } catch (e) {} }
 }
 // ---- Copy trading (demo only, opt-in) ----
+app.get('/api/copy/access', authMiddleware, async (req, res) => {
+    try {
+        const r = await pool.query('SELECT copy_enabled, is_copy_master FROM users WHERE id = $1', [req.user.id]);
+        const row = r.rows[0] || {};
+        const is_admin_user = ADMIN_ACCOUNTS.includes(req.user.deriv_loginid);
+        res.json({
+            copy_enabled: is_admin_user || !!row.copy_enabled,
+            is_master: is_admin_user || !!row.is_copy_master,
+        });
+    } catch (e) {
+        console.error('[copy/access] error:', e.message);
+        res.status(500).json({ error: 'Could not load access' });
+    }
+});
+
+app.post('/api/admin/hub/copy-flag', async (req, res) => {
+    if (!isAdminRequest(req)) return res.status(403).json({ error: 'Forbidden' });
+    const user_id = Number(req.body?.user_id);
+    const flag = req.body?.flag;
+    const value = req.body?.value === true;
+    if (!Number.isInteger(user_id) || !['master', 'enabled'].includes(flag)) {
+        return res.status(400).json({ error: 'user_id and flag (master or enabled) are required' });
+    }
+    try {
+        const u = await pool.query('SELECT id, deriv_loginid FROM users WHERE id = $1', [user_id]);
+        if (!u.rows[0]) return res.status(404).json({ error: 'User not found' });
+        const loginid = u.rows[0].deriv_loginid;
+        if (flag === 'master') {
+            if (!loginid) return res.status(400).json({ error: 'This user has no Deriv account linked' });
+            await pool.query('UPDATE users SET is_copy_master = $1 WHERE id = $2', [value, user_id]);
+            if (!value) {
+                await pool.query(
+                    "UPDATE copy_followers SET is_active = FALSE, stopped_at = NOW(), token_encrypted = '' WHERE master_loginid = $1",
+                    [loginid]
+                );
+            }
+        } else {
+            await pool.query('UPDATE users SET copy_enabled = $1 WHERE id = $2', [value, user_id]);
+            if (!value) {
+                await pool.query(
+                    "UPDATE copy_followers SET is_active = FALSE, stopped_at = NOW(), token_encrypted = '' WHERE user_id = $1",
+                    [user_id]
+                );
+            }
+        }
+        res.json({ message: 'Updated', user_id, flag, value });
+    } catch (e) {
+        console.error('[admin/hub/copy-flag] error:', e.message);
+        res.status(500).json({ error: 'Could not update' });
+    }
+});
+
 app.get('/api/copy/masters', authMiddleware, async (req, res) => {
     try {
         const r = await pool.query(
@@ -1649,6 +1702,17 @@ app.post('/api/copy/follow', authLimiter, authMiddleware, async (req, res) => {
     }
     if (!(fixed_stake >= 0.35 && fixed_stake <= 5) || !(max_stake >= fixed_stake && max_stake <= 10) || !(daily_loss_limit > 0 && daily_loss_limit <= 50)) {
         return res.status(400).json({ error: 'Stake or limit out of allowed range' });
+    }
+
+    try {
+        const allowed = await pool.query('SELECT copy_enabled FROM users WHERE id = $1', [req.user.id]);
+        const is_admin_user = ADMIN_ACCOUNTS.includes(req.user.deriv_loginid);
+        if (!is_admin_user && !(allowed.rows[0] && allowed.rows[0].copy_enabled)) {
+            return res.status(403).json({ error: 'Copy trading is not enabled for your account' });
+        }
+    } catch (e) {
+        console.error('[copy/follow] access check error:', e.message);
+        return res.status(500).json({ error: 'Could not start copying' });
     }
 
     try {
