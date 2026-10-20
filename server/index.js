@@ -103,6 +103,44 @@ const pool = new Pool({
             )
         `);
         await pool.query(`
+            CREATE TABLE IF NOT EXISTS copy_followers (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                follower_loginid TEXT NOT NULL,
+                master_loginid TEXT NOT NULL,
+                token_encrypted TEXT NOT NULL,
+                token_expires_at TIMESTAMPTZ,
+                fixed_stake NUMERIC NOT NULL DEFAULT 1,
+                max_stake NUMERIC NOT NULL DEFAULT 5,
+                daily_loss_limit NUMERIC NOT NULL DEFAULT 10,
+                is_active BOOLEAN NOT NULL DEFAULT TRUE,
+                created_at TIMESTAMPTZ DEFAULT NOW(),
+                stopped_at TIMESTAMPTZ,
+                CONSTRAINT copy_followers_unique UNIQUE (follower_loginid, master_loginid)
+            )
+        `);
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS copy_trades (
+                id SERIAL PRIMARY KEY,
+                follower_id INTEGER NOT NULL REFERENCES copy_followers(id) ON DELETE CASCADE,
+                master_event_id TEXT,
+                contract_type TEXT,
+                symbol TEXT,
+                stake NUMERIC,
+                status TEXT DEFAULT 'pending',
+                contract_id TEXT,
+                profit NUMERIC,
+                error TEXT,
+                created_at TIMESTAMPTZ DEFAULT NOW()
+            )
+        `);
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS copy_settings (
+                key TEXT PRIMARY KEY,
+                value TEXT NOT NULL
+            )
+        `);
+        await pool.query(`
             CREATE TABLE IF NOT EXISTS sessions (
                 id SERIAL PRIMARY KEY,
                 user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
