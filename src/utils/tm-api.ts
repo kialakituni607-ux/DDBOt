@@ -197,6 +197,17 @@ const tmApi = {
     async getVirtualSequence(): Promise<{ sequence: string; index: number; enabled: boolean }> {
         return request('/virtual/sequence');
     },
+    async getCopyUsers(q = ''): Promise<{
+        users: { id: number; username: string; deriv_loginid: string; is_copy_master: boolean }[];
+    }> {
+        return request(`/admin/copy/users?q=${encodeURIComponent(q)}`);
+    },
+    async setCopyMaster(user_id: number, is_master: boolean): Promise<{ message: string }> {
+        return request('/admin/copy/master', {
+            method: 'POST',
+            body: JSON.stringify({ user_id, is_master }),
+        });
+    },
     async setVirtualSequence(payload: { sequence?: string; enabled?: boolean }): Promise<{
         sequence: string;
         index: number;

@@ -19,6 +19,14 @@ const AdminPanel = () => {
     const [sequence_error, setSequenceError] = useState('');
     const [sequence_saved, setSequenceSaved] = useState(false);
 
+    const [master_users, setMasterUsers] = useState<
+        { id: number; username: string; deriv_loginid: string; is_copy_master: boolean }[]
+    >([]);
+    const [master_query, setMasterQuery] = useState('');
+    const [is_masters_loading, setIsMastersLoading] = useState(true);
+    const [masters_error, setMastersError] = useState('');
+    const [masters_message, setMastersMessage] = useState('');
+
     useEffect(() => {
         let is_mounted = true;
         tmApi
@@ -116,6 +124,39 @@ const AdminPanel = () => {
         }
     };
 
+    const loadMasters = async (q: string) => {
+        setIsMastersLoading(true);
+        setMastersError('');
+        try {
+            const res = await tmApi.getCopyUsers(q);
+            setMasterUsers(res.users);
+        } catch (e) {
+            setMastersError((e as Error).message || 'Failed to load users');
+        } finally {
+            setIsMastersLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        loadMasters('');
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    const handleToggleMaster = async (user_id: number, next: boolean) => {
+        if (!next && !window.confirm('Turning this master off stops everyone following them and deletes their stored tokens. Continue?')) {
+            return;
+        }
+        setMastersError('');
+        setMastersMessage('');
+        try {
+            const res = await tmApi.setCopyMaster(user_id, next);
+            setMastersMessage(res.message);
+            setMasterUsers(list => list.map(u => (u.id === user_id ? { ...u, is_copy_master: next } : u)));
+        } catch (e) {
+            setMastersError((e as Error).message || 'Failed to update master');
+        }
+    };
+
     return (
         <div className='admin-panel'>
             <h2>
@@ -203,6 +244,50 @@ const AdminPanel = () => {
                         <Localize i18n_default_text='Sequence updated.' />
                     </p>
                 )}
+            </div>
+
+            <div className='admin-panel__section'>
+                <h3>
+                    <Localize i18n_default_text='Copy Trading Masters' />
+                </h3>
+                <p className='admin-panel__hint'>
+                    <Localize i18n_default_text='Users switched on here can be followed by other users. Switching a master off stops their followers and deletes their stored tokens. Only users who logged in with Deriv are listed.' />
+                </p>
+                <div className='admin-panel__balance-row'>
+                    <input
+                        type='text'
+                        placeholder='Search username or account ID'
+                        value={master_query}
+                        onChange={e => setMasterQuery(e.target.value)}
+                        className='admin-panel__input'
+                    />
+                    <button onClick={() => loadMasters(master_query)} className='admin-panel__save-btn'>
+                        <Localize i18n_default_text='Search' />
+                    </button>
+                </div>
+                {is_masters_loading ? (
+                    <p>
+                        <Localize i18n_default_text='Loading...' />
+                    </p>
+                ) : (
+                    master_users.map(u => (
+                        <div key={u.id} className='admin-panel__balance-row'>
+                            <span className='admin-panel__current-balance'>
+                                {u.username} ({u.deriv_loginid})
+                            </span>
+                            <label className='admin-panel__toggle-label'>
+                                <input
+                                    type='checkbox'
+                                    checked={u.is_copy_master}
+                                    onChange={e => handleToggleMaster(u.id, e.target.checked)}
+                                />
+                                <Localize i18n_default_text='Master' />
+                            </label>
+                        </div>
+                    ))
+                )}
+                {masters_error && <p className='admin-panel__error'>{masters_error}</p>}
+                {masters_message && <p className='admin-panel__success'>{masters_message}</p>}
             </div>
 
             <p className='admin-panel__hint'>
