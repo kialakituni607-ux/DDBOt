@@ -136,6 +136,8 @@ const pool = new Pool({
         `);
         await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS is_copy_master BOOLEAN NOT NULL DEFAULT FALSE');
         await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS copy_enabled BOOLEAN NOT NULL DEFAULT FALSE');
+        await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS master_account TEXT');
+        await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS copy_account TEXT');
         await pool.query(`
             CREATE TABLE IF NOT EXISTS copy_settings (
                 key TEXT PRIMARY KEY,
@@ -1687,6 +1689,12 @@ app.post('/api/copy/master-trade', authMiddleware, async (req, res) => {
         ) {
             return res.status(400).json({ error: 'Unsupported trade' });
         }
+        const traded_account = String((req.body && req.body.account_loginid) || '');
+        const traded_type = traded_account.startsWith('DOT') ? 'demo' : 'real';
+        const mrow = await pool.query('SELECT master_account FROM users WHERE id = $1', [req.user.id]);
+        const allowed_type = (mrow.rows[0] && mrow.rows[0].master_account) || (ADMIN_ACCOUNTS.includes(req.user.deriv_loginid) ? 'demo' : 'demo');
+        if (traded_type !== allowed_type) return res.json({ accepted: false, reason: 'account type not allowed for this master' });
+        if (traded_type !== 'demo') return res.json({ accepted: false, reason: 'real copying is not switched on yet' });
         if (copyRecentEvents.has(event_id)) return res.json({ accepted: false, reason: 'duplicate' });
         copyRecentEvents.add(event_id);
         if (copyRecentEvents.size > 500) copyRecentEvents.clear();
@@ -1695,6 +1703,38 @@ app.post('/api/copy/master-trade', authMiddleware, async (req, res) => {
     } catch (e) {
         console.error('[copy/master-trade] error:', e.message);
         if (!res.headersSent) res.status(500).json({ error: 'Failed' });
+    }
+});
+
+app.post('/api/admin/hub/copy-mode', async (req, res) => {
+    if (!isAdminRequest(req)) return res.status(403).json({ error: 'Forbidden' });
+    const user_id = Number(req.body?.user_id);
+    const flag = req.body?.flag;
+    const mode = req.body?.mode;
+    if (!Number.isInteger(user_id) || !['master', 'enabled'].includes(flag) || !['off', 'demo', 'real'].includes(mode)) {
+        return res.status(400).json({ error: 'user_id, flag (master or enabled) and mode (off, demo or real) are required' });
+    }
+    try {
+        const u = await pool.query('SELECT id, deriv_loginid FROM users WHERE id = $1', [user_id]);
+        if (!u.rows[0]) return res.status(404).json({ error: 'User not found' });
+        const loginid = u.rows[0].deriv_loginid;
+        const on = mode !== 'off';
+        if (flag === 'master') {
+            if (!loginid) return res.status(400).json({ error: 'This user has no Deriv account linked' });
+            await pool.query('UPDATE users SET is_copy_master = $1, master_account = $2 WHERE id = $3', [on, on ? mode : null, user_id]);
+            if (!on) {
+                await pool.query("UPDATE copy_followers SET is_active = FALSE, stopped_at = NOW(), token_encrypted = '' WHERE master_loginid = $1", [loginid]);
+            }
+        } else {
+            await pool.query('UPDATE users SET copy_enabled = $1, copy_account = $2 WHERE id = $3', [on, on ? mode : null, user_id]);
+            if (!on) {
+                await pool.query("UPDATE copy_followers SET is_active = FALSE, stopped_at = NOW(), token_encrypted = '' WHERE user_id = $1", [user_id]);
+            }
+        }
+        res.json({ message: 'Updated', user_id, flag, mode });
+    } catch (e) {
+        console.error('[admin/hub/copy-mode] error:', e.message);
+        res.status(500).json({ error: 'Could not update' });
     }
 });
 
@@ -1863,10 +1903,13 @@ app.post('/api/copy/follow', authLimiter, authMiddleware, async (req, res) => {
     }
 
     try {
-        const allowed = await pool.query('SELECT copy_enabled FROM users WHERE id = $1', [req.user.id]);
+        const allowed = await pool.query('SELECT copy_enabled, copy_account FROM users WHERE id = $1', [req.user.id]);
         const is_admin_user = ADMIN_ACCOUNTS.includes(req.user.deriv_loginid);
         if (!is_admin_user && !(allowed.rows[0] && allowed.rows[0].copy_enabled)) {
             return res.status(403).json({ error: 'Copy trading is not enabled for your account' });
+        }
+        if (!is_admin_user && (allowed.rows[0].copy_account || 'demo') !== 'demo') {
+            return res.status(403).json({ error: 'Real-account copying is not switched on yet' });
         }
     } catch (e) {
         console.error('[copy/follow] access check error:', e.message);

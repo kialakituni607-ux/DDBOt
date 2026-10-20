@@ -206,6 +206,7 @@ const tmApi = {
         symbol: string;
         duration: number;
         duration_unit: string;
+        account_loginid?: string;
     }): Promise<{ accepted: boolean }> {
         return request('/copy/master-trade', { method: 'POST', body: JSON.stringify(payload) });
     },

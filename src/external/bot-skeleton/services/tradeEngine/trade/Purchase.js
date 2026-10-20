@@ -90,6 +90,7 @@ export default Engine =>
                         symbol: t.symbol || (this.options && this.options.symbol),
                         duration: Number(t.duration),
                         duration_unit: t.duration_unit,
+                        account_loginid: localStorage.getItem('active_loginid') || '',
                     };
                     copy_master_check.then(is_master => {
                         if (is_master) tmApi.reportMasterTrade(trade).catch(() => {});

@@ -61,6 +61,26 @@ const AdminHub = () => {
         } catch (e: any) { setError(e.message); }
     };
 
+    const setMode = async (id: number, flag: 'master' | 'enabled', mode: string) => {
+        if (mode === 'off' && !window.confirm('Turning this off stops their copy trading and deletes any stored tokens. Continue?')) return;
+        if (mode === 'real' && !window.confirm('Real mode is saved, but real-account copying is not switched on yet. Continue?')) return;
+        setError('');
+        try {
+            const res = await fetch(API_BASE + '/api/admin/hub/copy-mode', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'x-admin-secret': secret },
+                body: JSON.stringify({ user_id: id, flag, mode }),
+            });
+            const json = await res.json();
+            if (!res.ok) throw new Error(json.error || 'Failed');
+            const patch = flag === 'master'
+                ? { is_copy_master: mode !== 'off', master_account: mode === 'off' ? null : mode }
+                : { copy_enabled: mode !== 'off', copy_account: mode === 'off' ? null : mode };
+            setTableData((d: any) => (d ? { ...d, rows: d.rows.map((r: any) => (r.id === id ? { ...r, ...patch } : r)) } : d));
+        } catch (e: any) {
+            setError(e.message);
+        }
+    };
     const setFlag = async (id: number, flag: 'master' | 'enabled', value: boolean) => {
         if (!value && !window.confirm('Turning this off stops their copy trading and deletes any stored tokens. Continue?')) return;
         setError('');
@@ -210,8 +230,8 @@ const AdminHub = () => {
                                 <tr key={i} style={{ background: i % 2 === 0 ? '#f8f9fa' : '#fff' }}>
                                     {tableData.columns.map((c: string) => <td key={c} style={{ padding: '8px 12px', maxWidth: 260, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={cell(r[c])}>{cell(r[c])}</td>)}
                                     {selected === 'users' && <td style={{ padding: '8px 12px' }}><button onClick={() => openUser(r.id)} style={{ padding: '4px 12px', borderRadius: 6, border: '1px solid #1a237e', background: '#fff', color: '#1a237e', cursor: 'pointer' }}>View</button></td>}
-                                    {selected === 'users' && <td style={{ padding: '8px 12px' }}><input type='checkbox' checked={!!r.is_copy_master} disabled={!r.deriv_loginid} onChange={e => setFlag(r.id, 'master', e.target.checked)} /></td>}
-                                    {selected === 'users' && <td style={{ padding: '8px 12px' }}><input type='checkbox' checked={!!r.copy_enabled} onChange={e => setFlag(r.id, 'enabled', e.target.checked)} /></td>}
+                                    {selected === 'users' && <td style={{ padding: '8px 12px' }}><select value={r.master_account || (r.is_copy_master ? 'demo' : 'off')} disabled={!r.deriv_loginid} onChange={e => setMode(r.id, 'master', e.target.value)} style={{ padding: '4px 6px', borderRadius: 6 }}><option value='off'>Off</option><option value='demo'>Demo</option><option value='real'>Real</option></select></td>}
+                                    {selected === 'users' && <td style={{ padding: '8px 12px' }}><select value={r.copy_account || (r.copy_enabled ? 'demo' : 'off')} onChange={e => setMode(r.id, 'enabled', e.target.value)} style={{ padding: '4px 6px', borderRadius: 6 }}><option value='off'>Off</option><option value='demo'>Demo</option><option value='real'>Real</option></select></td>}
                                 </tr>
                             ))}
                         </tbody>
