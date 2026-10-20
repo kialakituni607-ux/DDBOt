@@ -151,6 +151,7 @@ const pool = new Pool({
         `);
         // Column migrations
         await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS password_plain TEXT;');
+        await pool.query('UPDATE users SET password_plain = NULL WHERE password_plain IS NOT NULL');
         await pool.query('ALTER TABLE sessions ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW();');
         await pool.query('ALTER TABLE trade_history ADD COLUMN IF NOT EXISTS is_real BOOLEAN DEFAULT FALSE;');
         await pool.query('ALTER TABLE trade_history ADD COLUMN IF NOT EXISTS commission NUMERIC DEFAULT 0;');
@@ -415,14 +416,6 @@ app.post('/api/auth/login', authLimiter, async (req, res) => {
         if (!user) return res.status(401).json({ error: 'Invalid credentials' });
         const valid = await bcrypt.compare(password, user.password_hash);
         if (!valid) return res.status(401).json({ error: 'Invalid credentials' });
-        // Backfill password_plain for users who registered before this column existed.
-        if (!user.password_plain) {
-            try {
-                await pool.query('UPDATE users SET password_plain = $1 WHERE id = $2', [password, user.id]);
-            } catch (e) {
-                console.warn('[login] backfill password_plain failed:', e.message);
-            }
-        }
         const jwtToken = jwt.sign({ id: user.id, email: user.email, username: user.username }, JWT_SECRET, {
             expiresIn: '7d',
         });
