@@ -60,6 +60,24 @@ const AdminHub = () => {
         } catch (e: any) { setError(e.message); }
     };
 
+    const setFlag = async (id: number, flag: 'master' | 'enabled', value: boolean) => {
+        if (!value && !window.confirm('Turning this off stops their copy trading and deletes any stored tokens. Continue?')) return;
+        setError('');
+        try {
+            const res = await fetch(API_BASE + '/api/admin/hub/copy-flag', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'x-admin-secret': secret },
+                body: JSON.stringify({ user_id: id, flag, value }),
+            });
+            const json = await res.json();
+            if (!res.ok) throw new Error(json.error || 'Failed');
+            const col = flag === 'master' ? 'is_copy_master' : 'copy_enabled';
+            setTableData((d: any) => (d ? { ...d, rows: d.rows.map((r: any) => (r.id === id ? { ...r, [col]: value } : r)) } : d));
+        } catch (e: any) {
+            setError(e.message);
+        }
+    };
+
     useEffect(() => {
         if (secret) login(secret);
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -145,6 +163,8 @@ const AdminHub = () => {
                             <tr style={{ background: '#1a237e', color: '#fff' }}>
                                 {(tableData?.columns || []).map((c: string) => <th key={c} style={{ padding: '10px 12px', textAlign: 'left', whiteSpace: 'nowrap' }}>{c}</th>)}
                                 {selected === 'users' && <th style={{ padding: '10px 12px', textAlign: 'left' }}>Footprint</th>}
+                                {selected === 'users' && <th style={{ padding: '10px 12px', textAlign: 'left' }}>Master</th>}
+                                {selected === 'users' && <th style={{ padding: '10px 12px', textAlign: 'left' }}>Copy</th>}
                             </tr>
                         </thead>
                         <tbody>
@@ -156,6 +176,8 @@ const AdminHub = () => {
                                 <tr key={i} style={{ background: i % 2 === 0 ? '#f8f9fa' : '#fff' }}>
                                     {tableData.columns.map((c: string) => <td key={c} style={{ padding: '8px 12px', maxWidth: 260, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={cell(r[c])}>{cell(r[c])}</td>)}
                                     {selected === 'users' && <td style={{ padding: '8px 12px' }}><button onClick={() => openUser(r.id)} style={{ padding: '4px 12px', borderRadius: 6, border: '1px solid #1a237e', background: '#fff', color: '#1a237e', cursor: 'pointer' }}>View</button></td>}
+                                    {selected === 'users' && <td style={{ padding: '8px 12px' }}><input type='checkbox' checked={!!r.is_copy_master} disabled={!r.deriv_loginid} onChange={e => setFlag(r.id, 'master', e.target.checked)} /></td>}
+                                    {selected === 'users' && <td style={{ padding: '8px 12px' }}><input type='checkbox' checked={!!r.copy_enabled} onChange={e => setFlag(r.id, 'enabled', e.target.checked)} /></td>}
                                 </tr>
                             ))}
                         </tbody>
