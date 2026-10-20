@@ -1581,6 +1581,25 @@ app.get('/api/copy/masters', authMiddleware, async (req, res) => {
     }
 });
 
+app.get('/api/admin/copy/users', authMiddleware, requireAdmin, async (req, res) => {
+    try {
+        const q = String(req.query.q || '').trim();
+        const r = await pool.query(
+            `SELECT id, username, deriv_loginid, is_copy_master
+             FROM users
+             WHERE deriv_loginid IS NOT NULL
+               AND ($1 = '' OR username ILIKE $2 OR deriv_loginid ILIKE $2)
+             ORDER BY is_copy_master DESC, id DESC
+             LIMIT 100`,
+            [q, '%' + q + '%']
+        );
+        res.json({ users: r.rows });
+    } catch (e) {
+        console.error('[admin/copy/users] error:', e.message);
+        res.status(500).json({ error: 'Could not load users' });
+    }
+});
+
 app.post('/api/admin/copy/master', authMiddleware, requireAdmin, async (req, res) => {
     const user_id = Number(req.body?.user_id);
     const is_master = req.body?.is_master === true;
