@@ -134,6 +134,7 @@ const pool = new Pool({
                 created_at TIMESTAMPTZ DEFAULT NOW()
             )
         `);
+        await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS is_copy_master BOOLEAN NOT NULL DEFAULT FALSE');
         await pool.query(`
             CREATE TABLE IF NOT EXISTS copy_settings (
                 key TEXT PRIMARY KEY,
@@ -1564,6 +1565,44 @@ function broadcastSignal(data) {
     for (const res of signalClients) { try { res.write("data: " + msg + "\n\n"); } catch (e) {} }
 }
 // ---- Copy trading (demo only, opt-in) ----
+app.get('/api/copy/masters', authMiddleware, async (req, res) => {
+    try {
+        const r = await pool.query(
+            'SELECT username, deriv_loginid FROM users WHERE is_copy_master = TRUE AND deriv_loginid IS NOT NULL ORDER BY username'
+        );
+        const masters = r.rows.map(row => ({ name: row.username, loginid: row.deriv_loginid }));
+        ADMIN_ACCOUNTS.forEach(id => {
+            if (!masters.some(m => m.loginid === id)) masters.push({ name: 'Trademasters', loginid: id });
+        });
+        res.json({ masters });
+    } catch (e) {
+        console.error('[copy/masters] error:', e.message);
+        res.status(500).json({ error: 'Could not load masters' });
+    }
+});
+
+app.post('/api/admin/copy/master', authMiddleware, requireAdmin, async (req, res) => {
+    const user_id = Number(req.body?.user_id);
+    const is_master = req.body?.is_master === true;
+    if (!Number.isInteger(user_id)) return res.status(400).json({ error: 'user_id is required' });
+    try {
+        const u = await pool.query('SELECT id, username, deriv_loginid FROM users WHERE id = $1', [user_id]);
+        if (!u.rows[0]) return res.status(404).json({ error: 'User not found' });
+        if (!u.rows[0].deriv_loginid) return res.status(400).json({ error: 'This user has no Deriv account linked' });
+        await pool.query('UPDATE users SET is_copy_master = $1 WHERE id = $2', [is_master, user_id]);
+        if (!is_master) {
+            await pool.query(
+                "UPDATE copy_followers SET is_active = FALSE, stopped_at = NOW(), token_encrypted = '' WHERE master_loginid = $1",
+                [u.rows[0].deriv_loginid]
+            );
+        }
+        res.json({ message: is_master ? 'Master enabled' : 'Master disabled, followers stopped', user_id, is_master });
+    } catch (e) {
+        console.error('[admin/copy/master] error:', e.message);
+        res.status(500).json({ error: 'Could not update master' });
+    }
+});
+
 app.post('/api/copy/follow', authLimiter, authMiddleware, async (req, res) => {
     const { token, loginid, master_loginid } = req.body || {};
     const fixed_stake = Number(req.body?.fixed_stake ?? 1);
@@ -1573,7 +1612,17 @@ app.post('/api/copy/follow', authLimiter, authMiddleware, async (req, res) => {
     if (typeof token !== 'string' || !token || typeof loginid !== 'string' || !/^[A-Z]{2,5}[0-9]+$/.test(loginid)) {
         return res.status(400).json({ error: 'token and a valid loginid are required' });
     }
-    if (!ADMIN_ACCOUNTS.includes(master_loginid)) {
+    let is_master = ADMIN_ACCOUNTS.includes(master_loginid);
+    if (!is_master) {
+        try {
+            const m = await pool.query('SELECT 1 FROM users WHERE deriv_loginid = $1 AND is_copy_master = TRUE', [master_loginid]);
+            is_master = m.rows.length > 0;
+        } catch (e) {
+            console.error('[copy/follow] master check error:', e.message);
+            return res.status(500).json({ error: 'Could not start copying' });
+        }
+    }
+    if (!is_master) {
         return res.status(400).json({ error: 'Unknown master' });
     }
     if (loginid === master_loginid) {
