@@ -1565,6 +1565,154 @@ function broadcastSignal(data) {
     const msg = JSON.stringify(data);
     for (const res of signalClients) { try { res.write("data: " + msg + "\n\n"); } catch (e) {} }
 }
+// ---- Copy trading engine (demo only) ----
+const copyRecentEvents = new Set();
+
+async function isCopyMaster(user) {
+    if (!user || !user.deriv_loginid) return false;
+    if (ADMIN_ACCOUNTS.includes(user.deriv_loginid)) return true;
+    const r = await pool.query('SELECT 1 FROM users WHERE id = $1 AND is_copy_master = TRUE', [user.id]);
+    return r.rows.length > 0;
+}
+
+async function copyPlaceTrade(token, loginid, trade, stake) {
+    let otp;
+    try {
+        otp = await fetch(`https://api.derivws.com/trading/v1/options/accounts/${encodeURIComponent(loginid)}/otp`, {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${token}`, 'Deriv-App-ID': DERIV_OAUTH_CLIENT_ID },
+        });
+    } catch (e) {
+        return { ok: false, error: 'otp request failed' };
+    }
+    if (!otp.ok) return { ok: false, error: 'otp status ' + otp.status };
+    const body = await otp.json().catch(() => ({}));
+    const url = (body.data && body.data.url) || body.url || '';
+    if (!/\/ws\/demo\?/.test(url)) return { ok: false, error: 'not a demo socket' };
+
+    return new Promise(resolve => {
+        let done = false;
+        const ws = new WebSocket(url);
+        const end = r => {
+            if (done) return;
+            done = true;
+            clearTimeout(timer);
+            try { ws.close(); } catch (e) { /* ignore */ }
+            resolve(r);
+        };
+        const timer = setTimeout(() => end({ ok: false, error: 'timeout' }), 15000);
+        ws.on('open', () => {
+            ws.send(JSON.stringify({
+                proposal: 1,
+                amount: stake,
+                basis: 'stake',
+                contract_type: trade.contract_type,
+                currency: 'USD',
+                duration: trade.duration,
+                duration_unit: trade.duration_unit,
+                underlying_symbol: trade.symbol,
+                req_id: 1,
+            }));
+        });
+        ws.on('message', data => {
+            let msg;
+            try { msg = JSON.parse(data.toString()); } catch (e) { return; }
+            if (msg.error) return end({ ok: false, error: String(msg.error.message || msg.error.code || 'error').slice(0, 200) });
+            if (msg.msg_type === 'proposal' && msg.proposal) {
+                ws.send(JSON.stringify({ buy: msg.proposal.id, price: msg.proposal.ask_price, req_id: 2 }));
+            } else if (msg.msg_type === 'buy' && msg.buy) {
+                end({ ok: true, contract_id: String(msg.buy.contract_id) });
+            }
+        });
+        ws.on('error', () => end({ ok: false, error: 'socket error' }));
+    });
+}
+
+async function copyDispatch(master_loginid, trade, event_id) {
+    try {
+        const sw = await pool.query("SELECT value FROM copy_settings WHERE key = 'copier'");
+        if (!sw.rows[0] || sw.rows[0].value !== 'on') return;
+        const fs = await pool.query(
+            `SELECT id, follower_loginid, token_encrypted, fixed_stake, max_stake, daily_loss_limit
+             FROM copy_followers
+             WHERE master_loginid = $1 AND is_active = TRUE AND token_encrypted <> ''
+               AND (token_expires_at IS NULL OR token_expires_at > NOW())`,
+            [master_loginid]
+        );
+        await Promise.all(fs.rows.map(async f => {
+            try {
+                const stake = Math.min(Number(f.fixed_stake), Number(f.max_stake));
+                const used = await pool.query(
+                    "SELECT COALESCE(SUM(stake), 0) AS s FROM copy_trades WHERE follower_id = $1 AND status IN ('pending', 'placed') AND created_at >= date_trunc('day', NOW())",
+                    [f.id]
+                );
+                const ins = await pool.query(
+                    "INSERT INTO copy_trades (follower_id, master_event_id, contract_type, symbol, stake, status) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id",
+                    [f.id, event_id, trade.contract_type, trade.symbol, stake,
+                     Number(used.rows[0].s) + stake > Number(f.daily_loss_limit) ? 'skipped_limit' : 'pending']
+                );
+                if (Number(used.rows[0].s) + stake > Number(f.daily_loss_limit)) return;
+                let token;
+                try {
+                    token = decryptToken(f.token_encrypted);
+                } catch (e) {
+                    await pool.query("UPDATE copy_trades SET status = 'failed', error = 'token unreadable' WHERE id = $1", [ins.rows[0].id]);
+                    return;
+                }
+                const r = await copyPlaceTrade(token, f.follower_loginid, trade, stake);
+                if (r.ok) {
+                    await pool.query("UPDATE copy_trades SET status = 'placed', contract_id = $2 WHERE id = $1", [ins.rows[0].id, r.contract_id]);
+                } else {
+                    await pool.query("UPDATE copy_trades SET status = 'failed', error = $2 WHERE id = $1", [ins.rows[0].id, r.error]);
+                }
+            } catch (e) {
+                console.error('[copy/dispatch] follower error:', e.message);
+            }
+        }));
+    } catch (e) {
+        console.error('[copy/dispatch] error:', e.message);
+    }
+}
+
+app.post('/api/copy/master-trade', authMiddleware, async (req, res) => {
+    try {
+        if (!(await isCopyMaster(req.user))) return res.status(403).json({ error: 'Not a master' });
+        const { event_id, contract_type, symbol, duration, duration_unit } = req.body || {};
+        if (
+            typeof event_id !== 'string' || !event_id || event_id.length > 80 ||
+            !['CALL', 'PUT'].includes(contract_type) ||
+            typeof symbol !== 'string' || !/^[A-Za-z0-9_]{2,20}$/.test(symbol) ||
+            !Number.isInteger(Number(duration)) || Number(duration) < 1 || Number(duration) > 60 ||
+            !['t', 's', 'm'].includes(duration_unit)
+        ) {
+            return res.status(400).json({ error: 'Unsupported trade' });
+        }
+        if (copyRecentEvents.has(event_id)) return res.json({ accepted: false, reason: 'duplicate' });
+        copyRecentEvents.add(event_id);
+        if (copyRecentEvents.size > 500) copyRecentEvents.clear();
+        res.status(202).json({ accepted: true });
+        copyDispatch(req.user.deriv_loginid, { contract_type, symbol, duration: Number(duration), duration_unit }, event_id);
+    } catch (e) {
+        console.error('[copy/master-trade] error:', e.message);
+        if (!res.headersSent) res.status(500).json({ error: 'Failed' });
+    }
+});
+
+app.post('/api/admin/hub/copy-switch', async (req, res) => {
+    if (!isAdminRequest(req)) return res.status(403).json({ error: 'Forbidden' });
+    const on = req.body && req.body.on === true;
+    try {
+        await pool.query(
+            "INSERT INTO copy_settings (key, value) VALUES ('copier', $1) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value",
+            [on ? 'on' : 'off']
+        );
+        res.json({ copier: on ? 'on' : 'off' });
+    } catch (e) {
+        console.error('[admin/hub/copy-switch] error:', e.message);
+        res.status(500).json({ error: 'Could not update' });
+    }
+});
+
 // ---- Copy trading (demo only, opt-in) ----
 app.get('/api/copy/access', authMiddleware, async (req, res) => {
     try {
