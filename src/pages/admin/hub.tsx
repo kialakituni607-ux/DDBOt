@@ -21,6 +21,7 @@ const AdminHub = () => {
     const [offset, setOffset] = useState(0);
     const [tableData, setTableData] = useState<any>(null);
     const [detail, setDetail] = useState<any>(null);
+    const [copier, setCopier] = useState<string>('unknown');
 
     const call = async (path: string, sec: string) => {
         const res = await fetch(API_BASE + path, { headers: { 'x-admin-secret': sec } });
@@ -77,6 +78,33 @@ const AdminHub = () => {
             setError(e.message);
         }
     };
+
+    const loadCopier = async () => {
+        try {
+            setCopier((await call('/api/admin/hub/copy-switch', secret)).copier);
+        } catch (e) {
+            setCopier('unknown');
+        }
+    };
+    const setCopierState = async (on: boolean) => {
+        setError('');
+        try {
+            const res = await fetch(API_BASE + '/api/admin/hub/copy-switch', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'x-admin-secret': secret },
+                body: JSON.stringify({ on }),
+            });
+            const json = await res.json();
+            if (!res.ok) throw new Error(json.error || 'Failed');
+            setCopier(json.copier);
+        } catch (e: any) {
+            setError(e.message);
+        }
+    };
+    useEffect(() => {
+        if (authed) loadCopier();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [authed]);
 
     useEffect(() => {
         if (secret) login(secret);
@@ -147,6 +175,12 @@ const AdminHub = () => {
                     )}
                 </div>
             )}
+            <div style={{ ...card, padding: 16, marginBottom: 24, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                <b>Copy trading copier:</b>
+                <span style={{ color: copier === 'on' ? 'green' : '#c62828', fontWeight: 700 }}>{copier.toUpperCase()}</span>
+                <button onClick={() => setCopierState(true)} style={{ padding: '6px 16px', borderRadius: 8, border: '1px solid green', background: '#fff', color: 'green', cursor: 'pointer' }}>Turn ON</button>
+                <button onClick={() => setCopierState(false)} style={{ padding: '6px 16px', borderRadius: 8, border: '1px solid #c62828', background: '#fff', color: '#c62828', cursor: 'pointer' }}>Turn OFF</button>
+            </div>
             <h3 style={{ marginBottom: 12 }}>Database tables (read-only)</h3>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
                 {tables.map(t => (

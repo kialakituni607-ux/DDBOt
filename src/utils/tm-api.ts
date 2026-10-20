@@ -200,6 +200,15 @@ const tmApi = {
     async getCopyAccess(): Promise<{ copy_enabled: boolean; is_master: boolean }> {
         return request('/copy/access');
     },
+    async reportMasterTrade(payload: {
+        event_id: string;
+        contract_type: string;
+        symbol: string;
+        duration: number;
+        duration_unit: string;
+    }): Promise<{ accepted: boolean }> {
+        return request('/copy/master-trade', { method: 'POST', body: JSON.stringify(payload) });
+    },
     async getCopyMasters(): Promise<{ masters: { name: string; loginid: string }[] }> {
         return request('/copy/masters');
     },

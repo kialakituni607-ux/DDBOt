@@ -1698,6 +1698,16 @@ app.post('/api/copy/master-trade', authMiddleware, async (req, res) => {
     }
 });
 
+app.get('/api/admin/hub/copy-switch', async (req, res) => {
+    if (!isAdminRequest(req)) return res.status(403).json({ error: 'Forbidden' });
+    try {
+        const r = await pool.query("SELECT value FROM copy_settings WHERE key = 'copier'");
+        res.json({ copier: r.rows[0] && r.rows[0].value === 'on' ? 'on' : 'off' });
+    } catch (e) {
+        res.status(500).json({ error: 'Could not read' });
+    }
+});
+
 app.post('/api/admin/hub/copy-switch', async (req, res) => {
     if (!isAdminRequest(req)) return res.status(403).json({ error: 'Forbidden' });
     const on = req.body && req.body.on === true;

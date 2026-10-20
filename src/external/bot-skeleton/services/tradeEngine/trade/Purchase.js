@@ -13,6 +13,7 @@ import { BEFORE_PURCHASE } from './state/constants';
 
 let delayIndex = 0;
 let purchase_reference;
+let copy_master_check;
 
 // Contract types supported for virtual (admin paper-trading) purchase.
 // Kept intentionally narrow: settlement rules for these are simple enough
@@ -77,6 +78,25 @@ export default Engine =>
             // Prevent calling purchase twice
             if (this.store.getState().scope !== BEFORE_PURCHASE) {
                 return Promise.resolve();
+            }
+
+            try {
+                if (localStorage.getItem('tm_jwt')) {
+                    copy_master_check = copy_master_check || tmApi.getCopyAccess().then(r => !!r.is_master).catch(() => false);
+                    const t = this.tradeOptions || {};
+                    const trade = {
+                        event_id: String(Date.now()) + '-' + Math.random().toString(36).slice(2, 8),
+                        contract_type,
+                        symbol: t.symbol || (this.options && this.options.symbol),
+                        duration: Number(t.duration),
+                        duration_unit: t.duration_unit,
+                    };
+                    copy_master_check.then(is_master => {
+                        if (is_master) tmApi.reportMasterTrade(trade).catch(() => {});
+                    });
+                }
+            } catch (e) {
+                /* never let copy trading affect the master's own trade */
             }
 
             if (this.shouldUseVirtualTrading(contract_type)) {
