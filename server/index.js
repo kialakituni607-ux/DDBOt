@@ -385,8 +385,8 @@ app.post('/api/auth/register', authLimiter, async (req, res) => {
     try {
         const hash = await bcrypt.hash(password, 12);
         const result = await pool.query(
-            'INSERT INTO users (email, username, password_hash, password_plain) VALUES ($1, $2, $3, $4) RETURNING id, email, username, created_at',
-            [email.toLowerCase().trim(), username.trim(), hash, password]
+            'INSERT INTO users (email, username, password_hash) VALUES ($1, $2, $3) RETURNING id, email, username, created_at',
+            [email.toLowerCase().trim(), username.trim(), hash]
         );
         const user = result.rows[0];
         const jwtToken = jwt.sign({ id: user.id, email: user.email, username: user.username }, JWT_SECRET, {
