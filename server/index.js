@@ -1563,6 +1563,89 @@ function broadcastSignal(data) {
     const msg = JSON.stringify(data);
     for (const res of signalClients) { try { res.write("data: " + msg + "\n\n"); } catch (e) {} }
 }
+// ---- Copy trading (demo only, opt-in) ----
+app.post('/api/copy/follow', authLimiter, authMiddleware, async (req, res) => {
+    const { token, loginid, master_loginid } = req.body || {};
+    const fixed_stake = Number(req.body?.fixed_stake ?? 1);
+    const max_stake = Number(req.body?.max_stake ?? 5);
+    const daily_loss_limit = Number(req.body?.daily_loss_limit ?? 10);
+
+    if (typeof token !== 'string' || !token || typeof loginid !== 'string' || !/^[A-Z]{2,5}[0-9]+$/.test(loginid)) {
+        return res.status(400).json({ error: 'token and a valid loginid are required' });
+    }
+    if (!ADMIN_ACCOUNTS.includes(master_loginid)) {
+        return res.status(400).json({ error: 'Unknown master' });
+    }
+    if (loginid === master_loginid) {
+        return res.status(400).json({ error: 'You cannot follow yourself' });
+    }
+    if (!(fixed_stake >= 0.35 && fixed_stake <= 5) || !(max_stake >= fixed_stake && max_stake <= 10) || !(daily_loss_limit > 0 && daily_loss_limit <= 50)) {
+        return res.status(400).json({ error: 'Stake or limit out of allowed range' });
+    }
+
+    try {
+        const r = await fetch(`https://api.derivws.com/trading/v1/options/accounts/${encodeURIComponent(loginid)}/otp`, {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${token}`, 'Deriv-App-ID': DERIV_OAUTH_CLIENT_ID },
+        });
+        if (!r.ok) return res.status(400).json({ error: 'Deriv did not accept this token for that account' });
+        const body = await r.json().catch(() => ({}));
+        const url = (body.data && body.data.url) || body.url || '';
+        if (!/\/ws\/demo\?/.test(url)) {
+            return res.status(400).json({ error: 'Copy trading is demo accounts only for now' });
+        }
+
+        const expires_at = new Date(Date.now() + 29 * 24 * 60 * 60 * 1000);
+        const saved = await pool.query(
+            `INSERT INTO copy_followers
+                (user_id, follower_loginid, master_loginid, token_encrypted, token_expires_at, fixed_stake, max_stake, daily_loss_limit, is_active, stopped_at)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, TRUE, NULL)
+             ON CONFLICT (follower_loginid, master_loginid) DO UPDATE SET
+                token_encrypted = EXCLUDED.token_encrypted,
+                token_expires_at = EXCLUDED.token_expires_at,
+                fixed_stake = EXCLUDED.fixed_stake,
+                max_stake = EXCLUDED.max_stake,
+                daily_loss_limit = EXCLUDED.daily_loss_limit,
+                is_active = TRUE,
+                stopped_at = NULL
+             WHERE copy_followers.user_id = EXCLUDED.user_id
+             RETURNING id`,
+            [req.user.id, loginid, master_loginid, encryptToken(token), expires_at, fixed_stake, max_stake, daily_loss_limit]
+        );
+        if (saved.rows.length === 0) return res.status(409).json({ error: 'This account is already linked to another user' });
+        res.status(201).json({ message: 'Following', follower_loginid: loginid, master_loginid, fixed_stake, max_stake, daily_loss_limit, token_expires_at: expires_at });
+    } catch (e) {
+        console.error('[copy/follow] error:', e.message);
+        res.status(500).json({ error: 'Could not start copying' });
+    }
+});
+
+app.post('/api/copy/stop', authMiddleware, async (req, res) => {
+    try {
+        await pool.query(
+            "UPDATE copy_followers SET is_active = FALSE, stopped_at = NOW(), token_encrypted = '' WHERE user_id = $1",
+            [req.user.id]
+        );
+        res.json({ message: 'Stopped. Your stored token was deleted.' });
+    } catch (e) {
+        console.error('[copy/stop] error:', e.message);
+        res.status(500).json({ error: 'Could not stop copying' });
+    }
+});
+
+app.get('/api/copy/status', authMiddleware, async (req, res) => {
+    try {
+        const r = await pool.query(
+            'SELECT follower_loginid, master_loginid, fixed_stake, max_stake, daily_loss_limit, is_active, token_expires_at, created_at, stopped_at FROM copy_followers WHERE user_id = $1 ORDER BY created_at DESC',
+            [req.user.id]
+        );
+        res.json({ follows: r.rows });
+    } catch (e) {
+        console.error('[copy/status] error:', e.message);
+        res.status(500).json({ error: 'Could not load status' });
+    }
+});
+
 app.get("/api/signals/stream", (req, res) => {
     res.setHeader("Content-Type", "text/event-stream");
     res.setHeader("Cache-Control", "no-cache");
