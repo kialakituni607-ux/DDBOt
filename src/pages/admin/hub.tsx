@@ -81,24 +81,6 @@ const AdminHub = () => {
             setError(e.message);
         }
     };
-    const setFlag = async (id: number, flag: 'master' | 'enabled', value: boolean) => {
-        if (!value && !window.confirm('Turning this off stops their copy trading and deletes any stored tokens. Continue?')) return;
-        setError('');
-        try {
-            const res = await fetch(API_BASE + '/api/admin/hub/copy-flag', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'x-admin-secret': secret },
-                body: JSON.stringify({ user_id: id, flag, value }),
-            });
-            const json = await res.json();
-            if (!res.ok) throw new Error(json.error || 'Failed');
-            const col = flag === 'master' ? 'is_copy_master' : 'copy_enabled';
-            setTableData((d: any) => (d ? { ...d, rows: d.rows.map((r: any) => (r.id === id ? { ...r, [col]: value } : r)) } : d));
-        } catch (e: any) {
-            setError(e.message);
-        }
-    };
-
     const loadCopier = async () => {
         try {
             setCopier((await call('/api/admin/hub/copy-switch', secret)).copier);
