@@ -115,7 +115,21 @@ export default Engine =>
         }
 
         getPipSize() {
-            return this.$scope.ticksService.pipSizes[this.symbol];
+            const ts = this.$scope.ticksService;
+            const candidates = [
+                ['live tick', ts.live_pip_sizes && ts.live_pip_sizes[this.symbol]],
+                ['symbol list', ts.pipSizes && ts.pipSizes[this.symbol]],
+                ['api_base', api_base.pip_sizes && api_base.pip_sizes[this.symbol]],
+            ];
+            const found = candidates.find(([, v]) => Number.isInteger(v) && v > 0);
+            const size = found ? found[1] : 2;
+            const source = found ? found[0] : 'default';
+            const key = source + ':' + size;
+            if (this._pip_logged !== key) {
+                this._pip_logged = key;
+                console.log('[digits] pip size', this.symbol, size, 'from', source);
+            }
+            return size;
         }
 
         async requestAccumulatorStats() {

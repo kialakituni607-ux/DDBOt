@@ -207,6 +207,10 @@ export default class TicksService {
                 if (data.msg_type === 'tick') {
                     const { tick } = data;
                     const { symbol, id } = tick;
+                    if (tick.pip_size !== undefined && tick.pip_size !== null && Number(tick.pip_size) > 0) {
+                        this.live_pip_sizes = this.live_pip_sizes || {};
+                        this.live_pip_sizes[symbol] = Number(tick.pip_size);
+                    }
                     if (this.ticks.has(symbol)) {
                         this.subscriptions = this.subscriptions.setIn(['tick', symbol], id);
                         this.updateTicksAndCallListeners(symbol, updateTicks(this.ticks.get(symbol), parseTick(tick)));
@@ -275,6 +279,10 @@ export default class TicksService {
                 .then(r => {
                     if (style === 'ticks') {
                         const ticks = historyToTicks(r.history);
+                        if (r.pip_size !== undefined && Number(r.pip_size) > 0) {
+                            this.live_pip_sizes = this.live_pip_sizes || {};
+                            if (!this.live_pip_sizes[symbol]) this.live_pip_sizes[symbol] = Number(r.pip_size);
+                        }
 
                         this.updateTicksAndCallListeners(symbol, ticks);
                         resolve(ticks);
