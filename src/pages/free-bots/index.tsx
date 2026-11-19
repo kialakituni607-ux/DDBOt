@@ -119,6 +119,14 @@ const BOTS: Bot[] = [
         category: 'Even/Odd',
         icon: '🎲',
     },
+    {
+        id: '13',
+        name: 'Goldmine M1',
+        description: 'Digits Over martingale bot on Volatility 10 (1s). It raises the stake after each loss, so a long losing streak can be costly. Take profit 50, stop loss 1000. Try it on demo first.',
+        fileName: 'ADVANCED_GOLDMINE_M1.xml',
+        category: 'Digit Over',
+        icon: '⛏️',
+    },
 ];
 
 const FreeBots = observer(() => {
