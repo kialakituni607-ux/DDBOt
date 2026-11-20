@@ -193,6 +193,10 @@ window.Blockly.Blocks.trade_definition_tradeoptions = {
     createPredictionInput(prediction_range) {
         runIrreversibleEvents(() => {
             if (prediction_range.length === 0) {
+                const stashed_block = this.getInput('PREDICTION')?.connection?.targetBlock();
+                if (stashed_block && !stashed_block.isShadow()) {
+                    this.stashed_prediction_block = stashed_block;
+                }
                 this.removeInput('PREDICTION_LABEL', true);
                 this.removeInput('PREDICTION', true);
             } else if (!this.getInput('PREDICTION')) {
@@ -207,6 +211,17 @@ window.Blockly.Blocks.trade_definition_tradeoptions = {
                 shadow_block.outputConnection.connect(prediction_input.connection);
                 shadow_block.initSvg();
                 shadow_block.renderEfficiently();
+
+                const stashed_block = this.stashed_prediction_block;
+                this.stashed_prediction_block = null;
+                if (
+                    stashed_block &&
+                    stashed_block.workspace === this.workspace &&
+                    !stashed_block.getParent() &&
+                    stashed_block.outputConnection
+                ) {
+                    prediction_input.connection.connect(stashed_block.outputConnection);
+                }
             }
         });
     },
